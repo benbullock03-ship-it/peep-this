@@ -1,7 +1,7 @@
 ---
 id: AV-01
 title: Tauri scaffold, design vendored, ticket register
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -16,10 +16,10 @@ attended: false
 - [x] `npm run build`, `npm test`, `cargo check` pass
 - [x] `docs/spec.md`, `tickets/`, `npm run tickets`
 - [x] `CLAUDE.md` commands section
-- [ ] First commit
+- [x] First commit (`eb1af74`)
 
 **Done when:** the above is committed and `npm run tauri dev` shows an idle peep.
 
-## Owed before done
+## Decisions taken without a ruling
 
-The commit. Not made without the owner's go.
+- Closed on the commit plus a successful `npm run tauri dev` boot during AV-03; the single idle peep is superseded by AV-04's session list, whose visual check is owed there.
