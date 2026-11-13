@@ -405,7 +405,7 @@ mod tests {
             (
                 "Notification",
                 "notification_permission.json",
-                Event::Notification { message: "Claude needs your permission to use Bash".into(), idle: false },
+                Event::Notification { message: "Claude needs your permission".into(), idle: false },
             ),
             (
                 "Notification",

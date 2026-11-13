@@ -1,7 +1,7 @@
 ---
 id: AV-06
 title: Native HTTP hooks and hook payload mapping
-status: in-progress
+status: done
 depends: [AV-05]
 attended: false
 ---
@@ -13,7 +13,7 @@ attended: false
 - [x] **Verify** first: does Claude Code support `"type": "http"` hooks? Record the answer here. If yes, skip the binary
 - [x] **Verify** and record: event that follows an approved permission prompt; field distinguishing permission vs idle-reminder `Notification`; subagent tool name; whether `StopFailure` exists
 - [x] Forwarder (if needed): not needed
-- [ ] Captured real payloads for every event saved as anonymised fixtures; mapping tested against them (all except `Notification`, see Owed)
+- [x] Captured real payloads for every event saved as anonymised fixtures; mapping tested against them (the `idle_prompt` Notification excepted, see Done)
 
 **Done when:** with hooks added by hand to a test settings file, a live session cycles thinking → working → waiting → success in the widget's logs.
 
@@ -46,6 +46,11 @@ Sources: the hooks docs, plus real payloads from `claude -p --settings <file>` w
 
 `npm run tauri dev`, then `claude -p "... echo hi, then write perm2.txt ..." --settings <test settings from settings_hooks shape> --allowedTools Bash --permission-mode default`. Widget log for that session: `Thinking` → `Working` → `Waiting` (PermissionRequest) → `Success` (Stop) → ended (SessionEnd). Done-when is met.
 
-## Owed before done
+## Done 2026-11-13
 
-- A real `Notification` payload: it fires only in interactive sessions. `notification_permission.json` and `notification_idle.json` are still synthetic, though they follow the documented field names. Owner: start an interactive `claude --settings <hooks file>`, trigger a permission prompt, then let it sit idle. Confirm the row goes `Waiting`, then `Success` after the idle reminder, with no toast regression. Capture the body if you can (scratch capture server: `node server.js <outdir> 47999`).
+Owner check in an interactive `claude --settings <hooks file>` against `npm run tauri dev`. The widget log showed Idle → Thinking → Working → Waiting (PermissionRequest) → Thinking (PostToolUse after approval) → Success (Stop). The owner saw the row stay on Success afterwards. The restarted widget reused the saved token.
+
+- Real `permission_prompt` Notification captured into `notification_permission.json`. Its message is the generic "Claude needs your permission", with no tool name, and it arrives a few seconds after `PermissionRequest`. `state.rs` now keeps the existing waiting text when a non-idle Notification lands on a session already `Waiting` (test `trailing_permission_notification_keeps_permission_request_text`). The row therefore keeps "Needs permission: Write perm3.txt".
+- An internal `SubagentStop` fires after `Stop` (it clamps at 0 and stays Success).
+- Not seen live: the `idle_prompt` Notification. It did not fire in about 90s idle. `notification_idle.json` stays synthetic on the documented `notification_type` field, which is the same shape as the captured permission one. AV-14 should watch for it when testing toasts.
+- Proof: `ingest/hooks.rs` (`settings_hooks`), `ingest/server.rs` tests `maps_every_hook_fixture_to_its_event`, `stop_failure_prefers_error_details` and `token_survives_restart`, and the full run.

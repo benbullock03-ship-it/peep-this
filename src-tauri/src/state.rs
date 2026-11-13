@@ -281,6 +281,8 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::Notification { message, idle } => {
             if idle {
                 unstick(&mut s);
+            } else if s.state == State::Waiting && !s.task.trim().is_empty() {
+                // The permission_prompt Notification ("Claude needs your permission") trails PermissionRequest; keep its tool text.
             } else {
                 let task = if message.trim().is_empty() {
                     "Waiting for input".to_string()
@@ -419,6 +421,18 @@ mod tests {
         ]);
         assert_eq!(s.state, State::Waiting);
         assert_eq!(s.task, "Claude needs your permission to use Bash");
+    }
+
+    #[test]
+    fn trailing_permission_notification_keeps_permission_request_text() {
+        let s = run(vec![
+            (pre("Write", Some("perm.txt")), T0 + 1),
+            (notif("Needs permission: Write perm.txt", false), T0 + 2),
+            (notif("Claude needs your permission", false), T0 + 8),
+        ]);
+        assert_eq!(s.state, State::Waiting);
+        assert_eq!(s.task, "Needs permission: Write perm.txt");
+        assert_eq!(s.state_since, T0 + 2);
     }
 
     #[test]

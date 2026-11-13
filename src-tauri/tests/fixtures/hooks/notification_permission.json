@@ -2,7 +2,9 @@
   "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
   "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
   "cwd": "C:\\work\\demo",
+  "scratchpad_dir": "C:\\Users\\user\\AppData\\Local\\Temp\\claude\\0000000000000000\\aaaaaaaa-1111-4222-8333-444444444444\\scratchpad",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
   "hook_event_name": "Notification",
-  "message": "Claude needs your permission to use Bash",
+  "message": "Claude needs your permission",
   "notification_type": "permission_prompt"
 }
