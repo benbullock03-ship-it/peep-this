@@ -1,6 +1,7 @@
 mod focus;
 mod ingest;
 mod install;
+mod notify;
 mod source;
 pub mod statusline_original;
 mod tray;
@@ -34,6 +35,32 @@ fn log_snapshot(snap: &Snapshot) {
     );
 }
 
+fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
+    let bundle_id = app.config().identifier.clone();
+    let focus_store = Arc::downgrade(store);
+    let notifier = notify::Notifier::new(
+        Box::new(|| notify::WidgetView {
+            focused: window::is_focused(),
+            hidden: window::is_hidden(),
+            overflowing: window::is_overflowing(),
+        }),
+        Box::new(move |s| {
+            let (id, store) = (s.id.clone(), focus_store.clone());
+            notify::toast(&bundle_id, s.name.clone(), s.task.clone(), move || {
+                let Some(store) = store.upgrade() else { return };
+                match focus::focus_by_id(&store, &id) {
+                    Ok(true) => {}
+                    Ok(false) => eprintln!("peepthis: toast click found no window for {id}"),
+                    Err(e) => eprintln!("peepthis: toast click focus failed: {e}"),
+                }
+            });
+        }),
+    );
+    store.set_alert(Box::new(move |s| {
+        notifier.alert(s, store::now_ms());
+    }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -58,6 +85,7 @@ pub fn run() {
                 }
             }));
             app.manage(Arc::clone(&store));
+            wire_alerts(app, &store);
             ticker::spawn(Arc::clone(&store));
             let endpoint = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir())
                 .inspect_err(|e| eprintln!("peepthis: event server failed: {e}"))

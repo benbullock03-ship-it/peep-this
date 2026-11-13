@@ -159,6 +159,17 @@ static SAVE_TX: OnceLock<Sender<()>> = OnceLock::new();
 /// Hidden from the tray; content-height fits must not re-show the window.
 static USER_HIDDEN: AtomicBool = AtomicBool::new(false);
 static LAST_CONTENT: Mutex<Option<f64>> = Mutex::new(None);
+static FOCUSED: AtomicBool = AtomicBool::new(false);
+/// Content is taller than the capped window, so the list scrolls.
+static OVERFLOWING: AtomicBool = AtomicBool::new(false);
+
+pub fn is_focused() -> bool {
+    FOCUSED.load(Ordering::SeqCst)
+}
+
+pub fn is_overflowing() -> bool {
+    OVERFLOWING.load(Ordering::SeqCst)
+}
 
 fn spawn_saver<R: Runtime>(app: AppHandle<R>) {
     let (tx, rx) = mpsc::channel::<()>();
@@ -189,6 +200,7 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, content: f64) -> tauri::Result<()
     };
     let pos = w.outer_position()?;
     let (h, y) = fit(content, pos.y, &info(&mon));
+    OVERFLOWING.store(content.ceil() > h, Ordering::SeqCst);
     w.set_size(LogicalSize::new(WIDTH, h))?;
     if y != pos.y {
         w.set_position(PhysicalPosition::new(pos.x, y))?;
@@ -245,6 +257,7 @@ pub fn on_event<R: Runtime>(w: &tauri::Window<R>, event: &WindowEvent) {
         return;
     }
     match event {
+        WindowEvent::Focused(f) => FOCUSED.store(*f, Ordering::SeqCst),
         WindowEvent::Moved(_) => {
             if let Some(tx) = SAVE_TX.get() {
                 let _ = tx.send(());

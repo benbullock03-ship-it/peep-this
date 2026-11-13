@@ -104,6 +104,10 @@ pub fn focus_pid_hint(pid: u32, hint: Option<&str>) -> Result<(), FocusError> {
 /// Ok(false) means no window was found, so the frontend flashes the row.
 #[tauri::command]
 pub fn focus_session(session_id: String, store: tauri::State<'_, Arc<Store>>) -> Result<bool, String> {
+    focus_by_id(&store, &session_id)
+}
+
+pub fn focus_by_id(store: &Store, session_id: &str) -> Result<bool, String> {
     if !cfg!(windows) {
         return Ok(false);
     }

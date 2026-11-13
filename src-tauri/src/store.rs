@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
+use crate::notify;
 use crate::source::{SessionInfo, SourceEvent};
 use crate::state::{self, Event, Session};
 use crate::ticker;
@@ -40,6 +41,8 @@ struct Inner {
     rate_limits: Option<RateLimits>,
     integration: Integration,
     dirty: bool,
+    /// Sessions that entered `waiting` during the current mutation; drained outside the lock.
+    entered: Vec<Session>,
 }
 
 impl Inner {
@@ -51,11 +54,13 @@ impl Inner {
 }
 
 pub type Emit = Box<dyn Fn(&Snapshot) + Send + Sync>;
+pub type Alert = Box<dyn Fn(&Session) + Send + Sync>;
 
 /// All session truth. Every mutation runs through `state::apply`; changes are pushed to `emit` at most once per `EMIT_INTERVAL`.
 pub struct Store {
     inner: Mutex<Inner>,
     changed: Condvar,
+    alert: Mutex<Option<Alert>>,
 }
 
 impl Store {
@@ -66,8 +71,10 @@ impl Store {
                 rate_limits: None,
                 integration: Integration::Missing,
                 dirty: false,
+                entered: Vec::new(),
             }),
             changed: Condvar::new(),
+            alert: Mutex::new(None),
         });
         let worker = Arc::clone(&store);
         std::thread::Builder::new()
@@ -92,11 +99,25 @@ impl Store {
         }
     }
 
+    /// Called for each session that enters `waiting`, outside the session lock.
+    pub fn set_alert(&self, alert: Alert) {
+        *self.alert.lock().unwrap() = Some(alert);
+    }
+
     fn mutate(&self, f: impl FnOnce(&mut Inner) -> bool) {
-        let mut inner = self.inner.lock().unwrap();
-        if f(&mut inner) {
-            inner.dirty = true;
-            self.changed.notify_one();
+        let entered = {
+            let mut inner = self.inner.lock().unwrap();
+            if f(&mut inner) {
+                inner.dirty = true;
+                self.changed.notify_one();
+            }
+            std::mem::take(&mut inner.entered)
+        };
+        if entered.is_empty() {
+            return;
+        }
+        if let Some(alert) = self.alert.lock().unwrap().as_ref() {
+            entered.iter().for_each(|s| alert(s));
         }
     }
 
@@ -118,7 +139,9 @@ impl Store {
             let Some(s) = inner.sessions.get_mut(id) else { return false };
             let next = state::apply(s.clone(), ev, now);
             let changed = next != *s;
+            let alert = notify::entered_waiting(Some(&*s), &next).then(|| next.clone());
             *s = next;
+            inner.entered.extend(alert);
             changed
         });
     }
@@ -138,6 +161,9 @@ impl Store {
             };
             let next = state::apply(base, ev, now);
             let changed = before.as_ref() != Some(&next);
+            if notify::entered_waiting(before.as_ref(), &next) {
+                inner.entered.push(next.clone());
+            }
             inner.sessions.insert(id.to_string(), next);
             changed
         });
@@ -182,6 +208,9 @@ impl Store {
                 s = state::apply(s, Event::SessionFile { busy }, now);
             }
             let changed = before.as_ref() != Some(&s);
+            if notify::entered_waiting(before.as_ref(), &s) {
+                inner.entered.push(s.clone());
+            }
             inner.sessions.insert(info.id, s);
             changed
         });
@@ -374,6 +403,25 @@ mod tests {
         settle();
         assert_eq!(log.lock().unwrap().len(), 1);
         assert_eq!(store.snapshot().integration, Integration::Installed);
+    }
+
+    #[test]
+    fn alert_fires_once_on_entering_waiting() {
+        let (store, _) = recording_store();
+        let alerts = Arc::new(Mutex::new(Vec::<(String, String)>::new()));
+        let sink = Arc::clone(&alerts);
+        store.set_alert(Box::new(move |s: &Session| sink.lock().unwrap().push((s.name.clone(), s.task.clone()))));
+        let perm = || Event::Notification { message: "Claude needs your permission to use Bash".into(), idle: false };
+        store.ingest(upsert("a", Some(false)), 1_000);
+        store.apply("a", Event::UserPromptSubmit, 2_000);
+        store.apply("a", perm(), 3_000);
+        store.apply("a", perm(), 4_000);
+        store.apply("a", Event::PostToolUse, 5_000);
+        store.apply_or_placeholder("a", None, perm(), 6_000);
+        assert_eq!(
+            *alerts.lock().unwrap(),
+            vec![("a".to_string(), "Claude needs your permission to use Bash".to_string()); 2]
+        );
     }
 
     #[test]
