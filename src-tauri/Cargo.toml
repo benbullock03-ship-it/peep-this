@@ -3,6 +3,7 @@ name = "peep-this"
 version = "0.1.0"
 description = "Desktop widget showing live Claude Code sessions"
 edition = "2024"
+default-run = "peep-this"
 
 [lib]
 # `_lib` suffix avoids a bin/lib name clash on Windows: https://github.com/rust-lang/cargo/issues/8519

@@ -63,6 +63,45 @@ body {
   color: var(--text-3);
 }
 
+/* Children ignore the mouse so the header stays draggable and the age title shows anywhere on it. */
+.limits > * {
+  pointer-events: none;
+}
+
+.limit {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.limit-text {
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.limit-value {
+  color: var(--text-2);
+}
+
+.limit-bar {
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.limit-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--text-3);
+  transition: width 0.4s ease;
+}
+
+.limit-sep {
+  margin-top: -5px;
+}
+
 #scroller {
   flex: 1;
   min-height: 0;

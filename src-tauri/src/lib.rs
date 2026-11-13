@@ -1,6 +1,7 @@
 mod focus;
 mod ingest;
 mod source;
+pub mod statusline_original;
 mod window;
 #[allow(dead_code)]
 mod state;

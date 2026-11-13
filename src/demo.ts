@@ -36,6 +36,7 @@ function taskFor(i: number, state: State): string {
 export function demoSnapshot(now: number): Snapshot {
   return {
     integration: "missing",
+    rateLimits: { fiveHourPct: 42, sevenDayPct: 18, at: now },
     sessions: AGENTS.map((a, i) => ({
       id: demoId(i),
       pid: 1000 + i,
@@ -61,5 +62,6 @@ export function demoStep(snap: Snapshot, now: number, rand: () => number = Math.
   do next = FLOW[Math.floor(rand() * FLOW.length)];
   while (next === sessions[i].state);
   sessions[i] = { ...sessions[i], state: next, stateSince: now, task: taskFor(i, next) };
-  return { ...snap, sessions };
+  const rateLimits = snap.rateLimits && { ...snap.rateLimits, at: now };
+  return { ...snap, sessions, rateLimits };
 }

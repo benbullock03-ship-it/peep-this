@@ -1,5 +1,6 @@
 import "./vendor/peep.js";
 import { demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { createLimits } from "./limits";
 import type { Snapshot } from "./model";
 import { createList } from "./rows";
 import { watchContentHeight } from "./windowFit";
@@ -7,6 +8,7 @@ import { watchContentHeight } from "./windowFit";
 const DEMO_STEP_MS = 3200;
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
+const limitsEl = document.querySelector<HTMLElement>("#limits")!;
 
 function showNotice(text: string) {
   const n = document.createElement("div");
@@ -17,11 +19,14 @@ function showNotice(text: string) {
 
 function runDemo() {
   const render = createList(root, demoIdentity);
+  const renderLimits = createLimits(limitsEl);
   let snap = demoSnapshot(Date.now());
   render(snap.sessions);
+  renderLimits(snap.rateLimits);
   setInterval(() => {
     snap = demoStep(snap, Date.now());
     render(snap.sessions);
+    renderLimits(snap.rateLimits);
   }, DEMO_STEP_MS);
 }
 
@@ -32,19 +37,26 @@ async function runLive() {
     return;
   }
   const [{ invoke }, { listen }] = await Promise.all([import("@tauri-apps/api/core"), import("@tauri-apps/api/event")]);
-  const render = createList(root, undefined, (id) => invoke<boolean>("focus_session", { sessionId: id }));
+  const renderList = createList(root, undefined, (id) => invoke<boolean>("focus_session", { sessionId: id }));
+  const renderLimits = createLimits(limitsEl, () =>
+    invoke<Snapshot>("get_snapshot").then((s) => s.rateLimits?.at),
+  );
+  const render = (snap: Snapshot) => {
+    renderList(snap.sessions);
+    renderLimits(snap.rateLimits);
+  };
   // Subscribe before fetching so no change is lost; a pushed snapshot beats the initial fetch.
   let pushed = false;
   await listen<Snapshot>("sessions", (e) => {
     pushed = true;
-    render(e.payload.sessions);
+    render(e.payload);
   });
   try {
     const snap = await invoke<Snapshot>("get_snapshot");
-    if (!pushed) render(snap.sessions);
+    if (!pushed) render(snap);
   } catch (err) {
     console.error("peepthis: get_snapshot failed", err);
-    if (!pushed) render([]);
+    if (!pushed) renderList([]);
   }
 }
 
