@@ -1,0 +1,16 @@
+{
+  "hook_event_name": "Status",
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "model": { "id": "claude-opus-4-1", "display_name": "Opus" },
+  "workspace": { "current_dir": "C:\\work\\demo", "project_dir": "C:\\work\\demo" },
+  "version": "2.0.0",
+  "output_style": { "name": "default" },
+  "cost": { "total_cost_usd": 0.01, "total_duration_ms": 45000 },
+  "context_window": { "remaining_percentage": 62.5 },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 42.0, "resets_at": "2026-11-13T18:00:00Z" },
+    "seven_day": { "used_percentage": 18.0, "resets_at": "2026-11-18T00:00:00Z" }
+  }
+}

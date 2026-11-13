@@ -122,6 +122,36 @@ impl Store {
         });
     }
 
+    /// Like `apply`, but an unknown id gets a placeholder (pid 0, named after `cwd`) that a later session-file upsert fills in.
+    pub fn apply_or_placeholder(&self, id: &str, cwd: Option<&str>, ev: Event, now: u64) {
+        self.mutate(|inner| {
+            let before = inner.sessions.get(id).cloned();
+            let base = match before.clone() {
+                // A resumed session reports SessionStart before its session file reappears.
+                Some(s) if !s.alive && matches!(ev, Event::SessionStart) => {
+                    Session::new(id, s.pid, s.name, s.cwd, s.kind, s.entrypoint, now)
+                }
+                Some(s) => s,
+                None if matches!(ev, Event::Ended) => return false,
+                None => placeholder(id, cwd.unwrap_or(""), now),
+            };
+            let next = state::apply(base, ev, now);
+            let changed = before.as_ref() != Some(&next);
+            inner.sessions.insert(id.to_string(), next);
+            changed
+        });
+    }
+
+    pub fn set_rate_limits(&self, five_hour_pct: f64, seven_day_pct: f64, now: u64) {
+        self.mutate(|inner| {
+            let changed = inner
+                .rate_limits
+                .is_none_or(|r| r.five_hour_pct != five_hour_pct || r.seven_day_pct != seven_day_pct);
+            inner.rate_limits = Some(RateLimits { five_hour_pct, seven_day_pct, at: now });
+            changed
+        });
+    }
+
     fn upsert(&self, info: SessionInfo, busy: Option<bool>, now: u64) {
         self.mutate(|inner| {
             let before = inner.sessions.get(&info.id).cloned();
@@ -143,6 +173,12 @@ impl Store {
             changed
         });
     }
+}
+
+fn placeholder(id: &str, cwd: &str, now: u64) -> Session {
+    let base = cwd.trim_end_matches(['/', '\\']).rsplit(['/', '\\']).next().unwrap_or("");
+    let name = if base.is_empty() { id.chars().take(8).collect() } else { base.to_string() };
+    Session::new(id, 0, name, cwd, "", "", now)
 }
 
 pub fn now_ms() -> u64 {
@@ -232,6 +268,66 @@ mod tests {
         store.apply("ghost", Event::UserPromptSubmit, 1_000);
         store.ingest(SourceEvent::Ended { id: "ghost".into() }, 1_000);
         assert!(store.snapshot().sessions.is_empty());
+    }
+
+    #[test]
+    fn hook_for_unknown_session_creates_placeholder_that_upsert_fills() {
+        let (store, _) = recording_store();
+        store.apply_or_placeholder("p", Some("C:\\work\\demo\\"), Event::UserPromptSubmit, 1_000);
+        let s = store.snapshot().sessions[0].clone();
+        assert_eq!((s.pid, s.name.as_str(), s.cwd.as_str()), (0, "demo", "C:\\work\\demo\\"));
+        assert_eq!(s.state, State::Thinking);
+        assert!(s.alive);
+
+        store.ingest(SourceEvent::Upsert { info: info("p", "real-name"), busy: Some(true) }, 2_000);
+        let s = store.snapshot().sessions[0].clone();
+        assert_eq!((s.pid, s.name.as_str(), s.kind.as_str()), (100, "real-name", "interactive"));
+        assert_eq!(s.state, State::Thinking, "fresh hook state must survive the session file");
+        assert_eq!(s.state_since, 1_000);
+    }
+
+    #[test]
+    fn placeholder_without_cwd_is_named_by_id_prefix() {
+        let (store, _) = recording_store();
+        store.apply_or_placeholder("abcdef0123456789", None, Event::Stop, 1_000);
+        assert_eq!(store.snapshot().sessions[0].name, "abcdef01");
+    }
+
+    #[test]
+    fn ended_for_unknown_session_creates_nothing() {
+        let (store, _) = recording_store();
+        store.apply_or_placeholder("ghost", Some("C:/x"), Event::Ended, 1_000);
+        assert!(store.snapshot().sessions.is_empty());
+    }
+
+    #[test]
+    fn session_start_revives_ended_session_keeping_identity() {
+        let (store, _) = recording_store();
+        store.ingest(upsert("a", None), 1_000);
+        store.apply_or_placeholder("a", None, Event::Ended, 2_000);
+        store.apply_or_placeholder("a", None, Event::UserPromptSubmit, 3_000);
+        assert!(!store.snapshot().sessions[0].alive);
+        store.apply_or_placeholder("a", None, Event::SessionStart, 4_000);
+        let s = store.snapshot().sessions[0].clone();
+        assert!(s.alive);
+        assert_eq!((s.pid, s.name.as_str()), (100, "a"));
+    }
+
+    #[test]
+    fn rate_limits_set_and_emit_only_on_change() {
+        let (store, log) = recording_store();
+        store.set_rate_limits(42.0, 18.0, 1_000);
+        settle();
+        store.set_rate_limits(42.0, 18.0, 2_000);
+        settle();
+        assert_eq!(log.lock().unwrap().len(), 1);
+        assert_eq!(
+            store.snapshot().rate_limits,
+            Some(RateLimits { five_hour_pct: 42.0, seven_day_pct: 18.0, at: 2_000 })
+        );
+        store.set_rate_limits(43.0, 18.0, 3_000);
+        settle();
+        assert_eq!(log.lock().unwrap().len(), 2);
     }
 
     #[test]

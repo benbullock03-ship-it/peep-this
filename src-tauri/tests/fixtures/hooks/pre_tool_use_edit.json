@@ -1,0 +1,14 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "C:\\work\\demo\\src\\main.ts",
+    "old_string": "SECRET-OLD",
+    "new_string": "SECRET-NEW"
+  },
+  "tool_use_id": "toolu_01AAAAAAAAAAAAAAAAAAAAAA"
+}

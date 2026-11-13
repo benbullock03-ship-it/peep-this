@@ -1,3 +1,4 @@
+mod ingest;
 mod source;
 #[allow(dead_code)]
 mod state;
@@ -39,6 +40,9 @@ pub fn run() {
                 }
             }));
             app.manage(Arc::clone(&store));
+            if let Err(e) = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir()) {
+                eprintln!("agentview: event server failed: {e}");
+            }
 
             let sources: Vec<Box<dyn AgentSource>> = vec![Box::new(ClaudeSource::new())];
             source::spawn_all(sources, || {
