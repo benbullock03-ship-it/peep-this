@@ -29,10 +29,10 @@ describe("identityFor", () => {
   });
 
   it("pins known outputs so the mapping never drifts", () => {
-    expect(identityFor("C:\\Users\\Dev\\Projects\\AgentView")).toEqual({ color: "yellow", accessory: "hardhat" });
+    expect(identityFor("C:\\Users\\Dev\\Projects\\AgentView")).toEqual({ color: "yellow", accessory: "beanie" });
     expect(identityFor("F:\\Projects\\agentview widget")).toEqual({ color: "blue", accessory: "none" });
-    expect(identityFor("/home/dev/app")).toEqual({ color: "yellow", accessory: "glasses" });
-    expect(identityFor("")).toEqual({ color: "pink", accessory: "party" });
+    expect(identityFor("/home/dev/app")).toEqual({ color: "yellow", accessory: "shades" });
+    expect(identityFor("")).toEqual({ color: "pink", accessory: "halo" });
   });
 
   it("only returns names peep.js supports and reaches all of them", () => {

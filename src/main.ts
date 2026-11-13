@@ -1,4 +1,5 @@
 import "./vendor/peep.js";
+import { renderAccessoryCheck } from "./accessories";
 import { createBanner } from "./banner";
 import { demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { createLimits } from "./limits";
@@ -82,7 +83,9 @@ async function startWindowFit() {
 
 startWindowFit().catch((err) => console.error("peepthis: window fit failed", err));
 
-if (new URLSearchParams(location.search).has("demo")) runDemo();
+const params = new URLSearchParams(location.search);
+if (params.has("accessories")) renderAccessoryCheck(root);
+else if (params.has("demo")) runDemo();
 else runLive().catch((err) => {
   console.error("peepthis: startup failed", err);
   showNotice("Could not connect to the Peep This backend.");

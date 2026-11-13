@@ -4,6 +4,7 @@
    state: idle | thinking | working | waiting | success | error | stuck
    color: yellow | pink | lavender | blue | green | any CSS colour
    accessory: none | hardhat | headphones | glasses | bow | party | chef
+              crybaby | beanie | crown | shades | flowers | halo | wizard
    energy: 1–10 (default 3, sets 8–12fps) · hover="off" disables parallax/reaction
    JS: el.state = 'waiting'  (also .color, .accessory, .energy)
    Drawn on a 32×32 grid: sizes 32, 64, 96… are pixel-perfect. */
@@ -30,7 +31,9 @@
     eye: H('#4A2C1A'), white: H('#FFFFFF'), grey: H('#8E889A'), shadow: u([0, 0, 0], 90),
     hat: H('#F2A83A'), hatS: H('#C97F1E'), hatL: H('#FFD27A'), dark: H('#3B3446'), pad: H('#FF8FB1'), frame: H('#2A2430'),
     bow: H('#E9557A'), bowS: H('#B93A5E'), stripe: H('#7CC8FF'), pom: H('#FFE066'), chef: H('#F8F5EF'), chefS: H('#CFC8BC'),
-    drop: H('#7FE6FF'), amber: H('#FFB23E'), red: H('#FF5D5D'), lav: H('#C7B2FF'), zz: H('#B8C2D6'), mint: H('#7DFFA6'), gold: H('#FFE066')
+    drop: H('#7FE6FF'), amber: H('#FFB23E'), red: H('#FF5D5D'), lav: H('#C7B2FF'), zz: H('#B8C2D6'), mint: H('#7DFFA6'), gold: H('#FFE066'),
+    hair: H('#FF6FAE'), hairL: H('#FFB3D4'), hairS: H('#C93E80'), ink: H('#3A2A55'), silver: H('#C9CED8'), silverL: H('#F4F6FA'),
+    knit: H('#2E2A36'), knitS: H('#1E1B24'), knitL: H('#4A4458'), goldS: H('#D9A520'), leaf: H('#5DBE6A'), wiz: H('#5B4BC4'), wizS: H('#3F3296')
   };
   const GLYPH = {
     '?': ['111', '001', '011', '000', '010'], '!': ['11', '11', '11', '00', '11'],
@@ -262,6 +265,41 @@
       } else if (acc === 'chef') {
         R(12, 2, 19, 2, C.chef); R(10, 3, 21, 5, C.chef); R(11, 6, 20, 6, C.chef); R(12, 7, 19, 9, C.chef); R(12, 9, 19, 9, C.chefS); R(13, 6, 13, 6, C.chefS); R(18, 6, 18, 6, C.chefS); R(15, 5, 16, 5, C.chefS);
         ax = 8; ay = 12;
+      } else if (acc === 'crybaby') {
+        // emo-rap look: pink swept fringe, tiny face tats, silver chain
+        R(12, 8, 19, 8, C.hair); R(10, 9, 21, 9, C.hair); R(10, 10, 17, 10, C.hair); R(10, 11, 14, 11, C.hair); R(10, 12, 12, 12, C.hair); R(10, 13, 10, 13, C.hair);
+        R(13, 8, 15, 8, C.hairL); R(11, 9, 13, 9, C.hairL); R(18, 10, 21, 10, C.hairS); R(15, 11, 16, 11, C.hairS); R(13, 12, 13, 12, C.hairS);
+        set(13 + fx, 17 + fy, C.ink); set(13 + fx, 18 + fy, C.ink); // tear tat
+        set(20 + fx, 12 + fy, C.ink); set(19 + fx, 13 + fy, C.ink); set(21 + fx, 13 + fy, C.ink); // star tat
+        for (let x = 11; x <= 20; x++) set(x + bx, (x === 11 || x === 20 ? 20 : 21) + by + P.sq, x % 2 ? C.silver : C.silverL);
+        set(15 + bx, 22 + by + P.sq, C.silver); set(16 + bx, 22 + by + P.sq, C.silverL); set(15 + bx, 23 + by + P.sq, C.silverL); set(16 + bx, 23 + by + P.sq, C.silver);
+        ax = 17; ay = 8;
+      } else if (acc === 'beanie') {
+        R(13, 4, 18, 4, C.knit); R(11, 5, 20, 5, C.knit); R(10, 6, 21, 8, C.knit); R(9, 9, 22, 10, C.knitS);
+        for (let x = 10; x <= 21; x += 2) R(x, 9, x, 10, C.knitL);
+        R(12, 5, 13, 6, C.knitL); ay = 4;
+      } else if (acc === 'crown') {
+        R(10, 8, 21, 9, C.gold); R(10, 9, 21, 9, C.goldS);
+        for (const x of [10, 13, 18, 21]) R(x, 6, x, 7, C.gold);
+        R(13, 5, 13, 5, C.gold); R(18, 5, 18, 5, C.gold);
+        set(12 + hx, 8 + hy, C.red); set(19 + hx, 8 + hy, C.stripe); set(15 + hx, 8 + hy, C.mint); set(16 + hx, 8 + hy, C.mint);
+        ay = 8;
+      } else if (acc === 'shades') {
+        rect(10, 13, 14, 15, C.frame, fx, fy); rect(17, 13, 21, 15, C.frame, fx, fy); rect(15, 13, 16, 13, C.frame, fx, fy);
+        rect(9, 13, 9, 13, C.frame, fx, fy); rect(22, 13, 22, 13, C.frame, fx, fy);
+        set(11 + fx, 13 + fy, C.white); set(18 + fx, 13 + fy, C.white); set(12 + fx, 14 + fy, C.dark); set(19 + fx, 14 + fy, C.dark);
+      } else if (acc === 'flowers') {
+        R(11, 9, 20, 9, C.leaf);
+        [[11, C.bow], [14, C.white], [17, C.pom], [20, C.lav]].forEach(([x, col]) => { R(x - 1, 8, x + 1, 8, col); R(x, 7, x, 9, col); set(x + hx, 8 + hy, C.gold); });
+        ax = 15; ay = 7;
+      } else if (acc === 'halo') {
+        R(12, 2, 19, 2, C.gold); R(11, 3, 11, 3, C.gold); R(20, 3, 20, 3, C.gold); R(12, 4, 19, 4, C.goldS); R(13, 3, 18, 3, 0);
+        ax = 10; ay = 11;
+      } else if (acc === 'wizard') {
+        [[15, 16], [14, 17], [14, 17], [13, 18], [13, 18], [12, 19]].forEach((r, j) => { for (let x = r[0]; x <= r[1]; x++) set(x + hx, 2 + j + hy, C.wiz); });
+        R(16, 1, 17, 1, C.wiz); R(18, 0, 18, 0, C.wiz); R(10, 8, 21, 8, C.wizS); R(9, 9, 22, 9, C.wizS);
+        set(14 + hx, 5 + hy, C.gold); set(17 + hx, 3 + hy, C.gold); set(16 + hx, 6 + hy, C.white);
+        ax = 10; ay = 11;
       }
 
       // antenna

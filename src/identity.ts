@@ -1,5 +1,8 @@
 export const COLORS = ["yellow", "pink", "lavender", "blue", "green"] as const;
-export const ACCESSORIES = ["none", "hardhat", "headphones", "glasses", "bow", "party", "chef"] as const;
+export const ACCESSORIES = [
+  "none", "hardhat", "headphones", "glasses", "bow", "party", "chef",
+  "crybaby", "beanie", "crown", "shades", "flowers", "halo", "wizard",
+] as const;
 
 export type Color = (typeof COLORS)[number];
 export type Accessory = (typeof ACCESSORIES)[number];

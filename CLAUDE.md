@@ -54,7 +54,7 @@ Peep This: an always-on-top Windows desktop widget that lists the Claude Code se
   | `idle` | session open, nothing in flight |
 
   Running subagents show as a small count badge on the row, not as a state.
-- **Identity:** the project cwd hashes to one of the 5 palette colours (yellow, pink, lavender, blue, green) and one of the 7 accessories, so a project always looks the same.
+- **Identity:** the project cwd hashes to one of the 5 palette colours (yellow, pink, lavender, blue, green) and one of the 14 accessories, so a project always looks the same.
 - **Size:** 32px peep in compact rows, 64px when a row is expanded. Use multiples of 32 only; other sizes render unevenly sized pixels.
 - **Rows:** the compact row follows the mock: peep, session name (mono), task text, state LED and label, plus a thin context bar. Click to expand cwd, model, last tool and time in state.
 - **Alerts:** on entering `waiting`, show a Windows toast and pulse the row. Clicking either focuses that session's terminal window.

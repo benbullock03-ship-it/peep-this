@@ -52,7 +52,7 @@ Click toggles. Adds a 64px peep plus: cwd, model, last tool with its target (fil
 
 ### 3.5 Identity
 
-Stable FNV-1a hash of the normalised cwd (lower-cased, forward slashes, no trailing slash) picks one of 5 colours (yellow, pink, lavender, blue, green) and, from different bits, one of 7 accessories (none, hardhat, headphones, glasses, bow, party, chef). Two sessions in the same project look identical; the name tells them apart.
+Stable FNV-1a hash of the normalised cwd (lower-cased, forward slashes, no trailing slash) picks one of 5 colours (yellow, pink, lavender, blue, green) and, from different bits, one of 14 accessories (none, hardhat, headphones, glasses, bow, party, chef, crybaby, beanie, crown, shades, flowers, halo, wizard). Two sessions in the same project look identical; the name tells them apart.
 
 ### 3.6 Alerts
 
