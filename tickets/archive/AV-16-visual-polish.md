@@ -1,7 +1,7 @@
 ---
 id: AV-16
 title: Bundled fonts and visual polish pass
-status: in-progress
+status: done
 depends: [AV-04, AV-14, AV-15]
 attended: true
 ---
@@ -13,7 +13,7 @@ attended: true
 - [x] Fonts self-hosted under `src/assets/fonts`, OFL licences included
 - [x] Spacing, borders and colours from the design tokens in `src/styles.css`
 - [x] Row hover state; entrance animation for new rows; motion kept subtle
-- [ ] Screenshots at 100% and 150% scaling reviewed with the owner
+- [x] Screenshots at 100% and 150% scaling reviewed with the owner
 
 **Done when:** the owner signs off on the look.
 
@@ -26,6 +26,6 @@ attended: true
 - The expanded row's middle cut dropped from 38 to 36 chars, because Plex Mono is wider than the fallback it replaces.
 - Row sizes stay at widget scale (13/12px text, 12px radius) rather than the mock's 14px/16px. The mock is a 1160px page.
 
-## Owed before done
+## Done 2026-11-13
 
-Built 2026-11-13: `src/fonts.css` + `src/assets/fonts/`, tokens (`--track`, `--hover`, `--amber`, `--radius`, `--display`, `--ease-out`) and entrance in `src/styles.css`, `enter()` in `src/rows.ts`. A headless check of `?demo` loaded all five faces with zero non-localhost requests. Owed: the owner reviews screenshots at 100% and 150% (and in `npm run tauri dev`) and signs off.
+Owner signed off on the 100% and 150% screenshots of `?demo` ("looks good"). Built: `src/fonts.css` + `src/assets/fonts/`, tokens (`--track`, `--hover`, `--amber`, `--radius`, `--display`, `--ease-out`) and entrance in `src/styles.css`, `enter()` in `src/rows.ts`. A headless check of `?demo` loaded all five faces with zero non-localhost requests.
