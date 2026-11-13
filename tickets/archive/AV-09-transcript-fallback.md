@@ -1,7 +1,7 @@
 ---
 id: AV-09
 title: Transcript tail fallback and API error signal
-status: in-progress
+status: done
 depends: [AV-03]
 attended: false
 ---
@@ -10,11 +10,11 @@ attended: false
 
 **What to build:** `source/claude/transcript.rs` per spec §6.4: tail each session's JSONL from a stored offset to fill model, last tool and API errors, and refine state for sessions without hooks.
 
-- [ ] Locate the transcript from `cwd` + `sessionId` (**Verify** the slug rule against real paths and record it)
-- [ ] First scan capped to the last 256KB; then offset-only reads on change
-- [ ] Skip sessions with a hook event in the last 10s
-- [ ] **Verify** the API-error marker in transcript lines and emit an `error` event from it
-- [ ] Malformed lines skipped; fixtures from real transcripts, anonymised
+- [x] Locate the transcript from `cwd` + `sessionId` (**Verify** the slug rule against real paths and record it)
+- [x] First scan capped to the last 256KB; then offset-only reads on change
+- [x] Skip sessions with a hook event in the last 10s
+- [x] **Verify** the API-error marker in transcript lines and emit an `error` event from it
+- [x] Malformed lines skipped; fixtures from real transcripts, anonymised
 
 **Done when:** `cargo test transcript` passes and a session started before hooks shows working/idle and its model in the widget.
 
@@ -29,6 +29,10 @@ attended: false
 - Sidechain (`isSidechain: true`) lines and `subagents/*.jsonl` files are ignored. Tool target: `file_path`/`notebook_path` (relative to cwd when inside it), first line of `command`, else `pattern`, `description`, `url`, `query`, `skill`, `path`.
 - Rotation: a shorter file or a changed creation time resets the tail to a fresh capped first scan.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner confirmed a session started before the integration was installed showed its state and model. `source/claude/transcript.rs`; `cargo test transcript` passes (21).
+
+The check that was owed:
 
 - Owner check in `npm run tauri dev`: a session started before hooks shows working/idle and its model. `cargo test transcript` passes (21).

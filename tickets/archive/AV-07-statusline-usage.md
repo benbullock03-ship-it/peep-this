@@ -1,7 +1,7 @@
 ---
 id: AV-07
 title: Statusline wrapper, context bars and rate-limit header
-status: in-progress
+status: done
 depends: [AV-05, AV-04]
 attended: false
 ---
@@ -47,7 +47,11 @@ The owner's real statusline (`sh ~/.claude/statusline-command.sh`) produced byte
 - **Header meters:** `5h 42% · 7d 18%` in IBM Plex Mono 11px, label `--text-3`, value `--text-2`, with a 2px bar under each in the same neutral grey as the row context bar. No warning colour for high usage, because the spec doesn't define one.
 - **Age on hover:** the title reads "updated 12s ago" (s/m/h/d). `store.set_rate_limits` emits only when the percentages change, so the pushed `at` can be stale. On hover the frontend calls `get_snapshot` again for the latest `at`, which avoids touching `store.rs`.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner confirmed the statusline is unchanged with the integration installed (AV-08/AV-17 now configure the wrapper), and the installed widget showed a live row's context % and the header's 5h 3% / 7d 9% (screenshot).
+
+The check that was owed:
 
 Owner's live check with the wrapper configured by hand (AV-08 will automate this):
 
