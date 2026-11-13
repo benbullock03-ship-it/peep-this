@@ -1,0 +1,15 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "auto",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PostToolUseFailure",
+  "tool_name": "Bash",
+  "tool_input": { "command": "exit 3", "description": "SECRET-DESCRIPTION" },
+  "tool_use_id": "toolu_01CCCCCCCCCCCCCCCCCCCCCC",
+  "error": "Exit code 3",
+  "is_interrupt": false,
+  "duration_ms": 3228
+}

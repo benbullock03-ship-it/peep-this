@@ -2,7 +2,8 @@
   "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
   "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
   "cwd": "C:\\work\\demo",
-  "permission_mode": "default",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "auto",
   "hook_event_name": "UserPromptSubmit",
   "prompt": "SECRET-PROMPT-TEXT please refactor the parser"
 }

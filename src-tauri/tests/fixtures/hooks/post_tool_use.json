@@ -2,10 +2,16 @@
   "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
   "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
   "cwd": "C:\\work\\demo",
-  "permission_mode": "default",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "auto",
+  "effort": { "level": "medium" },
   "hook_event_name": "PostToolUse",
-  "tool_name": "Bash",
-  "tool_input": { "command": "npm test" },
-  "tool_response": { "stdout": "SECRET-OUTPUT", "stderr": "", "interrupted": false },
-  "tool_use_id": "toolu_01BBBBBBBBBBBBBBBBBBBBBB"
+  "tool_name": "Read",
+  "tool_input": { "file_path": "C:\\work\\demo\\note.txt" },
+  "tool_response": {
+    "type": "text",
+    "file": { "filePath": "C:\\work\\demo\\note.txt", "content": "SECRET-OUTPUT\n", "numLines": 2, "startLine": 1, "totalLines": 2 }
+  },
+  "tool_use_id": "toolu_01BBBBBBBBBBBBBBBBBBBBBB",
+  "duration_ms": 28
 }

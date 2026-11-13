@@ -2,7 +2,15 @@
   "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
   "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
   "cwd": "C:\\work\\demo",
-  "permission_mode": "default",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "auto",
+  "agent_id": "a0123456789abcdef",
+  "agent_type": "general-purpose",
+  "effort": { "level": "medium" },
   "hook_event_name": "SubagentStop",
-  "stop_hook_active": false
+  "stop_hook_active": false,
+  "agent_transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444\\subagents\\agent-a0123456789abcdef.jsonl",
+  "last_assistant_message": "SECRET-SUBAGENT-REPORT",
+  "background_tasks": [],
+  "session_crons": []
 }

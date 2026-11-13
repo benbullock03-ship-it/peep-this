@@ -60,7 +60,7 @@ pub fn spawn(store: Arc<Store>, dir: &Path) -> io::Result<Endpoint> {
 fn spawn_on(store: Arc<Store>, dir: &Path, port: u16) -> io::Result<Endpoint> {
     let server = Server::http(("127.0.0.1", port))
         .or_else(|e| {
-            println!("peepthis: port {port} unavailable ({e}), using a random port");
+            println!("peepthis: port {port} unavailable ({e}), using a random port; installed hooks will not reach it");
             Server::http(("127.0.0.1", 0))
         })
         .map_err(io::Error::other)?;
@@ -69,7 +69,11 @@ fn spawn_on(store: Arc<Store>, dir: &Path, port: u16) -> io::Result<Endpoint> {
         .to_ip()
         .map(|a| a.port())
         .ok_or_else(|| io::Error::other("event server has no IP address"))?;
-    let token = new_token()?;
+    // Native HTTP hooks carry the token literally in settings.json, so it must survive restarts.
+    let token = match saved_token(dir) {
+        Some(t) => t,
+        None => new_token()?,
+    };
     write_endpoint(dir, port, &token)?;
     println!("peepthis: event server on 127.0.0.1:{port}");
 
@@ -205,6 +209,16 @@ fn hook_event(name: &str, v: &Value, cwd: Option<&str>) -> Option<Event> {
             target: v.get("tool_input").and_then(|i| tool_target(i, cwd)),
         },
         "PostToolUse" | "PostToolUseFailure" => Event::PostToolUse,
+        // Fires after PreToolUse while the prompt is on screen; approval is followed by PostToolUse.
+        "PermissionRequest" => {
+            let tool = str_at(v, "/tool_name").unwrap_or_default();
+            let target = v.get("tool_input").and_then(|i| tool_target(i, cwd));
+            let what = match target {
+                Some(t) => format!("{tool} {t}"),
+                None => tool,
+            };
+            Event::Notification { message: clip(&format!("Needs permission: {what}")), idle: false }
+        }
         "Notification" => {
             let message = str_at(v, "/message").unwrap_or_default();
             let idle = match str_at(v, "/notification_type") {
@@ -248,11 +262,12 @@ fn tool_target(input: &Value, cwd: Option<&str>) -> Option<String> {
     Some(clip(val))
 }
 
+/// `error` is a type code (`rate_limit`, `model_not_found`); `error_details` is optional prose like "429 Too Many Requests".
 fn failure_summary(v: &Value) -> String {
-    ["/error", "/error/message", "/error_message", "/message", "/reason"]
-        .iter()
-        .find_map(|p| str_at(v, p))
-        .map(|s| clip(&s))
+    str_at(v, "/error_details")
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| str_at(v, "/error").map(|e| e.replace('_', " ")))
+        .map(|d| clip(&format!("API error: {d}")))
         .unwrap_or_default()
 }
 
@@ -273,6 +288,12 @@ fn new_token() -> io::Result<String> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(|e| io::Error::other(e.to_string()))?;
     Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+fn saved_token(dir: &Path) -> Option<String> {
+    let raw = std::fs::read(dir.join("endpoint.json")).ok()?;
+    let v: Value = serde_json::from_slice(&raw).ok()?;
+    str_at(&v, "/token").filter(|t| t.len() == 64 && t.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
 fn write_endpoint(dir: &Path, port: u16, token: &str) -> io::Result<()> {
@@ -369,7 +390,18 @@ mod tests {
                 "pre_tool_use_bash.json",
                 Event::PreToolUse { tool: "Bash".into(), target: Some("npm test".into()) },
             ),
+            (
+                "PreToolUse",
+                "pre_tool_use_agent.json",
+                Event::PreToolUse { tool: "Agent".into(), target: Some("Read note.txt and report contents".into()) },
+            ),
             ("PostToolUse", "post_tool_use.json", Event::PostToolUse),
+            ("PostToolUseFailure", "post_tool_use_failure.json", Event::PostToolUse),
+            (
+                "PermissionRequest",
+                "permission_request.json",
+                Event::Notification { message: "Needs permission: Write perm.txt".into(), idle: false },
+            ),
             (
                 "Notification",
                 "notification_permission.json",
@@ -384,7 +416,7 @@ mod tests {
             (
                 "StopFailure",
                 "stop_failure.json",
-                Event::StopFailure { summary: "API Error: 529 Overloaded".into() },
+                Event::StopFailure { summary: "API error: model not found".into() },
             ),
             ("SubagentStop", "subagent_stop.json", Event::SubagentStop),
             ("SessionEnd", "session_end.json", Event::Ended),
@@ -401,6 +433,26 @@ mod tests {
     #[test]
     fn unknown_hook_names_parse_to_no_event() {
         assert_eq!(hook("PreCompact", "stop.json").event, None);
+        assert_eq!(hook("SubagentStart", "subagent_start.json").event, None);
+    }
+
+    #[test]
+    fn stop_failure_prefers_error_details() {
+        let body = format!(r#"{{"session_id":"{SID}","error":"rate_limit","error_details":"429 Too Many Requests"}}"#);
+        let r = parse(&Route::Hook("StopFailure".into()), body.as_bytes()).unwrap();
+        assert_eq!(r.event, Some(Event::StopFailure { summary: "API error: 429 Too Many Requests".into() }));
+    }
+
+    #[test]
+    fn token_survives_restart() {
+        let dir = temp_dir();
+        let first = spawn_on(quiet_store(), &dir, 0).unwrap();
+        let second = spawn_on(quiet_store(), &dir, 0).unwrap();
+        assert_eq!(first.token, second.token);
+        std::fs::write(dir.join("endpoint.json"), r#"{"port":1,"token":"short"}"#).unwrap();
+        let third = spawn_on(quiet_store(), &dir, 0).unwrap();
+        assert_ne!(third.token, "short");
+        assert_eq!(third.token.len(), 64);
     }
 
     #[test]

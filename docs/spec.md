@@ -77,18 +77,18 @@ Seven states from peep, derived per session by the backend. Peep's `energy` stay
 | `idle` | Session discovered with nothing in flight; `SessionStart` | "Idle" |
 | `thinking` | `UserPromptSubmit`; `PostToolUse` (model is generating between tools) | "Thinking" |
 | `working` | `PreToolUse` | `<Tool> <target>` e.g. `Edit src/main.ts` |
-| `waiting` | `Notification` (permission prompt, question, or idle prompt) | Notification message |
+| `waiting` | `PermissionRequest`; `Notification` (permission prompt, question) | "Needs permission: `<Tool> <target>`" or the notification message |
 | `success` | `Stop` | "Done" — held until the next `UserPromptSubmit` |
-| `error` | Turn ended by an API error (**Verify** the signal: `StopFailure` hook if present, else transcript `isApiErrorMessage`) | Error summary |
+| `error` | Turn ended by an API error: `StopFailure` hook, else transcript `isApiErrorMessage` | "API error: `<error_details or error type>`" |
 | `stuck` | In `thinking` or `working` with no event for 6 min | "No response for N min" |
 
 Rules:
 
 - Any event resets the stuck timer. `stuck` leaves on the next event.
-- `waiting` leaves on the next `PreToolUse`, `PostToolUse`, `UserPromptSubmit` or `Stop`. **Verify** which event follows an approved permission prompt.
-- A `Notification` whose type is the idle reminder (Claude waiting for a new prompt after finishing) does not override `success`; it maps to `success` with no toast. **Verify** the field that distinguishes notification kinds.
+- `waiting` leaves on the next `PreToolUse`, `PostToolUse`, `UserPromptSubmit` or `Stop`. Order is `PreToolUse`, then `PermissionRequest` while the prompt shows, then `PostToolUse` once the tool has run after approval.
+- A `Notification` with `notification_type: "idle_prompt"` (Claude waiting for a new prompt after finishing) does not override `success`; it maps to `success` with no toast.
 - Without hooks (session predates install, or integration not installed): `busy` in the session file maps to `working`, `idle` to `idle`, with transcript tailing (§6.4) refining it when available.
-- Subagents: `PreToolUse` for the `Task`/`Agent` tool increments the count; `SubagentStop` decrements; clamp at 0; reset on `Stop`. **Verify** tool name.
+- Subagents: `PreToolUse` for the `Task`/`Agent` tool increments the count; `SubagentStop` decrements; clamp at 0; reset on `Stop`. The tool is `Agent` (`Task` is still accepted). A subagent's own tool events carry the parent's `session_id` plus `agent_id`, and drive the parent row like any other tool event.
 
 The derivation is a pure function `(SessionState, Event, now) -> SessionState` in Rust, fully unit-tested from fixtures. Timers call the same function with a synthetic `Tick` event.
 
@@ -97,7 +97,7 @@ The derivation is a pure function `(SessionState, Event, now) -> SessionState` i
 ```
  Claude Code sessions
    │  ~/.claude/sessions/<pid>.json ──────────────┐ (watch)
-   │  hooks ──► peepthis-hook.exe ───HTTP──┐      │
+   │  hooks (native http) ─────────HTTP────┐      │
    │  statusLine ──► peepthis-statusline ──┤      │
    │  ~/.claude/projects/**/<id>.jsonl ────┼──────┤ (tail, fallback)
                                            ▼      ▼
@@ -119,6 +119,7 @@ The derivation is a pure function `(SessionState, Event, now) -> SessionState` i
 | `source/claude/sessions.rs` | Parse and watch `~/.claude/sessions/*.json`; liveness by PID + `procStart` (guards PID reuse). |
 | `source/claude/transcript.rs` | Tail a session's transcript JSONL from its last offset; derive model, last tool, API errors. |
 | `ingest/server.rs` | `127.0.0.1` HTTP listener for hook and statusline payloads; token check. |
+| `ingest/hooks.rs` | The native HTTP hook entries the installer merges into settings.json. |
 | `state.rs` | `Session`, `State`, `Event`, the pure transition function, stuck timer. |
 | `store.rs` | Map `sessionId -> Session`; emits a full snapshot to the frontend on change, throttled to at most every 100ms. |
 | `notify.rs` | Toasts, de-duplication rules (§3.6). |
@@ -166,9 +167,11 @@ type Session = {
 
 ### 6.2 Hooks
 
-Installed hooks run `peepthis-hook.exe <EventName>`, which reads the hook JSON from stdin, POSTs it to the widget, and exits 0 within 300ms whether or not the widget is running. It must never block or fail a Claude Code turn and never print to stdout (some hook events treat stdout as context). Events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SubagentStop`, `SessionEnd`, plus `StopFailure` if it exists.
+Native Claude Code HTTP hooks (`"type": "http"`), verified in AV-06; there is no forwarder binary. Each entry POSTs the hook JSON to `http://127.0.0.1:<port>/hook/<EventName>` with the token as a literal `X-PeepThis-Token` header and `"timeout": 1`. Built by `ingest/hooks.rs`. An unreachable widget is a non-blocking hook error and never fails a turn. The server answers 204 with an empty body, which Claude Code treats as no decision (this matters for `PermissionRequest`).
 
-**Verify** whether Claude Code supports native HTTP hooks (`"type": "http"`); if so prefer them over the forwarder binary and drop `peepthis-hook.exe`.
+Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStop`, `SessionEnd`. `SessionStart` does not accept `http` hooks; the sessions directory covers it.
+
+The token persists in `endpoint.json` across restarts, because settings.json holds it literally. The URL holds the port, so hooks reach the widget only on the default port 47821.
 
 ### 6.3 Statusline
 
@@ -180,7 +183,7 @@ Installed hooks run `peepthis-hook.exe <EventName>`, which reads the hook JSON f
 
 ### 6.5 Event server
 
-- Binds `127.0.0.1` only, on a fixed default port (47821) with fallback to a random free port. The chosen port and a random 32-byte token are written to `%APPDATA%\PeepThis\endpoint.json` on startup; the hook and statusline binaries read it per invocation.
+- Binds `127.0.0.1` only, on a fixed default port (47821) with fallback to a random free port. The chosen port and a random 32-byte token are written to `%APPDATA%\PeepThis\endpoint.json` on startup. The token is generated once and then reused from that file, since installed hooks hold it. The statusline binary reads the file per invocation.
 - `POST /hook/<EventName>` and `POST /statusline`, header `X-PeepThis-Token`. Wrong or missing token: 401, payload dropped.
 - Body cap 1MB. Payloads are parsed into the fields listed above and the rest discarded; prompts, tool inputs and outputs are not stored beyond the derived `task` string.
 
@@ -193,11 +196,11 @@ Walk the process tree from the session PID up to the first ancestor that owns a 
 Triggered from the tray or a first-run banner. Never automatic.
 
 1. Copy `~/.claude/settings.json` to `~/.claude/settings.json.peepthis-backup-<timestamp>`.
-2. Merge hook entries for each event in §6.2. Existing user hooks are kept; Peep This's entries are identified by their command path so reinstall is idempotent and uninstall removes only them.
+2. Merge hook entries for each event in §6.2. Existing user hooks are kept; Peep This's hook entries are identified by their `http://127.0.0.1:<port>/hook/` URL, so reinstall is idempotent and uninstall removes only them.
 3. If `statusLine` exists, record its original command in `%APPDATA%\PeepThis\statusline-original.json` and replace it with `peepthis-statusline.exe`. If none exists, install the wrapper with no original (it then prints nothing).
 4. Write with a temp file and atomic rename. Validate the result parses as JSON before replacing.
 5. Uninstall reverses 2 and 3 exactly, restoring the recorded statusline command.
-6. `integration: "outdated"` when installed entries point at a different binary path or version than the running app.
+6. `integration: "outdated"` when installed hook entries carry a different port or token than `endpoint.json`, or the statusline entry points at a different binary path or version than the running app.
 
 ## 8. Performance and robustness budgets
 

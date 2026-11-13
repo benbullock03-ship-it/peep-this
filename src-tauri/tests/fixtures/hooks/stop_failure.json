@@ -2,6 +2,9 @@
   "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
   "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
   "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "effort": { "level": "high" },
   "hook_event_name": "StopFailure",
-  "error": "API Error: 529 Overloaded"
+  "error": "model_not_found",
+  "last_assistant_message": "SECRET-ASSISTANT-TEXT There's an issue with the selected model."
 }
