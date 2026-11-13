@@ -127,7 +127,7 @@ fn info(m: &Monitor) -> MonitorInfo {
 }
 
 fn state_path() -> Option<PathBuf> {
-    std::env::var_os("APPDATA").map(|d| PathBuf::from(d).join("AgentView").join("window.json"))
+    std::env::var_os("APPDATA").map(|d| PathBuf::from(d).join("PeepThis").join("window.json"))
 }
 
 fn load() -> Option<Saved> {
@@ -150,7 +150,7 @@ fn save_now<R: Runtime>(app: &AppHandle<R>) {
     let (Ok(pos), Ok(Some(mon))) = (w.outer_position(), w.current_monitor()) else { return };
     let saved = Saved { monitor: info(&mon).id, x: pos.x, y: pos.y };
     if let Err(e) = store(&saved) {
-        eprintln!("agentview: saving window position failed: {e}");
+        eprintln!("peepthis: saving window position failed: {e}");
     }
 }
 

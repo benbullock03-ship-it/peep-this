@@ -1,4 +1,4 @@
-# AgentView spec
+# Peep This spec
 
 Status: draft 2026-11-13. Decisions come from the design grill recorded in `CLAUDE.md`. Items marked **Verify** are assumptions about Claude Code internals that the ticket implementing them must confirm against a live session before building on them.
 
@@ -97,8 +97,8 @@ The derivation is a pure function `(SessionState, Event, now) -> SessionState` i
 ```
  Claude Code sessions
    │  ~/.claude/sessions/<pid>.json ──────────────┐ (watch)
-   │  hooks ──► agentview-hook.exe ──HTTP──┐      │
-   │  statusLine ──► agentview-statusline ─┤      │
+   │  hooks ──► peepthis-hook.exe ───HTTP──┐      │
+   │  statusLine ──► peepthis-statusline ──┤      │
    │  ~/.claude/projects/**/<id>.jsonl ────┼──────┤ (tail, fallback)
                                            ▼      ▼
                               ┌──── Rust backend (Tauri) ────┐
@@ -166,13 +166,13 @@ type Session = {
 
 ### 6.2 Hooks
 
-Installed hooks run `agentview-hook.exe <EventName>`, which reads the hook JSON from stdin, POSTs it to the widget, and exits 0 within 300ms whether or not the widget is running. It must never block or fail a Claude Code turn and never print to stdout (some hook events treat stdout as context). Events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SubagentStop`, `SessionEnd`, plus `StopFailure` if it exists.
+Installed hooks run `peepthis-hook.exe <EventName>`, which reads the hook JSON from stdin, POSTs it to the widget, and exits 0 within 300ms whether or not the widget is running. It must never block or fail a Claude Code turn and never print to stdout (some hook events treat stdout as context). Events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SubagentStop`, `SessionEnd`, plus `StopFailure` if it exists.
 
-**Verify** whether Claude Code supports native HTTP hooks (`"type": "http"`); if so prefer them over the forwarder binary and drop `agentview-hook.exe`.
+**Verify** whether Claude Code supports native HTTP hooks (`"type": "http"`); if so prefer them over the forwarder binary and drop `peepthis-hook.exe`.
 
 ### 6.3 Statusline
 
-`agentview-statusline.exe` wraps the user's original statusline command. It reads stdin, runs the original command with the same stdin, prints the original's stdout unchanged, then POSTs the payload in a detached, fire-and-forget way. The rendered statusline must be identical to before install and add no perceptible delay (budget: under 50ms overhead). Used fields: `session_id`, `model.display_name`, `context_window.remaining_percentage` (context used = 100 − remaining), `rate_limits.five_hour.used_percentage`, `rate_limits.seven_day.used_percentage`.
+`peepthis-statusline.exe` wraps the user's original statusline command. It reads stdin, runs the original command with the same stdin, prints the original's stdout unchanged, then POSTs the payload in a detached, fire-and-forget way. The rendered statusline must be identical to before install and add no perceptible delay (budget: under 50ms overhead). Used fields: `session_id`, `model.display_name`, `context_window.remaining_percentage` (context used = 100 − remaining), `rate_limits.five_hour.used_percentage`, `rate_limits.seven_day.used_percentage`.
 
 ### 6.4 Transcripts (fallback)
 
@@ -180,8 +180,8 @@ Installed hooks run `agentview-hook.exe <EventName>`, which reads the hook JSON 
 
 ### 6.5 Event server
 
-- Binds `127.0.0.1` only, on a fixed default port (47821) with fallback to a random free port. The chosen port and a random 32-byte token are written to `%APPDATA%\AgentView\endpoint.json` on startup; the hook and statusline binaries read it per invocation.
-- `POST /hook/<EventName>` and `POST /statusline`, header `X-AgentView-Token`. Wrong or missing token: 401, payload dropped.
+- Binds `127.0.0.1` only, on a fixed default port (47821) with fallback to a random free port. The chosen port and a random 32-byte token are written to `%APPDATA%\PeepThis\endpoint.json` on startup; the hook and statusline binaries read it per invocation.
+- `POST /hook/<EventName>` and `POST /statusline`, header `X-PeepThis-Token`. Wrong or missing token: 401, payload dropped.
 - Body cap 1MB. Payloads are parsed into the fields listed above and the rest discarded; prompts, tool inputs and outputs are not stored beyond the derived `task` string.
 
 ### 6.6 Focusing a session
@@ -192,9 +192,9 @@ Walk the process tree from the session PID up to the first ancestor that owns a 
 
 Triggered from the tray or a first-run banner. Never automatic.
 
-1. Copy `~/.claude/settings.json` to `~/.claude/settings.json.agentview-backup-<timestamp>`.
-2. Merge hook entries for each event in §6.2. Existing user hooks are kept; AgentView's entries are identified by their command path so reinstall is idempotent and uninstall removes only them.
-3. If `statusLine` exists, record its original command in `%APPDATA%\AgentView\statusline-original.json` and replace it with `agentview-statusline.exe`. If none exists, install the wrapper with no original (it then prints nothing).
+1. Copy `~/.claude/settings.json` to `~/.claude/settings.json.peepthis-backup-<timestamp>`.
+2. Merge hook entries for each event in §6.2. Existing user hooks are kept; Peep This's entries are identified by their command path so reinstall is idempotent and uninstall removes only them.
+3. If `statusLine` exists, record its original command in `%APPDATA%\PeepThis\statusline-original.json` and replace it with `peepthis-statusline.exe`. If none exists, install the wrapper with no original (it then prints nothing).
 4. Write with a temp file and atomic rename. Validate the result parses as JSON before replacing.
 5. Uninstall reverses 2 and 3 exactly, restoring the recorded statusline command.
 6. `integration: "outdated"` when installed entries point at a different binary path or version than the running app.
@@ -205,7 +205,7 @@ Triggered from the tray or a first-run banner. Never automatic.
 - Peep animation runs only for visible rows (peep's own IntersectionObserver) and pauses entirely while the widget is hidden.
 - File watching uses OS notifications, with a 5s poll as a safety net.
 - Any malformed input (session file, hook body, transcript line) is skipped and logged, never fatal.
-- Logs to `%APPDATA%\AgentView\logs`, rotated, no prompt or tool content.
+- Logs to `%APPDATA%\PeepThis\logs`, rotated, no prompt or tool content.
 
 ## 9. Testing
 

@@ -1,12 +1,12 @@
 [package]
-name = "agentview"
+name = "peep-this"
 version = "0.1.0"
 description = "Desktop widget showing live Claude Code sessions"
 edition = "2024"
 
 [lib]
 # `_lib` suffix avoids a bin/lib name clash on Windows: https://github.com/rust-lang/cargo/issues/8519
-name = "agentview_lib"
+name = "peep_this_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -31,7 +31,7 @@ export async function requestFocus(onFocus: OnFocus, id: string, flash: () => vo
   try {
     ok = await onFocus(id);
   } catch (err) {
-    console.error("agentview: focus_session failed", err);
+    console.error("peepthis: focus_session failed", err);
   }
   if (!ok) flash();
 }

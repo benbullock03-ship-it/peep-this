@@ -8,7 +8,7 @@ attended: false
 
 # AV-06 — Hook forwarder and hook payload mapping
 
-**What to build:** The path from Claude Code hooks to state (spec §6.2): either native HTTP hooks or a tiny `agentview-hook.exe` that reads stdin, POSTs to the endpoint and exits 0 within 300ms, silently, whether or not the widget runs. Plus the mapping from each hook payload to an `Event`.
+**What to build:** The path from Claude Code hooks to state (spec §6.2): either native HTTP hooks or a tiny `peepthis-hook.exe` that reads stdin, POSTs to the endpoint and exits 0 within 300ms, silently, whether or not the widget runs. Plus the mapping from each hook payload to an `Event`.
 
 - [ ] **Verify** first: does Claude Code support `"type": "http"` hooks? Record the answer here. If yes, skip the binary
 - [ ] **Verify** and record: event that follows an approved permission prompt; field distinguishing permission vs idle-reminder `Notification`; subagent tool name; whether `StopFailure` exists

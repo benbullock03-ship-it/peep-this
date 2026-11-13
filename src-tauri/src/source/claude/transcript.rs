@@ -355,7 +355,7 @@ impl Tailer {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     t.tail = None;
                 } else if self.warned.insert(id.to_string()) {
-                    eprintln!("agentview: cannot read transcript {}: {e}", tail.path.display());
+                    eprintln!("peepthis: cannot read transcript {}: {e}", tail.path.display());
                 }
                 return Vec::new();
             }
@@ -369,7 +369,7 @@ impl Tailer {
             }
         }
         if bad > 0 {
-            eprintln!("agentview: skipped {bad} malformed transcript line(s) in {}", tail.path.display());
+            eprintln!("peepthis: skipped {bad} malformed transcript line(s) in {}", tail.path.display());
         }
         translate(items, first, &mut t.last_model)
             .into_iter()
@@ -386,7 +386,7 @@ pub fn run(projects: PathBuf, tx: Sender<Msg>, rx: Receiver<Msg>, out: impl Fn(S
     }) {
         Ok(w) => Some(w),
         Err(e) => {
-            eprintln!("agentview: transcript watcher unavailable, polling only: {e}");
+            eprintln!("peepthis: transcript watcher unavailable, polling only: {e}");
             None
         }
     };
@@ -451,7 +451,7 @@ mod tests {
     fn temp_dir() -> PathBuf {
         static N: AtomicU32 = AtomicU32::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "agentview-transcript-test-{}-{}",
+            "peepthis-transcript-test-{}-{}",
             std::process::id(),
             N.fetch_add(1, Ordering::Relaxed)
         ));

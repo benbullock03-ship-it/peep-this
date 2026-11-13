@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Scaffolded (Tauri 2 + Vite + TS), no features yet. Full behaviour is in `docs/spec.md`; work is in `tickets/` (`AV-NN-*.md`, frontmatter `status`/`depends`/`attended`). The decisions below come from the design grill on 2026-11-13 and stand until the user overrides them.
+Tauri 2 + Vite + TS; core backend (state engine, session files, event server, transcripts) in place, UI surfaces in progress. Full behaviour is in `docs/spec.md`; work is in `tickets/` (`AV-NN-*.md`, frontmatter `status`/`depends`/`attended`). A ticket moves to `tickets/archive/` (`git mv`) once its status is `done`; `npm run tickets` indexes both folders. The decisions below come from the design grill on 2026-11-13 and stand until the user overrides them.
 
 ## Commands
 
@@ -25,7 +25,7 @@ First `cargo` build takes ~5 min; later ones are incremental.
 
 ## What this is
 
-AgentView: an always-on-top Windows desktop widget that lists the Claude Code sessions running on this machine. Each row has a "peep", a pixel marshmallow desktop pet that shows the session's state. The widget alerts the user when a session needs input and shows context-window and rate-limit usage.
+Peep This: an always-on-top Windows desktop widget that lists the Claude Code sessions running on this machine. Each row has a "peep", a pixel marshmallow desktop pet that shows the session's state. The widget alerts the user when a session needs input and shows context-window and rate-limit usage.
 
 ## Design (`design/`)
 

@@ -11,7 +11,7 @@ attended: true
 **What to build:** `install.rs` per spec §7, plus tray menu items and a first-run banner offering install. This edits the owner's real `~/.claude/settings.json`, hence attended.
 
 - [ ] Timestamped backup before any write
-- [ ] Merge keeps every existing hook; AgentView entries identified by command path; reinstall idempotent
+- [ ] Merge keeps every existing hook; Peep This entries identified by command path; reinstall idempotent
 - [ ] Statusline original recorded and wrapped; uninstall restores it exactly
 - [ ] Temp file + atomic rename; result must parse before replacing
 - [ ] `integration` status `installed` / `missing` / `outdated` in the snapshot

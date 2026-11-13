@@ -338,13 +338,13 @@ mod tests {
         );
     }
 
-    /// Live check against running sessions (plus `AGENTVIEW_FOCUS_PID` if set); resolves but never foregrounds.
+    /// Live check against running sessions (plus `PEEPTHIS_FOCUS_PID` if set); resolves but never foregrounds.
     #[cfg(windows)]
     #[test]
     #[ignore]
     fn focus_live_sessions_resolve() {
         let windows = sys::top_level_windows();
-        if let Some(pid) = std::env::var("AGENTVIEW_FOCUS_PID").ok().and_then(|s| s.parse().ok()) {
+        if let Some(pid) = std::env::var("PEEPTHIS_FOCUS_PID").ok().and_then(|s| s.parse().ok()) {
             print_resolution(pid, &windows);
         }
         let dir = std::path::PathBuf::from(std::env::var("USERPROFILE").unwrap()).join(".claude").join("sessions");

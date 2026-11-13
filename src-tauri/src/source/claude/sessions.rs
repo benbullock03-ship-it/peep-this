@@ -129,7 +129,7 @@ impl SessionDir {
                 }
                 Err(err) => {
                     if self.warned.insert(path.clone()) {
-                        eprintln!("agentview: skipping session file {}: {err}", path.display());
+                        eprintln!("peepthis: skipping session file {}: {err}", path.display());
                     }
                     // A file caught mid-write keeps its previous session alive until the next scan.
                     if let Some(id) = self.known.get(&path) {
@@ -161,7 +161,7 @@ impl SessionDir {
         }) {
             Ok(w) => Some(w),
             Err(e) => {
-                eprintln!("agentview: file watcher unavailable, polling only: {e}");
+                eprintln!("peepthis: file watcher unavailable, polling only: {e}");
                 None
             }
         };
@@ -238,7 +238,7 @@ mod tests {
     fn temp_dir() -> PathBuf {
         static N: AtomicU32 = AtomicU32::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "agentview-test-{}-{}",
+            "peepthis-test-{}-{}",
             std::process::id(),
             N.fetch_add(1, Ordering::Relaxed)
         ));
@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn missing_directory_yields_nothing() {
-        let mut sd = SessionDir::new(std::env::temp_dir().join("agentview-test-does-not-exist"));
+        let mut sd = SessionDir::new(std::env::temp_dir().join("peepthis-test-does-not-exist"));
         assert!(sd.scan_with(alive_unknown).is_empty());
     }
 

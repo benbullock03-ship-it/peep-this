@@ -12,7 +12,7 @@ use crate::store::{self, Store};
 
 pub const DEFAULT_PORT: u16 = 47821;
 pub const MAX_BODY: usize = 1024 * 1024;
-pub const TOKEN_HEADER: &str = "X-AgentView-Token";
+pub const TOKEN_HEADER: &str = "X-PeepThis-Token";
 const TEXT_MAX_CHARS: usize = 200;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,12 +44,12 @@ pub struct Request<'a> {
     pub declared_len: Option<usize>,
 }
 
-/// `%APPDATA%\AgentView`.
+/// `%APPDATA%\PeepThis`.
 pub fn default_dir() -> PathBuf {
     std::env::var_os("APPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)
-        .join("AgentView")
+        .join("PeepThis")
 }
 
 /// Binds 127.0.0.1:47821 (random port if taken), writes `endpoint.json` into `dir` and serves on a background thread.
@@ -60,7 +60,7 @@ pub fn spawn(store: Arc<Store>, dir: &Path) -> io::Result<Endpoint> {
 fn spawn_on(store: Arc<Store>, dir: &Path, port: u16) -> io::Result<Endpoint> {
     let server = Server::http(("127.0.0.1", port))
         .or_else(|e| {
-            println!("agentview: port {port} unavailable ({e}), using a random port");
+            println!("peepthis: port {port} unavailable ({e}), using a random port");
             Server::http(("127.0.0.1", 0))
         })
         .map_err(io::Error::other)?;
@@ -71,7 +71,7 @@ fn spawn_on(store: Arc<Store>, dir: &Path, port: u16) -> io::Result<Endpoint> {
         .ok_or_else(|| io::Error::other("event server has no IP address"))?;
     let token = new_token()?;
     write_endpoint(dir, port, &token)?;
-    println!("agentview: event server on 127.0.0.1:{port}");
+    println!("peepthis: event server on 127.0.0.1:{port}");
 
     let expected = token.clone();
     std::thread::Builder::new()
@@ -126,7 +126,7 @@ pub fn handle(store: &Store, expected: &str, req: &Request, body: impl Read, now
             204
         }
         Err(e) => {
-            println!("agentview: dropped {:?} payload: {e}", route);
+            println!("peepthis: dropped {:?} payload: {e}", route);
             400
         }
     }
@@ -134,7 +134,7 @@ pub fn handle(store: &Store, expected: &str, req: &Request, body: impl Read, now
 
 fn dispatch(store: &Store, r: Routed, now: u64) {
     let note = if r.event.is_none() && r.rate_limits.is_none() { " (ignored)" } else { "" };
-    println!("agentview: {} session {}{note}", r.label, r.session_id);
+    println!("peepthis: {} session {}{note}", r.label, r.session_id);
     if let Some((five, seven)) = r.rate_limits {
         store.set_rate_limits(five, seven, now);
     }
@@ -309,7 +309,7 @@ mod tests {
     fn temp_dir() -> PathBuf {
         static N: AtomicU32 = AtomicU32::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "agentview-ingest-{}-{}",
+            "peepthis-ingest-{}-{}",
             std::process::id(),
             N.fetch_add(1, Ordering::Relaxed)
         ));

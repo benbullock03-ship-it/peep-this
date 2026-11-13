@@ -22,7 +22,7 @@ fn get_snapshot(store: tauri::State<'_, Arc<Store>>) -> Snapshot {
 fn log_snapshot(snap: &Snapshot) {
     let live: Vec<&str> = snap.sessions.iter().filter(|s| s.alive).map(|s| s.name.as_str()).collect();
     println!(
-        "agentview: snapshot {} sessions ({} live): {}",
+        "peepthis: snapshot {} sessions ({} live): {}",
         snap.sessions.len(),
         live.len(),
         live.join(", ")
@@ -40,12 +40,12 @@ pub fn run() {
             let store = Store::new(Box::new(move |snap: &Snapshot| {
                 log_snapshot(snap);
                 if let Err(e) = handle.emit("sessions", snap) {
-                    eprintln!("agentview: emit failed: {e}");
+                    eprintln!("peepthis: emit failed: {e}");
                 }
             }));
             app.manage(Arc::clone(&store));
             if let Err(e) = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir()) {
-                eprintln!("agentview: event server failed: {e}");
+                eprintln!("peepthis: event server failed: {e}");
             }
 
             let sources: Vec<Box<dyn AgentSource>> = vec![Box::new(ClaudeSource::new())];

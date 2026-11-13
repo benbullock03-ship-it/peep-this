@@ -43,7 +43,7 @@ async function runLive() {
     const snap = await invoke<Snapshot>("get_snapshot");
     if (!pushed) render(snap.sessions);
   } catch (err) {
-    console.error("agentview: get_snapshot failed", err);
+    console.error("peepthis: get_snapshot failed", err);
     if (!pushed) render([]);
   }
 }
@@ -53,14 +53,14 @@ async function startWindowFit() {
   const { invoke } = await import("@tauri-apps/api/core");
   const header = document.querySelector<HTMLElement>("#header")!;
   watchContentHeight([header, root], (height) => {
-    invoke("fit_window", { height }).catch((err) => console.error("agentview: fit_window failed", err));
+    invoke("fit_window", { height }).catch((err) => console.error("peepthis: fit_window failed", err));
   });
 }
 
-startWindowFit().catch((err) => console.error("agentview: window fit failed", err));
+startWindowFit().catch((err) => console.error("peepthis: window fit failed", err));
 
 if (new URLSearchParams(location.search).has("demo")) runDemo();
 else runLive().catch((err) => {
-  console.error("agentview: startup failed", err);
-  showNotice("Could not connect to the AgentView backend.");
+  console.error("peepthis: startup failed", err);
+  showNotice("Could not connect to the Peep This backend.");
 });

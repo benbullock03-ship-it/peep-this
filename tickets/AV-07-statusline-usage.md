@@ -8,7 +8,7 @@ attended: false
 
 # AV-07 — Statusline wrapper, context bars and rate-limit header
 
-**What to build:** `agentview-statusline.exe` per spec §6.3, and the UI that shows its data: per-row context bar and the header's 5h/7d rate limits (spec §3.2).
+**What to build:** `peepthis-statusline.exe` per spec §6.3, and the UI that shows its data: per-row context bar and the header's 5h/7d rate limits (spec §3.2).
 
 - [ ] Wrapper runs the recorded original command with identical stdin and prints its stdout byte-for-byte
 - [ ] POST is fire-and-forget; overhead measured and recorded here (budget under 50ms)

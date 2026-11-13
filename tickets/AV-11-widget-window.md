@@ -24,7 +24,7 @@ attended: false
 - Default dock is 12 logical px in from the work area's right and top edges, not flush, so the Win11 shadow and corner show.
 - Height: the frontend reports header + list natural height via `fit_window`; Rust caps it at 70% of the current monitor's work area (min 48px). If growth would cross the work area's bottom, the window moves up; it does not move back down when it shrinks.
 - Window starts hidden and shows on the first `fit_window` call (2s fallback show), so there is no size jump at launch.
-- State file is `%APPDATA%\AgentView\window.json` (from `APPDATA`, not Tauri's identifier-based config dir), written via temp file + rename, debounced 500ms after the last `Moved`.
+- State file is `%APPDATA%\PeepThis\window.json` (from `APPDATA`, not Tauri's identifier-based config dir), written via temp file + rename, debounced 500ms after the last `Moved`.
 - `resizable: false`; window width is fixed.
 
 ## Owed before done
