@@ -1,12 +1,20 @@
+@import "./fonts.css";
+
 :root {
   --bg: #141218;
   --panel: #1a1820;
   --border: rgba(255, 255, 255, 0.07);
   --row-border: rgba(255, 255, 255, 0.06);
+  --track: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.025);
   --text: #ede9f2;
   --text-2: #a49fb0;
   --text-3: #7d7889;
   --accent: #f7d64a;
+  --amber: 255, 178, 62;
+  --radius: 12px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --display: "Fredoka", "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
 }
 
@@ -48,10 +56,11 @@ body {
 }
 
 .title {
-  font-family: "Fredoka", "IBM Plex Sans", system-ui, sans-serif;
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: 0.01em;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--accent);
 }
 
 .limits {
@@ -86,7 +95,7 @@ body {
 .limit-bar {
   height: 2px;
   border-radius: 1px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--track);
   overflow: hidden;
 }
 
@@ -142,7 +151,7 @@ body {
 .list {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -160,23 +169,36 @@ body {
   border-top: 1px solid var(--row-border);
   cursor: default;
   outline: none;
+  transition: background-color 0.15s ease;
 }
 
 .row:first-child {
   border-top: 0;
 }
 
-.row:hover {
-  background: rgba(255, 255, 255, 0.02);
+.row:hover,
+.row.expanded {
+  background-color: var(--hover);
 }
 
 .row:focus-visible {
   box-shadow: inset 0 0 0 1px rgba(247, 214, 74, 0.5);
 }
 
+.row.entering {
+  animation: row-enter 320ms var(--ease-out) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 .row.expanded {
   grid-template-columns: 64px minmax(0, 1fr) auto;
-  background: rgba(255, 255, 255, 0.025);
 }
 
 .row.expanded .peep {
@@ -292,7 +314,7 @@ body {
   bottom: 3px;
   height: 2px;
   border-radius: 1px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--track);
   overflow: hidden;
 }
 
@@ -389,17 +411,20 @@ body {
 @keyframes row-pulse {
   0%,
   100% {
-    box-shadow: inset 0 0 0 1px rgba(255, 178, 62, 0.12), inset 0 0 10px rgba(255, 178, 62, 0.03);
+    box-shadow: inset 0 0 0 1px rgba(var(--amber), 0.12), inset 0 0 10px rgba(var(--amber), 0.03);
   }
   50% {
-    box-shadow: inset 0 0 0 1px rgba(255, 178, 62, 0.4), inset 0 0 16px rgba(255, 178, 62, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(var(--amber), 0.4), inset 0 0 16px rgba(var(--amber), 0.12);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .row[data-state="waiting"][data-alive="true"]:not(.flash):not(.leaving) {
     animation: none;
-    box-shadow: inset 0 0 0 1px rgba(255, 178, 62, 0.35);
+    box-shadow: inset 0 0 0 1px rgba(var(--amber), 0.35);
+  }
+  .row.entering {
+    animation: none;
   }
 }
 

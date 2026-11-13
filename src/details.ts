@@ -1,7 +1,7 @@
 import type { Session } from "./model";
 
-/** Fits the value column of a 360px widget at 11px mono. */
-export const DETAIL_MAX_CHARS = 38;
+/** Fits the ~242px value column of a 360px widget at 11px IBM Plex Mono (6.6px advance). */
+export const DETAIL_MAX_CHARS = 36;
 
 /** Keeps both ends, so a path's drive and filename both stay visible. */
 export function truncateMiddle(s: string, max = DETAIL_MAX_CHARS): string {

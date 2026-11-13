@@ -10,6 +10,10 @@ export const FLASH_MS = 1000;
 /** Matches the `row-leave` animation in styles.css. */
 export const LEAVE_MS = 600;
 const TICK_MS = 1000;
+/** Matches the `row-enter` animation in styles.css. */
+const ENTER_MS = 320;
+const STAGGER_MS = 40;
+const MAX_STAGGER = 8;
 
 type Details = { el: HTMLElement; values: Map<string, HTMLElement> };
 
@@ -124,6 +128,13 @@ function collapse(r: Row) {
   r.peep.setAttribute("size", PEEP_SIZE);
 }
 
+function enter(row: HTMLElement, delayMs: number) {
+  row.style.setProperty("--enter-delay", `${delayMs}ms`);
+  row.classList.add("entering");
+  // A timer, not animationend: the waiting pulse overrides row-enter, which would then never end.
+  setTimeout(() => row.classList.remove("entering"), delayMs + ENTER_MS);
+}
+
 function flash(row: HTMLElement) {
   row.classList.remove("flash");
   void row.offsetWidth; // restarts the animation on a repeat click
@@ -139,6 +150,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
   const rows = new Map<string, Row>();
   let open: Row | null = null;
   let ticker = 0;
+  let firstRender = true;
 
   function close() {
     if (!open) return;
@@ -190,6 +202,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
       if (!r) {
         r = createRow(s);
         rows.set(s.id, r);
+        enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }
       r.session = s;
       if (r.el.classList.contains("leaving")) {
@@ -216,5 +229,6 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
       );
     }
     empty.hidden = sorted.length > 0;
+    if (sorted.length > 0) firstRender = false;
   };
 }
