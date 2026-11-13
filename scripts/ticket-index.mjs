@@ -15,9 +15,14 @@ function frontmatter(text) {
   );
 }
 
-const rows = readdirSync(dir)
-  .filter((f) => /^AV-\d+-.*\.md$/.test(f))
-  .sort()
+const tickets = (sub) =>
+  readdirSync(join(dir, sub), { withFileTypes: true })
+    .filter((e) => e.isFile() && /^AV-\d+-.*\.md$/.test(e.name))
+    .map((e) => (sub ? `${sub}/${e.name}` : e.name));
+
+// Done tickets live in tickets/archive/ but stay in the index.
+const rows = [...tickets(""), ...tickets("archive")]
+  .sort((a, b) => a.split("/").pop().localeCompare(b.split("/").pop()))
   .map((f) => {
     const fm = frontmatter(readFileSync(join(dir, f), "utf8"));
     const depends = (fm.depends ?? "").replace(/[[\]]/g, "") || "-";
