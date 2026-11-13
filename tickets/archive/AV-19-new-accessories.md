@@ -1,7 +1,7 @@
 ---
 id: AV-19
 title: Seven new peep accessories
-status: in-progress
+status: done
 depends: [AV-04]
 attended: true
 ---
@@ -16,7 +16,7 @@ The repo's `design/peep.js` has not been edited since the first handoff (it matc
 - [x] `ACCESSORIES` in `src/identity.ts` grows to 14, in the order of the notes (existing seven first, then `crybaby beanie crown shades flowers halo wizard`)
 - [x] Update the pinned outputs in `src/identity.test.ts`, plus the accessory list in spec §3.5 and in the `CLAUDE.md` Identity line
 - [x] A check page (e.g. `?accessories` in dev) shows all 14 accessories at 96px on the widget background, for the owner to look at
-- [ ] Stray pixels the owner spots go back to the owner as art notes. Per `CLAUDE.md`, we never redraw or tidy their art
+- [x] Stray pixels the owner spots go back to the owner as art notes. Per `CLAUDE.md`, we never redraw or tidy their art
 
 **Done when:** `npm test` passes, the owner has looked at the check page, and either accepts the art or sends a corrected `peep.js`.
 
@@ -40,6 +40,6 @@ The repo's `design/peep.js` has not been edited since the first handoff (it matc
 - **Flowers:** the crown sits low and partly overlaps the eyebrow/forehead line.
 - **No visible stray pixels** at 96px. `shades` reads fine under `waiting` and `error`, though the error pose's X eyes are hidden by the lenses.
 
-## Owed before done
+## Done 2026-11-13
 
-The owner opens `npm run dev`, goes to `/?accessories`, and either accepts the art or sends a corrected `peep.js`. If they send a corrected file, replace both copies again.
+Owner accepted the art as drawn, so the notes above stand as is. Proof in the tree: `design/peep.js` is byte-identical to `src/vendor/peep.js`, the 14-way `ACCESSORIES` list is in `src/identity.ts` with pins in `src/identity.test.ts`, and the check page is `src/accessories.ts` (`/?accessories`).
