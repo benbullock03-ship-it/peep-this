@@ -240,6 +240,65 @@ body {
   color: var(--text-2);
 }
 
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 6px 6px 12px;
+  background: var(--panel);
+  border: 1px solid rgba(247, 214, 74, 0.3);
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-action {
+  font: inherit;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.banner-action:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.banner-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.banner-close {
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-3);
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.banner-close:hover {
+  color: var(--text);
+}
+
+.banner-error {
+  flex-basis: 100%;
+  color: #ff5d5d;
+  overflow-wrap: anywhere;
+}
+
 .list.focusable .peep,
 .list.focusable .name {
   cursor: pointer;

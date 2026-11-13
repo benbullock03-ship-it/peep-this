@@ -1,5 +1,4 @@
 //! Native HTTP hook entries for `~/.claude/settings.json` (spec §6.2). The installer (AV-08) merges these.
-#![allow(dead_code)] // first caller is the AV-08 installer
 
 use serde_json::{json, Map, Value};
 

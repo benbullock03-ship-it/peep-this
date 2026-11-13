@@ -1,0 +1,58 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "C:/old/place/peepthis-statusline.exe"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47000/hook/PreToolUse",
+            "timeout": 1,
+            "headers": {
+              "X-PeepThis-Token": "stale-token"
+            }
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo done"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47000/hook/Stop",
+            "timeout": 1,
+            "headers": {
+              "X-PeepThis-Token": "stale-token"
+            }
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://127.0.0.1:47000/hook/SessionStart",
+            "timeout": 1,
+            "headers": {
+              "X-PeepThis-Token": "stale-token"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

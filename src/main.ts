@@ -1,4 +1,5 @@
 import "./vendor/peep.js";
+import { createBanner } from "./banner";
 import { demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { createLimits } from "./limits";
 import type { Snapshot } from "./model";
@@ -41,9 +42,19 @@ async function runLive() {
   const renderLimits = createLimits(limitsEl, () =>
     invoke<Snapshot>("get_snapshot").then((s) => s.rateLimits?.at),
   );
+  const banner = createBanner(root, {
+    install: () => invoke("install_integration"),
+    uninstall: () => invoke("uninstall_integration"),
+  });
+  // Uninstall lives here until the tray menu (AV-12) carries it.
+  document.querySelector<HTMLElement>("#header")!.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    banner.toggleDisconnect();
+  });
   const render = (snap: Snapshot) => {
     renderList(snap.sessions);
     renderLimits(snap.rateLimits);
+    banner.render(snap.integration);
   };
   // Subscribe before fetching so no change is lost; a pushed snapshot beats the initial fetch.
   let pushed = false;

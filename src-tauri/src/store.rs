@@ -17,7 +17,6 @@ pub struct RateLimits {
     pub at: u64,
 }
 
-#[allow(dead_code)] // Installed/Outdated are set by the installer (AV-08).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Integration {
@@ -149,6 +148,14 @@ impl Store {
                 .rate_limits
                 .is_none_or(|r| r.five_hour_pct != five_hour_pct || r.seven_day_pct != seven_day_pct);
             inner.rate_limits = Some(RateLimits { five_hour_pct, seven_day_pct, at: now });
+            changed
+        });
+    }
+
+    pub fn set_integration(&self, integration: Integration) {
+        self.mutate(|inner| {
+            let changed = inner.integration != integration;
+            inner.integration = integration;
             changed
         });
     }
@@ -329,6 +336,18 @@ mod tests {
         store.set_rate_limits(43.0, 18.0, 3_000);
         settle();
         assert_eq!(log.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn integration_emits_only_on_change() {
+        let (store, log) = recording_store();
+        store.set_integration(Integration::Missing);
+        settle();
+        assert!(log.lock().unwrap().is_empty());
+        store.set_integration(Integration::Installed);
+        settle();
+        assert_eq!(log.lock().unwrap().len(), 1);
+        assert_eq!(store.snapshot().integration, Integration::Installed);
     }
 
     #[test]

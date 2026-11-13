@@ -10,6 +10,7 @@ attended: false
 
 **What to build:** Tray icon (left click toggles the widget; menu: Show/Hide, Start at login, Quit) and autostart via the Tauri autostart plugin, on by default. AV-08 adds its install items to this menu.
 
+- [ ] Tray menu has Install integration / Uninstall integration items calling the `install_integration` / `uninstall_integration` commands from AV-08 (then drop the header right-click stopgap in `src/main.ts`)
 - [ ] Hiding the window pauses peep rendering (no rAF work while hidden)
 - [ ] Single instance: a second launch shows the existing widget
 - [ ] Tray icon uses a peep frame (ask the owner for a 32px export if a static frame from `peep.js` does not read at tray size)

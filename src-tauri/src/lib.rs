@@ -1,5 +1,6 @@
 mod focus;
 mod ingest;
+mod install;
 mod source;
 pub mod statusline_original;
 mod window;
@@ -34,7 +35,13 @@ fn log_snapshot(snap: &Snapshot) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_snapshot, window::fit_window, focus::focus_session])
+        .invoke_handler(tauri::generate_handler![
+            get_snapshot,
+            window::fit_window,
+            focus::focus_session,
+            install::install_integration,
+            install::uninstall_integration
+        ])
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
             window::setup(app)?;
@@ -46,9 +53,12 @@ pub fn run() {
                 }
             }));
             app.manage(Arc::clone(&store));
-            if let Err(e) = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir()) {
-                eprintln!("peepthis: event server failed: {e}");
-            }
+            let endpoint = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir())
+                .inspect_err(|e| eprintln!("peepthis: event server failed: {e}"))
+                .ok();
+            let integrator = install::Integrator::new(install::Paths::for_this_machine(), endpoint);
+            integrator.refresh(&store);
+            app.manage(integrator);
 
             let sources: Vec<Box<dyn AgentSource>> = vec![Box::new(ClaudeSource::new())];
             source::spawn_all(sources, || {
