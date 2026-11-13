@@ -1,0 +1,18 @@
+:root {
+  --bg: #141218;
+  --panel: #1a1820;
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #ede9f2;
+  --text-2: #a49fb0;
+  --text-3: #7d7889;
+  --accent: #f7d64a;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
