@@ -151,12 +151,17 @@ fn is_subagent_tool(tool: &str) -> bool {
     tool == "Task" || tool == "Agent"
 }
 
+/// Cuts from the middle so a path keeps its filename.
 fn truncate(s: &str, max: usize) -> String {
-    if s.chars().count() <= max {
+    let n = s.chars().count();
+    if n <= max {
         return s.to_string();
     }
-    let mut out: String = s.chars().take(max - 1).collect();
+    let keep = max - 1;
+    let head = keep.div_ceil(2);
+    let mut out: String = s.chars().take(head).collect();
     out.push('…');
+    out.extend(s.chars().skip(n - (keep - head)));
     out
 }
 
@@ -393,11 +398,11 @@ mod tests {
 
     #[test]
     fn working_target_truncated_to_60_chars() {
-        let long = "x".repeat(100);
+        let long = format!("{}{}", "x".repeat(50), "y".repeat(50));
         let s = run(vec![(pre("Bash", Some(&long)), T0 + 1)]);
         let target = s.last_tool.as_ref().unwrap().target.as_ref().unwrap();
         assert_eq!(target.chars().count(), 60);
-        assert!(target.ends_with('…'));
+        assert_eq!(*target, format!("{}…{}", "x".repeat(30), "y".repeat(29)));
         assert_eq!(s.task, format!("Bash {target}"));
 
         let exact = "y".repeat(60);

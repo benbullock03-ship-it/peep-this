@@ -1,12 +1,17 @@
+import { detailFields } from "./details";
 import type { Session } from "./model";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { sortSessions } from "./sort";
 
 export const EMPTY_TEXT = "No Claude Code sessions running";
 const PEEP_SIZE = "32";
+const PEEP_SIZE_EXPANDED = "64";
 export const FLASH_MS = 1000;
 /** Matches the `row-leave` animation in styles.css. */
 export const LEAVE_MS = 600;
+const TICK_MS = 1000;
+
+type Details = { el: HTMLElement; values: Map<string, HTMLElement> };
 
 type Row = {
   el: HTMLElement;
@@ -19,6 +24,8 @@ type Row = {
   ctx: HTMLElement;
   fill: HTMLElement;
   last: Partial<RowView>;
+  session: Session;
+  details: Details | null;
 };
 
 function el(tag: string, cls: string, parent?: HTMLElement): HTMLElement {
@@ -28,9 +35,11 @@ function el(tag: string, cls: string, parent?: HTMLElement): HTMLElement {
   return e;
 }
 
-function createRow(id: string): Row {
+function createRow(s: Session): Row {
   const row = el("div", "row");
-  row.dataset.id = id;
+  row.dataset.id = s.id;
+  row.tabIndex = 0;
+  row.setAttribute("aria-expanded", "false");
   const wrap = el("div", "peep", row);
   const peep = document.createElement("peep-bot");
   peep.setAttribute("size", PEEP_SIZE);
@@ -44,7 +53,7 @@ function createRow(id: string): Row {
   const label = el("span", "label", status);
   const ctx = el("div", "ctx", row);
   const fill = el("div", "ctx-fill", ctx);
-  return { el: row, peep, badge, name, task, status, label, ctx, fill, last: {} };
+  return { el: row, peep, badge, name, task, status, label, ctx, fill, last: {}, session: s, details: null };
 }
 
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
@@ -80,6 +89,41 @@ function updateRow(r: Row, v: RowView) {
   r.last = v;
 }
 
+function fillDetails(r: Row, now: number) {
+  if (!r.details) return;
+  for (const f of detailFields(r.session, now)) {
+    const v = r.details.values.get(f.key);
+    if (!v) continue;
+    if (v.textContent !== f.value) v.textContent = f.value;
+    const title = f.value === f.full ? "" : f.full;
+    if (v.title !== title) v.title = title;
+  }
+}
+
+function expand(r: Row) {
+  const d = el("dl", "details");
+  const values = new Map<string, HTMLElement>();
+  for (const f of detailFields(r.session, Date.now())) {
+    el("dt", "detail-label", d).textContent = f.label;
+    const dd = el("dd", `detail-value detail-${f.key}`, d);
+    values.set(f.key, dd);
+  }
+  r.details = { el: d, values };
+  r.el.insertBefore(d, r.ctx);
+  r.el.classList.add("expanded");
+  r.el.setAttribute("aria-expanded", "true");
+  r.peep.setAttribute("size", PEEP_SIZE_EXPANDED);
+  fillDetails(r, Date.now());
+}
+
+function collapse(r: Row) {
+  r.details?.el.remove();
+  r.details = null;
+  r.el.classList.remove("expanded");
+  r.el.setAttribute("aria-expanded", "false");
+  r.peep.setAttribute("size", PEEP_SIZE);
+}
+
 function flash(row: HTMLElement) {
   row.classList.remove("flash");
   void row.offsetWidth; // restarts the animation on a repeat click
@@ -93,17 +137,48 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
   const empty = el("div", "empty", root);
   empty.textContent = EMPTY_TEXT;
   const rows = new Map<string, Row>();
+  let open: Row | null = null;
+  let ticker = 0;
 
-  if (onFocus) {
-    list.classList.add("focusable");
-    list.addEventListener("click", (e) => {
-      const target = (e.target as Element).closest(".peep, .name");
-      const row = target?.closest<HTMLElement>(".row");
-      const id = row?.dataset.id;
-      if (!row || !id) return;
-      void requestFocus(onFocus, id, () => flash(row));
-    });
+  function close() {
+    if (!open) return;
+    collapse(open);
+    open = null;
+    clearInterval(ticker);
+    ticker = 0;
   }
+
+  function toggle(r: Row) {
+    const wasOpen = open === r;
+    close();
+    if (wasOpen) return;
+    expand(r);
+    open = r;
+    ticker = window.setInterval(() => open && fillDetails(open, Date.now()), TICK_MS);
+  }
+
+  const rowOf = (e: Event) => {
+    const id = (e.target as Element).closest<HTMLElement>(".row")?.dataset.id;
+    return id ? rows.get(id) : undefined;
+  };
+
+  if (onFocus) list.classList.add("focusable");
+  list.addEventListener("click", (e) => {
+    const r = rowOf(e);
+    if (!r || r.el.classList.contains("leaving")) return;
+    if (onFocus && (e.target as Element).closest(".peep, .name")) {
+      void requestFocus(onFocus, r.session.id, () => flash(r.el));
+      return;
+    }
+    toggle(r);
+  });
+  list.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const r = rowOf(e);
+    if (!r || e.target !== r.el) return;
+    e.preventDefault();
+    toggle(r);
+  });
 
   return function render(sessions: readonly Session[]) {
     const sorted = sortSessions(sessions);
@@ -113,14 +188,16 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
-        r = createRow(s.id);
+        r = createRow(s);
         rows.set(s.id, r);
       }
+      r.session = s;
       if (r.el.classList.contains("leaving")) {
         clearTimeout(Number(r.el.dataset.leaveTimer));
         r.el.classList.remove("leaving");
       }
       updateRow(r, toRowView(s, identityOf));
+      if (r === open) fillDetails(r, Date.now());
       // Fading rows hold their slot, so ordering skips over them.
       let next: Element | null = prev ? prev.nextElementSibling : list.firstElementChild;
       while (next && next !== r.el && next.classList.contains("leaving")) next = next.nextElementSibling;
@@ -129,6 +206,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
     }
     for (const [id, r] of rows) {
       if (seen.has(id) || r.el.classList.contains("leaving")) continue;
+      if (r === open) close();
       r.el.classList.add("leaving");
       r.el.dataset.leaveTimer = String(
         setTimeout(() => {
