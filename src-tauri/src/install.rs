@@ -337,27 +337,35 @@ impl Integrator {
             store.set_integration(integration_status(&self.paths, ep));
         }
     }
+
+    pub fn install(&self, store: &Store) -> Result<(), String> {
+        let _guard = self.busy.lock().unwrap_or_else(|e| e.into_inner());
+        let ep = self.endpoint.as_ref().ok_or("the event server is not running")?;
+        // Hooks hold the port literally; one installed against a fallback port breaks on the next restart.
+        if ep.port != DEFAULT_PORT {
+            return Err(format!("port {DEFAULT_PORT} is taken by another program; free it and restart Peep This"));
+        }
+        let result = install(&self.paths, ep);
+        self.refresh(store);
+        result.inspect_err(|e| eprintln!("peepthis: install failed: {e}"))
+    }
+
+    pub fn uninstall(&self, store: &Store) -> Result<(), String> {
+        let _guard = self.busy.lock().unwrap_or_else(|e| e.into_inner());
+        let result = uninstall(&self.paths);
+        self.refresh(store);
+        result.inspect_err(|e| eprintln!("peepthis: uninstall failed: {e}"))
+    }
 }
 
 #[tauri::command]
 pub fn install_integration(it: tauri::State<'_, Integrator>, store: tauri::State<'_, Arc<Store>>) -> Result<(), String> {
-    let _guard = it.busy.lock().unwrap_or_else(|e| e.into_inner());
-    let ep = it.endpoint.as_ref().ok_or("the event server is not running")?;
-    // Hooks hold the port literally; one installed against a fallback port breaks on the next restart.
-    if ep.port != DEFAULT_PORT {
-        return Err(format!("port {DEFAULT_PORT} is taken by another program; free it and restart Peep This"));
-    }
-    let result = install(&it.paths, ep);
-    it.refresh(&store);
-    result.inspect_err(|e| eprintln!("peepthis: install failed: {e}"))
+    it.install(&store)
 }
 
 #[tauri::command]
 pub fn uninstall_integration(it: tauri::State<'_, Integrator>, store: tauri::State<'_, Arc<Store>>) -> Result<(), String> {
-    let _guard = it.busy.lock().unwrap_or_else(|e| e.into_inner());
-    let result = uninstall(&it.paths);
-    it.refresh(&store);
-    result.inspect_err(|e| eprintln!("peepthis: uninstall failed: {e}"))
+    it.uninstall(&store)
 }
 
 #[cfg(test)]

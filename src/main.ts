@@ -1,6 +1,6 @@
 import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
-import { createBanner } from "./banner";
+import { createBanner, type TrayResult } from "./banner";
 import { demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { createLimits } from "./limits";
 import type { Snapshot } from "./model";
@@ -11,6 +11,13 @@ const DEMO_STEP_MS = 3200;
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
 const limitsEl = document.querySelector<HTMLElement>("#limits")!;
+
+// peep.js stops its rAF loop when no <peep-bot> is connected, so detaching the list idles rendering while hidden.
+const scroller = document.querySelector<HTMLElement>("#scroller")!;
+function setPeepsAttached(attached: boolean) {
+  if (attached && !root.isConnected) scroller.appendChild(root);
+  else if (!attached && root.isConnected) root.remove();
+}
 
 function showNotice(text: string) {
   const n = document.createElement("div");
@@ -43,15 +50,9 @@ async function runLive() {
   const renderLimits = createLimits(limitsEl, () =>
     invoke<Snapshot>("get_snapshot").then((s) => s.rateLimits?.at),
   );
-  const banner = createBanner(root, {
-    install: () => invoke("install_integration"),
-    uninstall: () => invoke("uninstall_integration"),
-  });
-  // Uninstall lives here until the tray menu (AV-12) carries it.
-  document.querySelector<HTMLElement>("#header")!.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    banner.toggleDisconnect();
-  });
+  const banner = createBanner(root, { install: () => invoke("install_integration") });
+  await listen<TrayResult>("integration-result", (e) => banner.trayResult(e.payload));
+  await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
   const render = (snap: Snapshot) => {
     renderList(snap.sessions);
     renderLimits(snap.rateLimits);
@@ -77,6 +78,7 @@ async function startWindowFit() {
   const { invoke } = await import("@tauri-apps/api/core");
   const header = document.querySelector<HTMLElement>("#header")!;
   watchContentHeight([header, root], (height) => {
+    if (!root.isConnected) return;
     invoke("fit_window", { height }).catch((err) => console.error("peepthis: fit_window failed", err));
   });
 }

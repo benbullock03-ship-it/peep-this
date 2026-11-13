@@ -1,14 +1,13 @@
 import type { Snapshot } from "./model";
 
 export type Integration = Snapshot["integration"];
-export type BannerMode = "install" | "update" | "disconnect" | null;
+export type BannerMode = "install" | "update" | null;
 
 const DISMISS_KEY = "peepthis.integrationBanner.dismissed";
 const SETTLE_MS = 1500;
 
 /** `dismissed` is the integration state the user last closed the banner on; a new state shows it again. */
-export function bannerMode(integration: Integration, dismissed: string | null, disconnectAsked: boolean): BannerMode {
-  if (disconnectAsked) return integration === "missing" ? "install" : integration === "installed" ? "disconnect" : "update";
+export function bannerMode(integration: Integration, dismissed: string | null): BannerMode {
   if (integration === dismissed) return null;
   return integration === "missing" ? "install" : integration === "outdated" ? "update" : null;
 }
@@ -16,7 +15,6 @@ export function bannerMode(integration: Integration, dismissed: string | null, d
 const COPY: Record<Exclude<BannerMode, null>, { text: string; action: string; busy: string }> = {
   install: { text: "Connect Peep This to Claude Code", action: "Install", busy: "Installing…" },
   update: { text: "Peep This's Claude Code connection is out of date", action: "Update", busy: "Updating…" },
-  disconnect: { text: "Peep This is connected to Claude Code", action: "Disconnect", busy: "Disconnecting…" },
 };
 
 function readDismissed(): string | null {
@@ -35,9 +33,10 @@ function writeDismissed(value: Integration) {
   }
 }
 
-export type BannerActions = { install: () => Promise<unknown>; uninstall: () => Promise<unknown> };
+export type BannerActions = { install: () => Promise<unknown> };
+export type TrayResult = { action: "install" | "uninstall"; error?: string };
 
-/** Prepends the integration banner to `parent`. `toggleDisconnect` opens it on demand (header right-click). */
+/** Prepends the integration banner to `parent`. Uninstall lives in the tray menu. */
 export function createBanner(parent: HTMLElement, actions: BannerActions) {
   const el = document.createElement("div");
   el.className = "banner";
@@ -59,7 +58,6 @@ export function createBanner(parent: HTMLElement, actions: BannerActions) {
 
   let integration: Integration | null = null;
   let dismissed = readDismissed();
-  let asked = false;
   let busy = false;
   let mode: BannerMode = null;
   let settleTimer = 0;
@@ -71,13 +69,24 @@ export function createBanner(parent: HTMLElement, actions: BannerActions) {
     update();
   };
 
+  const showError = (msg: string) => {
+    error.textContent = msg;
+    error.hidden = false;
+    el.hidden = false;
+  };
+
   const update = () => {
     if (busy || integration === null) return;
-    const next = bannerMode(integration, dismissed, asked);
+    const next = bannerMode(integration, dismissed);
     if (next !== mode) error.hidden = true;
     mode = next;
-    el.hidden = mode === null;
-    if (mode === null) return;
+    el.hidden = mode === null && error.hidden;
+    if (mode === null) {
+      text.textContent = "";
+      action.hidden = true;
+      return;
+    }
+    action.hidden = false;
     text.textContent = COPY[mode].text;
     action.textContent = COPY[mode].action;
     action.disabled = false;
@@ -85,35 +94,28 @@ export function createBanner(parent: HTMLElement, actions: BannerActions) {
 
   action.addEventListener("click", async () => {
     if (!mode || busy) return;
-    const run = mode === "disconnect" ? actions.uninstall : actions.install;
     const before = integration;
     busy = true;
     action.disabled = true;
     action.textContent = COPY[mode].busy;
     error.hidden = true;
     try {
-      await run();
-      if (mode === "disconnect") {
-        dismissed = "missing";
-        writeDismissed("missing");
-      }
-      asked = false;
+      await actions.install();
       // Stay busy until the snapshot with the new status lands, so the old button does not flash back.
       if (integration !== before) settle();
       else settleTimer = window.setTimeout(settle, SETTLE_MS);
     } catch (err) {
-      error.textContent = String(err);
-      error.hidden = false;
-      settle();
+      busy = false;
+      showError(String(err));
     }
   });
 
   close.addEventListener("click", () => {
-    if (integration && !asked) {
+    if (integration) {
       dismissed = integration;
       writeDismissed(integration);
     }
-    asked = false;
+    error.hidden = true;
     update();
   });
 
@@ -124,8 +126,14 @@ export function createBanner(parent: HTMLElement, actions: BannerActions) {
       if (busy && changed && settleTimer) settle();
       else update();
     },
-    toggleDisconnect() {
-      asked = !asked;
+    trayResult(r: TrayResult) {
+      if (r.error) return showError(r.error);
+      error.hidden = true;
+      // A deliberate uninstall should not be met by the install banner.
+      if (r.action === "uninstall") {
+        dismissed = "missing";
+        writeDismissed("missing");
+      }
       update();
     },
   };

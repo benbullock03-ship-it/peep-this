@@ -3,11 +3,12 @@
 
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, LogicalSize, Manager, Monitor, PhysicalPosition, Runtime, WindowEvent};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition, Runtime, WindowEvent};
 
 pub const WIDTH: f64 = 360.0;
 pub const MIN_HEIGHT: f64 = 48.0;
@@ -155,6 +156,8 @@ fn save_now<R: Runtime>(app: &AppHandle<R>) {
 }
 
 static SAVE_TX: OnceLock<Sender<()>> = OnceLock::new();
+/// Hidden from the tray; content-height fits must not re-show the window.
+static USER_HIDDEN: AtomicBool = AtomicBool::new(false);
 static LAST_CONTENT: Mutex<Option<f64>> = Mutex::new(None);
 
 fn spawn_saver<R: Runtime>(app: AppHandle<R>) {
@@ -190,10 +193,29 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, content: f64) -> tauri::Result<()
     if y != pos.y {
         w.set_position(PhysicalPosition::new(pos.x, y))?;
     }
-    if !w.is_visible()? {
+    if !USER_HIDDEN.load(Ordering::SeqCst) && !w.is_visible()? {
         w.show()?;
     }
     Ok(())
+}
+
+pub fn is_hidden() -> bool {
+    USER_HIDDEN.load(Ordering::SeqCst)
+}
+
+/// Shows or hides the widget and tells the frontend, which detaches its peeps while hidden.
+pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
+    USER_HIDDEN.store(hidden, Ordering::SeqCst);
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    let _ = app.emit("widget-hidden", hidden);
+    let result = if hidden {
+        w.hide()
+    } else {
+        w.show().and_then(|_| w.set_focus())
+    };
+    if let Err(e) = result {
+        eprintln!("peepthis: show/hide failed: {e}");
+    }
 }
 
 /// Positions the main window (saved spot or default dock) before it is shown.
@@ -211,7 +233,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let handle = app.handle().clone();
     std::thread::spawn(move || {
         std::thread::sleep(SHOW_FALLBACK);
-        if let Some(w) = handle.get_webview_window(LABEL) {
+        if let Some(w) = handle.get_webview_window(LABEL).filter(|_| !is_hidden()) {
             let _ = w.show();
         }
     });

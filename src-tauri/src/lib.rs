@@ -3,6 +3,7 @@ mod ingest;
 mod install;
 mod source;
 pub mod statusline_original;
+mod tray;
 mod window;
 #[allow(dead_code)]
 mod state;
@@ -35,6 +36,9 @@ fn log_snapshot(snap: &Snapshot) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be registered first: a second launch exits here and shows the running widget.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| window::set_hidden(app, false)))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             window::fit_window,
@@ -59,6 +63,7 @@ pub fn run() {
             let integrator = install::Integrator::new(install::Paths::for_this_machine(), endpoint);
             integrator.refresh(&store);
             app.manage(integrator);
+            tray::setup(app)?;
 
             let sources: Vec<Box<dyn AgentSource>> = vec![Box::new(ClaudeSource::new())];
             source::spawn_all(sources, || {

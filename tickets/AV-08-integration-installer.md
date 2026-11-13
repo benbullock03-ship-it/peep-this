@@ -53,5 +53,5 @@ The owner runs this on their machine (attended):
 1. Build the wrapper next to the dev exe (`tauri dev` builds only the main binary): `cd src-tauri; cargo build --bin peepthis-statusline; cd ..`
 2. `npm run tauri dev`. The banner "Connect Peep This to Claude Code" shows; click Install. It disappears; the console logs the backup path.
 3. Confirm: `~/.claude/settings.json` keeps every original key and hook, has one `127.0.0.1:47821/hook/<Event>` group per event, `statusLine.command` is `C:/Users/<you>/AppData/Roaming/PeepThis/bin/peepthis-statusline.exe`, and `%APPDATA%\PeepThis\statusline-original.json` holds the old `sh ~/.claude/statusline-command.sh` entry. A new Claude Code session shows the same statusline as before and its row gets hook states.
-4. Uninstall: right-click the widget header, click Disconnect. (Alternative: devtools console, `__TAURI__.core.invoke("uninstall_integration")`; `withGlobalTauri` is on.)
+4. Uninstall: tray menu → Uninstall integration (AV-12 replaced the header right-click stopgap). (Alternative: devtools console, `__TAURI__.core.invoke("uninstall_integration")`; `withGlobalTauri` is on.)
 5. Diff against the first backup, e.g. `git diff --no-index ~/.claude/settings.json.peepthis-backup-<stamp> ~/.claude/settings.json`: only whitespace/line-ending or formatting differences are expected, no content changes.
