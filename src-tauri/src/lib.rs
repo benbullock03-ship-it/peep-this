@@ -61,6 +61,19 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     }));
 }
 
+pub const UNINSTALL_INTEGRATION_ARG: &str = "--uninstall-integration";
+
+/// Headless: the NSIS uninstaller runs this before removing files. Exit code 0 on success.
+pub fn uninstall_integration_cli() -> i32 {
+    match install::remove_for_app_uninstall(&install::Paths::for_this_machine()) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("peepthis: {e}");
+            1
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

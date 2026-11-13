@@ -281,6 +281,19 @@ pub fn uninstall(paths: &Paths) -> Result<(), String> {
     Ok(())
 }
 
+/// Run by the NSIS uninstaller: unhooks Claude Code, then drops the wrapper copy nothing points at any more.
+pub fn remove_for_app_uninstall(paths: &Paths) -> Result<(), String> {
+    uninstall(paths)?;
+    let dest = paths.wrapper_dest();
+    for p in [with_suffix(&dest, ".old"), with_suffix(&dest, ".new"), dest.clone()] {
+        let _ = fs::remove_file(p);
+    }
+    if let Some(dir) = dest.parent() {
+        let _ = fs::remove_dir(dir); // only if empty
+    }
+    Ok(())
+}
+
 pub fn integration_status(paths: &Paths, ep: &Endpoint) -> Integration {
     let Ok(Some((_, root))) = read_settings(&paths.settings) else { return Integration::Missing };
     let ours: Vec<(&str, &Value)> = root
@@ -474,6 +487,20 @@ mod tests {
             assert_eq!(env.backups().len(), 2, "{name}: uninstall backs up too");
             assert!(!with_suffix(&env.paths.settings, TMP_SUFFIX).exists());
         }
+    }
+
+    #[test]
+    fn app_uninstall_restores_settings_and_removes_the_wrapper_copy() {
+        let env = Env::new(Some(ROUND_TRIP[0]));
+        let original = env.settings();
+        install(&env.paths, &ep()).unwrap();
+        assert!(env.paths.wrapper_dest().exists());
+
+        remove_for_app_uninstall(&env.paths).unwrap();
+        assert_eq!(env.settings(), original);
+        assert!(!env.paths.wrapper_dest().exists());
+        assert!(!env.paths.wrapper_dest().parent().unwrap().exists());
+        assert!(env.paths.data_dir.exists(), "app settings outside bin/ stay");
     }
 
     #[test]
