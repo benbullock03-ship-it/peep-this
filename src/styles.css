@@ -168,6 +168,17 @@ body {
   opacity: 0.55;
 }
 
+.row.leaving {
+  pointer-events: none;
+  animation: row-leave 600ms ease-in forwards;
+}
+
+@keyframes row-leave {
+  to {
+    opacity: 0;
+  }
+}
+
 .peep {
   position: relative;
   width: 32px;

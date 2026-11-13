@@ -8,6 +8,7 @@ mod window;
 #[allow(dead_code)]
 mod state;
 mod store;
+mod ticker;
 
 use std::sync::Arc;
 
@@ -57,6 +58,7 @@ pub fn run() {
                 }
             }));
             app.manage(Arc::clone(&store));
+            ticker::spawn(Arc::clone(&store));
             let endpoint = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir())
                 .inspect_err(|e| eprintln!("peepthis: event server failed: {e}"))
                 .ok();

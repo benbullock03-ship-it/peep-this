@@ -5,6 +5,8 @@ import { sortSessions } from "./sort";
 export const EMPTY_TEXT = "No Claude Code sessions running";
 const PEEP_SIZE = "32";
 export const FLASH_MS = 1000;
+/** Matches the `row-leave` animation in styles.css. */
+export const LEAVE_MS = 600;
 
 type Row = {
   el: HTMLElement;
@@ -106,21 +108,34 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
   return function render(sessions: readonly Session[]) {
     const sorted = sortSessions(sessions);
     const seen = new Set<string>();
-    sorted.forEach((s, i) => {
+    let prev: Element | null = null;
+    for (const s of sorted) {
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
         r = createRow(s.id);
         rows.set(s.id, r);
       }
-      updateRow(r, toRowView(s, identityOf));
-      if (list.children[i] !== r.el) list.insertBefore(r.el, list.children[i] ?? null);
-    });
-    for (const [id, r] of rows) {
-      if (!seen.has(id)) {
-        r.el.remove();
-        rows.delete(id);
+      if (r.el.classList.contains("leaving")) {
+        clearTimeout(Number(r.el.dataset.leaveTimer));
+        r.el.classList.remove("leaving");
       }
+      updateRow(r, toRowView(s, identityOf));
+      // Fading rows hold their slot, so ordering skips over them.
+      let next: Element | null = prev ? prev.nextElementSibling : list.firstElementChild;
+      while (next && next !== r.el && next.classList.contains("leaving")) next = next.nextElementSibling;
+      if (next !== r.el) list.insertBefore(r.el, next);
+      prev = r.el;
+    }
+    for (const [id, r] of rows) {
+      if (seen.has(id) || r.el.classList.contains("leaving")) continue;
+      r.el.classList.add("leaving");
+      r.el.dataset.leaveTimer = String(
+        setTimeout(() => {
+          r.el.remove();
+          rows.delete(id);
+        }, LEAVE_MS),
+      );
     }
     empty.hidden = sorted.length > 0;
   };

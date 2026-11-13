@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::source::{SessionInfo, SourceEvent};
 use crate::state::{self, Event, Session};
+use crate::ticker;
 
 pub const EMIT_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -142,6 +143,10 @@ impl Store {
         });
     }
 
+    pub fn tick(&self, now: u64) {
+        self.mutate(|inner| ticker::tick(&mut inner.sessions, now));
+    }
+
     pub fn set_rate_limits(&self, five_hour_pct: f64, seven_day_pct: f64, now: u64) {
         self.mutate(|inner| {
             let changed = inner
@@ -268,6 +273,27 @@ mod tests {
         let s = store.snapshot().sessions[0].clone();
         assert!(s.alive);
         assert_eq!(s.ended_at, None);
+    }
+
+    #[test]
+    fn killed_session_dims_then_leaves_after_a_minute_via_tick() {
+        let (store, log) = recording_store();
+        store.ingest(upsert("a", Some(false)), 1_000);
+        store.apply("a", Event::UserPromptSubmit, 1_000);
+        store.tick(1_000 + state::STUCK_AFTER_MS);
+        assert_eq!(store.snapshot().sessions[0].state, State::Stuck);
+
+        store.ingest(SourceEvent::Ended { id: "a".into() }, 400_000);
+        store.tick(400_000 + ticker::ENDED_LINGER_MS - 1);
+        let s = store.snapshot().sessions[0].clone();
+        assert!(!s.alive);
+        assert_eq!(s.state, State::Idle);
+        settle();
+        let emits = log.lock().unwrap().len();
+        store.tick(400_000 + ticker::ENDED_LINGER_MS);
+        assert!(store.snapshot().sessions.is_empty());
+        settle();
+        assert_eq!(log.lock().unwrap().len(), emits + 1);
     }
 
     #[test]
