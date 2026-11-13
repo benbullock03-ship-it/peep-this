@@ -2,6 +2,7 @@ import "./vendor/peep.js";
 import { demoIdentity, demoSnapshot, demoStep } from "./demo";
 import type { Snapshot } from "./model";
 import { createList } from "./rows";
+import { watchContentHeight } from "./windowFit";
 
 const DEMO_STEP_MS = 3200;
 
@@ -46,6 +47,17 @@ async function runLive() {
     if (!pushed) render([]);
   }
 }
+
+async function startWindowFit() {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  const header = document.querySelector<HTMLElement>("#header")!;
+  watchContentHeight([header, root], (height) => {
+    invoke("fit_window", { height }).catch((err) => console.error("agentview: fit_window failed", err));
+  });
+}
+
+startWindowFit().catch((err) => console.error("agentview: window fit failed", err));
 
 if (new URLSearchParams(location.search).has("demo")) runDemo();
 else runLive().catch((err) => {

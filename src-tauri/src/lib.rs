@@ -1,5 +1,6 @@
 mod ingest;
 mod source;
+mod window;
 #[allow(dead_code)]
 mod state;
 mod store;
@@ -30,8 +31,10 @@ fn log_snapshot(snap: &Snapshot) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_snapshot])
+        .invoke_handler(tauri::generate_handler![get_snapshot, window::fit_window])
+        .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
+            window::setup(app)?;
             let handle = app.handle().clone();
             let store = Store::new(Box::new(move |snap: &Snapshot| {
                 log_snapshot(snap);
