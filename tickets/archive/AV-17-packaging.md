@@ -1,7 +1,7 @@
 ---
 id: AV-17
 title: Windows installer build
-status: in-progress
+status: done
 depends: [AV-08, AV-12]
 attended: true
 ---
@@ -11,8 +11,8 @@ attended: true
 **What to build:** `npm run tauri build` producing an NSIS installer that includes the forwarder and statusline binaries (if AV-06/AV-07 needed them) at a stable path the installed hooks can point to. No publishing.
 
 - [x] Sidecar binaries bundled and resolved from the install directory
-- [ ] Upgrade keeps settings and marks the integration `outdated` if binary paths changed
-- [ ] Uninstaller offers to remove the Claude Code integration first
+- [x] Upgrade keeps settings and marks the integration `outdated` if binary paths changed
+- [x] Uninstaller offers to remove the Claude Code integration first
 
 **Done when:** the owner has installed the built package and it works with live sessions. No release without an explicit yes.
 
@@ -26,7 +26,11 @@ attended: true
 - `%APPDATA%\PeepThis` is deleted only when "delete app data" is ticked *and* the integration was removed. A kept statusLine still runs the wrapper copy in there.
 - Target narrowed to NSIS only, per-user install (no UAC prompt).
 
-## Owed before done
+## Done 2026-11-13
+
+Owner installed the package and it works with live sessions (screenshot). They also installed a newer build over the old one with settings kept, and uninstalled through the Yes/No prompt with `settings.json` restored. Nothing was published.
+
+The check that was owed:
 
 Built 2026-11-13. `npm run tauri build` produced `src-tauri/target/release/bundle/nsis/Peep This_0.1.0_x64-setup.exe` (1.88 MiB). makensis compiled the hook's `File` line for `peepthis-statusline.exe` (it fails on a missing source). Headless `--uninstall-integration` flag in `main.rs` calls `install::remove_for_app_uninstall` (test `app_uninstall_restores_settings_and_removes_the_wrapper_copy`). Not installed on this machine by the agent.
 
@@ -35,5 +39,3 @@ Owner, in order:
 2. Install integration from the banner or tray. statusLine points at `%APPDATA%/PeepThis/bin/peepthis-statusline.exe`, and live sessions show context and state.
 3. Bump `version`, rebuild and run the new setup over the old one. Settings and integration stay; the banner shows `outdated` only if the wrapper changed.
 4. Uninstall from Apps. The Yes/No prompt appears, and Yes restores `settings.json` (backup alongside).
-
-Boxes 2 and 3 stay unticked until steps 3 and 4 are seen.

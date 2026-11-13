@@ -1,7 +1,7 @@
 ---
 id: AV-10
 title: Stuck timer and ended-session fade
-status: in-progress
+status: done
 depends: [AV-03, AV-04]
 attended: false
 ---
@@ -24,6 +24,8 @@ attended: false
 - A fading row keeps its slot in the list; if the same session id reappears mid-fade the fade is cancelled and the row is reused.
 - A hook arriving for an id after its removal creates a fresh placeholder row (existing `apply_or_placeholder` behaviour); not guarded here.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner confirmed a closed session's row dims and then fades out. The check that was owed:
 
 - Owner check in `npm run tauri dev`: kill a session's terminal, see its row dim, then fade out 60–65s later. Stuck-via-ticker is covered by `ticker::tests::ticker_moves_quiet_thinking_session_to_stuck_at_6_min`.

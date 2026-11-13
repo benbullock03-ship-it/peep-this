@@ -1,7 +1,7 @@
 ---
 id: AV-14
 title: Toast and row pulse when a session needs you
-status: in-progress
+status: done
 depends: [AV-06, AV-13, AV-04]
 attended: false
 ---
@@ -29,7 +29,9 @@ attended: false
 - Toast body is the session's task text on entering `waiting` (the notification message, or "Needs permission: <Tool> <target>" when `PermissionRequest` arrived first).
 - Pulse is pure CSS off `data-state="waiting"` on live rows (inset amber box-shadow, 1.5s); under `prefers-reduced-motion` it is a static amber outline instead.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner confirmed a real permission prompt raised a toast, clicking it reached the terminal, and the row pulsed. The toast click works as built, so the keep-alive fix below was not needed. The check that was owed:
 
 - Owner check in `npm run tauri dev` (toasts show as "Windows PowerShell" in dev): with the widget unfocused, trigger a real permission prompt; a toast appears with session name and message; clicking it lands in that session's terminal. A second prompt within 30s gives no toast. With the widget focused and all rows fitting, no toast but the row pulses; the pulse stops when the prompt is answered.
 - Unverified: whether the click handler survives after the toast thread exits (handler is registered on a `ToastNotification` the thread drops), and whether Windows grants foreground on toast click. If clicks do nothing, keep the toast object alive until dismissed.

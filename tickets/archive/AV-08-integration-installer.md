@@ -1,7 +1,7 @@
 ---
 id: AV-08
 title: One-click integration install and uninstall
-status: in-progress
+status: done
 depends: [AV-06, AV-07]
 attended: true
 ---
@@ -46,7 +46,9 @@ AV-07's wrapper and `statusline_original.rs` landed in a714f49. AV-07 and AV-04 
 
 The release bundle must ship `peepthis-statusline.exe` next to the main exe (Tauri `externalBin` sidecar lands there with the triple suffix stripped); install looks for it at `current_exe().parent()/peepthis-statusline.exe`. An upgrade that changes the wrapper's bytes reads as `outdated` until Update is clicked.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner installed the integration from the installed build (hook states and rate limits arrive live), then uninstalled the app and answered Yes; `settings.json` was restored. The check that was owed:
 
 The owner runs this on their machine (attended):
 

@@ -1,7 +1,7 @@
 ---
 id: AV-04
 title: Compact session rows with peeps
-status: in-progress
+status: done
 depends: [AV-03]
 attended: false
 ---
@@ -19,7 +19,9 @@ attended: false
 
 **Done when:** `npm test` passes and live sessions appear as rows in `npm run tauri dev`; the owner has seen it.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner ran the installed build: live sessions show as rows (screenshot of `agentview-widget-24` in `waiting`). The check that was owed:
 
 Owner runs `npm run tauri dev` (and `npm run dev` then `/?demo`) and confirms: live rows appear, peep animations don't restart on state change/reorder, 3-column layout reads at widget width.
 

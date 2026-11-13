@@ -1,7 +1,7 @@
 ---
 id: AV-12
 title: Tray icon and start at login
-status: in-progress
+status: done
 depends: [AV-11]
 attended: false
 ---
@@ -30,7 +30,9 @@ attended: false
 - **Tray install/uninstall:** runs off the event loop. The result goes to the frontend as an `integration-result` event. A failure shows the widget with the error in the banner. A successful uninstall marks the install banner dismissed, so it does not nag straight after.
 - **Menu order:** Show/Hide | Install integration, Uninstall integration | Start at login | Quit. Both integration items are always enabled; uninstall when nothing is installed is a no-op.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner confirmed the tray hides and shows the widget, a second launch opens no second window, and the widget starts after signing out and back in. The check that was owed:
 
 Owner, in `npm run tauri dev`:
 1. The tray shows the peep icon. Left click hides/shows the widget, and so does Show/Hide.

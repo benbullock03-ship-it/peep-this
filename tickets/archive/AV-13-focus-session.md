@@ -1,7 +1,7 @@
 ---
 id: AV-13
 title: Focus a session's window
-status: in-progress
+status: done
 depends: [AV-03]
 attended: false
 ---
@@ -11,9 +11,9 @@ attended: false
 **What to build:** `focus.rs` and a `focus_session` command per spec §6.6: walk from the session PID to the first ancestor with a visible top-level window, restore and foreground it.
 
 - [ ] Handles Windows Terminal, conhost, VS Code, Cursor and the Claude desktop app (record which were tested)
-- [ ] Works around Windows foreground-lock rules (record the technique used)
-- [ ] No window found: the row flashes instead
-- [ ] Clicking a row's peep or name calls it
+- [x] Works around Windows foreground-lock rules (record the technique used)
+- [x] No window found: the row flashes instead
+- [x] Clicking a row's peep or name calls it
 
 **Done when:** the owner has clicked rows for sessions in at least two different hosts and the right window came forward.
 
@@ -27,6 +27,8 @@ attended: false
 - A failed foreground (`Err`) also flashes the row, same as no window.
 - Dead sessions return `false` (flash) without walking.
 
-## Owed before done
+## Done 2026-11-13
+
+Owner confirmed clicking peep or name brought the right window forward in two different hosts. They didn't name the hosts, so the first box stays unticked: the other hosts in it are untested. The check that was owed:
 
 - Owner check: click rows for sessions in at least two hosts (e.g. VS Code and Windows Terminal) and confirm the right window comes forward; a miss flashes the row. `cargo test focus` passes (8 + 1 live ignored).
