@@ -108,6 +108,7 @@ impl Store {
         match ev {
             SourceEvent::Upsert { info, busy } => self.upsert(info, busy, now),
             SourceEvent::Ended { id } => self.apply(&id, Event::Ended, now),
+            SourceEvent::Apply { id, event } => self.apply(&id, event, now),
         }
     }
 

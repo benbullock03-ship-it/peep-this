@@ -53,6 +53,9 @@ pub struct Session {
     /// State to return to when a non-transition event ends `stuck`.
     #[serde(skip)]
     pub pre_stuck: Option<State>,
+    /// Statusline display names win over transcript model ids once seen.
+    #[serde(skip)]
+    pub model_from_statusline: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +74,7 @@ pub enum Event {
     TranscriptToolUse { tool: String, target: Option<String> },
     TranscriptToolResult,
     TranscriptApiError { summary: String },
+    TranscriptModel { model: String },
     Statusline { model: Option<String>, context_pct: Option<f64> },
     /// Process exited (PID dead) or `SessionEnd` hook.
     Ended,
@@ -106,6 +110,7 @@ impl Session {
             last_event_at: now,
             last_hook_at: None,
             pre_stuck: None,
+            model_from_statusline: false,
         }
     }
 
@@ -125,8 +130,8 @@ impl Session {
         self.task = task;
     }
 
-    fn set_tool(&mut self, tool: String, target: Option<String>) {
-        if is_subagent_tool(&tool) {
+    fn set_tool(&mut self, tool: String, target: Option<String>, count_subagent: bool) {
+        if count_subagent && is_subagent_tool(&tool) {
             self.subagents += 1;
         }
         let target = target.map(|t| truncate(&t, TARGET_MAX_CHARS));
@@ -194,9 +199,16 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::Statusline { model, context_pct } => {
             if model.is_some() {
                 s.model = model;
+                s.model_from_statusline = true;
             }
             if context_pct.is_some() {
                 s.context_pct = context_pct;
+            }
+            return s;
+        }
+        Event::TranscriptModel { model } => {
+            if !s.model_from_statusline {
+                s.model = Some(model);
             }
             return s;
         }
@@ -254,7 +266,8 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::SessionStart => s.enter(State::Idle, "Idle".into(), now),
         Event::UserPromptSubmit => s.enter(State::Thinking, "Thinking".into(), now),
         Event::PreToolUse { tool, target } | Event::TranscriptToolUse { tool, target } => {
-            s.set_tool(tool, target);
+            // Only hooks count subagents: SubagentStop is hook-only, and a transcript line racing its PreToolUse would count twice.
+            s.set_tool(tool, target, is_hook);
             if s.state != State::Success {
                 let task = s.working_task();
                 s.enter(State::Working, task, now);
@@ -291,6 +304,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         }
         Event::SessionFile { .. }
         | Event::Statusline { .. }
+        | Event::TranscriptModel { .. }
         | Event::Ended
         | Event::Tick => unreachable!("handled above"),
     }
@@ -689,6 +703,42 @@ mod tests {
         assert_eq!(s.state, State::Thinking);
         assert_eq!(s.subagents, 0);
         assert_eq!(s.last_tool, None);
+    }
+
+    #[test]
+    fn transcript_tool_use_never_counts_subagents() {
+        let s = run(vec![(Event::TranscriptToolUse { tool: "Agent".into(), target: Some("x".into()) }, T0 + 1)]);
+        assert_eq!(s.state, State::Working);
+        assert_eq!(s.task, "Agent x");
+        assert_eq!(s.subagents, 0);
+        let s = apply(s, pre("Agent", Some("x")), T0 + 2);
+        assert_eq!(s.subagents, 1);
+    }
+
+    #[test]
+    fn transcript_model_fills_model_without_state_change_or_timer_reset() {
+        let s = run(vec![
+            (Event::UserPromptSubmit, T0),
+            (Event::TranscriptModel { model: "Opus 5.5".into() }, T0 + 5 * MIN),
+            (Event::Tick, T0 + 6 * MIN),
+        ]);
+        assert_eq!(s.model.as_deref(), Some("Opus 5.5"));
+        assert_eq!(s.state, State::Stuck);
+        let s = apply(fresh(), Event::TranscriptModel { model: "Sonnet 4.5".into() }, T0 + 1);
+        let s = apply(s, Event::TranscriptModel { model: "Opus 5.5".into() }, T0 + 2);
+        assert_eq!(s.model.as_deref(), Some("Opus 5.5"));
+        assert_eq!(s.state, State::Idle);
+        assert_eq!(s.last_hook_at, None);
+    }
+
+    #[test]
+    fn statusline_model_wins_over_transcript_model() {
+        let s = run(vec![
+            (Event::TranscriptModel { model: "Opus 5.5".into() }, T0),
+            (Event::Statusline { model: Some("Opus 5.5 (1M context)".into()), context_pct: None }, T0 + 1),
+            (Event::TranscriptModel { model: "Opus 5.5".into() }, T0 + 2),
+        ]);
+        assert_eq!(s.model.as_deref(), Some("Opus 5.5 (1M context)"));
     }
 
     // --- metadata, lifecycle, timestamps ---

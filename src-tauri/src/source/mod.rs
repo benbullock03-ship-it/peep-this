@@ -12,11 +12,13 @@ pub struct SessionInfo {
     pub entrypoint: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SourceEvent {
     /// Session is live. `busy` is `None` when the source does not know.
     Upsert { info: SessionInfo, busy: Option<bool> },
     Ended { id: String },
+    /// A state-engine event for a session the source already reported.
+    Apply { id: String, event: crate::state::Event },
 }
 
 pub type Sink = Box<dyn Fn(SourceEvent) + Send>;

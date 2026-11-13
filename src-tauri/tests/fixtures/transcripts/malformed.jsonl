@@ -1,0 +1,5 @@
+{"parentUuid":null,"isSidechain":false,"message":{"model":"claude-sonnet-4-5-20250929","id":"msg_placeholder_1","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_placeholder_1","name":"Grep","input":{"pattern":"TODO","path":"C:\\work\\demo"}}],"stop_reason":"tool_use"},"type":"assistant","uuid":"00000000-0000-4000-8000-000000000001","timestamp":"2026-01-01T00:00:01.000Z","cwd":"C:\\work\\demo","sessionId":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","version":"2.0.0"}
+{"parentUuid":"00000000-0000-4000-8000-000000000001","isSidechain":false,"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_pl
+[1,2,3]
+not json at all
+{"parentUuid":"00000000-0000-4000-8000-000000000001","isSidechain":false,"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_placeholder_1","type":"tool_result","content":"<result placeholder>","is_error":false}]},"uuid":"00000000-0000-4000-8000-000000000003","timestamp":"2026-01-01T00:00:03.000Z","cwd":"C:\\work\\demo","sessionId":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","version":"2.0.0"}
