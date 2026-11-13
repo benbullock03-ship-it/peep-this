@@ -1,3 +1,4 @@
+mod focus;
 mod ingest;
 mod source;
 mod window;
@@ -31,7 +32,7 @@ fn log_snapshot(snap: &Snapshot) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_snapshot, window::fit_window])
+        .invoke_handler(tauri::generate_handler![get_snapshot, window::fit_window, focus::focus_session])
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
             window::setup(app)?;

@@ -26,13 +26,13 @@ function runDemo() {
 }
 
 async function runLive() {
-  const render = createList(root);
   if (!("__TAURI_INTERNALS__" in window)) {
-    render([]);
+    createList(root)([]);
     showNotice("Not running inside Tauri. Add ?demo to the URL for mock sessions.");
     return;
   }
   const [{ invoke }, { listen }] = await Promise.all([import("@tauri-apps/api/core"), import("@tauri-apps/api/event")]);
+  const render = createList(root, undefined, (id) => invoke<boolean>("focus_session", { sessionId: id }));
   // Subscribe before fetching so no change is lost; a pushed snapshot beats the initial fetch.
   let pushed = false;
   await listen<Snapshot>("sessions", (e) => {

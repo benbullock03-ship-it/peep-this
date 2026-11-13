@@ -23,6 +23,19 @@ export function contextFill(pct: number | null | undefined): number | null {
   return Math.max(0, Math.min(100, pct));
 }
 
+export type OnFocus = (sessionId: string) => Promise<boolean>;
+
+/** Calls `onFocus`; `flash` runs when no window came forward (false or a rejected call). */
+export async function requestFocus(onFocus: OnFocus, id: string, flash: () => void): Promise<void> {
+  let ok = false;
+  try {
+    ok = await onFocus(id);
+  } catch (err) {
+    console.error("agentview: focus_session failed", err);
+  }
+  if (!ok) flash();
+}
+
 export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFor(x.cwd)): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
   const meta = STATE_META[state];

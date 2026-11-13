@@ -1,9 +1,10 @@
 import type { Session } from "./model";
-import { toRowView, type IdentityOf, type RowView } from "./rowView";
+import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { sortSessions } from "./sort";
 
 export const EMPTY_TEXT = "No Claude Code sessions running";
 const PEEP_SIZE = "32";
+export const FLASH_MS = 1000;
 
 type Row = {
   el: HTMLElement;
@@ -77,11 +78,30 @@ function updateRow(r: Row, v: RowView) {
   r.last = v;
 }
 
-export function createList(root: HTMLElement, identityOf?: IdentityOf) {
+function flash(row: HTMLElement) {
+  row.classList.remove("flash");
+  void row.offsetWidth; // restarts the animation on a repeat click
+  row.classList.add("flash");
+  clearTimeout(Number(row.dataset.flashTimer));
+  row.dataset.flashTimer = String(setTimeout(() => row.classList.remove("flash"), FLASH_MS));
+}
+
+export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?: OnFocus) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
   empty.textContent = EMPTY_TEXT;
   const rows = new Map<string, Row>();
+
+  if (onFocus) {
+    list.classList.add("focusable");
+    list.addEventListener("click", (e) => {
+      const target = (e.target as Element).closest(".peep, .name");
+      const row = target?.closest<HTMLElement>(".row");
+      const id = row?.dataset.id;
+      if (!row || !id) return;
+      void requestFocus(onFocus, id, () => flash(row));
+    });
+  }
 
   return function render(sessions: readonly Session[]) {
     const sorted = sortSessions(sessions);
