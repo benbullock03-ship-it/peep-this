@@ -2,10 +2,12 @@
   --bg: #141218;
   --panel: #1a1820;
   --border: rgba(255, 255, 255, 0.07);
+  --row-border: rgba(255, 255, 255, 0.06);
   --text: #ede9f2;
   --text-2: #a49fb0;
   --text-3: #7d7889;
   --accent: #f7d64a;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
 }
 
 html,
@@ -15,4 +17,138 @@ body {
   color: var(--text);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#sessions {
+  padding: 8px;
+}
+
+.list {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.list:empty {
+  display: none;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--row-border);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.row[data-alive="false"] {
+  opacity: 0.55;
+}
+
+.peep {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--bg);
+  font: 600 10px/14px var(--mono);
+  text-align: center;
+  pointer-events: none;
+}
+
+.text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.name,
+.task {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.task {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--led);
+  white-space: nowrap;
+}
+
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--led);
+}
+
+.ctx {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.ctx-fill {
+  height: 100%;
+  background: var(--text-3);
+  transition: width 0.4s ease;
+}
+
+.empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.notice {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-2);
 }
