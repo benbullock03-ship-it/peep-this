@@ -1,0 +1,15 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "default",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": { "command": "mkdir zz-test", "description": "Create zz-test directory" },
+  "permission_suggestions": [
+    { "type": "addDirectories", "directories": ["C:\\work\\demo"], "destination": "session" },
+    { "type": "setMode", "mode": "acceptEdits", "destination": "session" }
+  ]
+}

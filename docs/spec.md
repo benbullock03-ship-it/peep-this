@@ -232,7 +232,11 @@ The widget becomes the place a fleet of sessions is run from; the terminal becom
 - The widget answers `PermissionRequest` hooks instead of replying 204. Actions: allow, deny, deny with a typed reason that goes back to Claude as feedback.
 - Widget first, then release: the request is held for a window (default 60s, configurable). With no answer the widget replies "no decision" and the normal terminal prompt takes over. It releases at once if that session's terminal is the foreground window, if the session moves on or dies, or if the widget hides or quits.
 - Decisions originate only from the widget's own UI through a Tauri command. No HTTP route accepts a decision, so a leaked token can at worst show a fake card.
-- **Verify** (AV-20): the decision response shape for `http` hooks, that a held hook releases cleanly to the terminal prompt, and per-event timeouts.
+- Contract (AV-20, Claude Code 2.1.325): reply 200 JSON `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`, or `"behavior":"deny","message":"<reason>"`. A 204, a timeout or a closed connection each mean no decision. Never send `updatedInput`, `updatedPermissions` or `interrupt` (an interrupt fires no `Stop`, so the row would hang).
+- The `PermissionRequest` hook entry's `timeout` is the hold window + 5s (65 by default); other events stay at 1. `onFailure` stays unset (`block` turns a timeout into a deny). AV-08's `outdated` check compares this timeout too.
+- After a widget deny no `PostToolUse` follows, so the engine leaves `Waiting` on the widget's own decision and goes to `thinking`. A connection that closes before the widget replies is a release: drop the card, send nothing.
+- `PermissionRequest` has no `tool_use_id`. Join it to the latest unresolved `PreToolUse` with the same session, `agent_id`, tool name and identical input, and take that `tool_use_id` for the trail. Subagent requests use the same contract and carry `agent_id`.
+- Owed to the AV-20 owner check: the terminal prompt while a hold is open and after its release, and a terminal answer racing the hook.
 - Still out: answering questions, free-text replies, writing "always allow" rules into Claude Code's settings.
 
 ### 11.2 Risk tiers (AV-22)

@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": { "behavior": "deny", "message": "Denied from widget: do not write that file" }
+  }
+}

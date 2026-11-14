@@ -1,7 +1,7 @@
 ---
 id: AV-20
 title: Verify PermissionRequest decisions over HTTP hooks
-status: todo
+status: in-progress
 depends: []
 attended: false
 ---
@@ -22,3 +22,41 @@ attended: false
 **Done when:** a live interactive session had one tool call allowed and one denied with a reason purely by the capture server's response, and every Verify line above has a recorded answer.
 
 Decide: if holding the hook blocks the terminal prompt entirely and a late 204 does not bring it back, the "widget first, then release" model fails. Recommended fallback: hold only while the session's terminal is not the foreground window, and cap the hold at the largest value verified to release cleanly.
+
+## Verified 2026-11-14 (Claude Code 2.1.325)
+
+Sources: the hooks docs (`code.claude.com/docs/en/hooks.md`, PermissionRequest, HTTP response handling, Timeouts, `onFailure`), plus a capture server on 127.0.0.1:47913 driven by `claude -p ... --settings <scratch> --setting-sources project --permission-mode default --model haiku`. Every non-permission event had `timeout: 1`; the server picked its reply from the URL path. The `-p` runs answered everything except the terminal-UI questions.
+
+- **Allow body** (HTTP 200, `application/json`), verified: the Write ran and `PostToolUse` followed.
+  `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`
+  Optional `updatedInput` replaces the whole input and `updatedPermissions` applies rule or mode updates; we use neither. An allow does not override a matching deny rule.
+- **Deny body**, verified: `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"<reason>"}}}`. The message reaches Claude verbatim as the tool_result (`is_error: true`), and Claude quoted it back. The transcript records `permissionDecision.source: "hook"`. **No `PostToolUse` or `PostToolUseFailure` fires after a hook deny**: the next event was `Stop`.
+- **`interrupt: true`** on a deny stops the turn at once. `-p` printed "Execution error" and exited 1. **No `Stop` fired**, only `SessionEnd`.
+- **Long holds work.** A hold of 120s ending in an allow (entry `timeout: 200`) was honoured: the write happened after 120s. A held 10s 204 gave "no decision", and `-p` then auto-denied with the standard "you haven't granted it yet" error, which is the normal `-p` flow. Nothing was lost and the session finished cleanly. Whether the terminal prompt shows during and after a hold is owed (below).
+- **Per-entry timeouts can differ:** PermissionRequest `5`, the other events `1`. At 5.00s Claude closed the socket (the server saw a disconnect before replying) and treated the result as no decision; `-p` auto-denied and `Stop` followed. Docs: a timed-out http hook is cancelled, its output discarded, and no decision results. **`onFailure: "block"` on PermissionRequest turns a failure or timeout into a deny**, so it must stay unset.
+- **Kill while held:** killing the `claude` process 22s into a hold made the server see the connection close at once. No `SessionEnd` was sent. Esc while held is owed.
+- **Subagent:** same contract. Its PermissionRequest carries `agent_id` and `agent_type` under the parent `session_id`, and an allow from the server let the subagent's Write run. The surrounding PreToolUse/PostToolUse carry the same `agent_id`.
+- **Correlation:** PermissionRequest still has no `tool_use_id` (docs confirm this). It comes about 50ms after a `PreToolUse` with the same `session_id`, `prompt_id`, `agent_id` (or absent), `tool_name` and an identical `tool_input`, and that PreToolUse carries the `tool_use_id` that the following `PostToolUse` repeats. The join is usable, but it rests on inference.
+- Docs, not verified live: in SDK hosts (Desktop, VS Code) the hooks run alongside `canUseTool` and "whichever decides first applies". The `permission_prompt` Notification is skipped if "you or a PermissionRequest hook answer sooner", which suggests the dialog and the hook race rather than run in sequence.
+- Fixtures: `permission_request_bash.json`, `permission_request_subagent.json`, `permission_response_allow.json`, `permission_response_deny.json` (the existing `permission_request.json` covers Write).
+
+## Decisions taken without a ruling
+
+- The widget sends the minimal allow/deny bodies above. No `updatedInput`, no `updatedPermissions` (spec §11.1 keeps rule-writing out), no `interrupt`: an interrupt sends no `Stop`, so the row would hang in its old state.
+- The PermissionRequest entry gets `timeout` = hold window + 5s (65 by default). The other events stay at 1. The widget releases with its own 204 first, and Claude's timeout is only the backstop. Changing the hold window means reinstalling hooks, so AV-08's `outdated` check should compare this timeout too. `onFailure` stays unset.
+- A connection that closes before the widget replies (timeout, kill, or probably the terminal answering first) counts as a release: drop the pending card and do not try to reply.
+- After the widget denies, the state engine leaves `Waiting` on the widget's own decision (to `thinking`), because no PostToolUse follows. After an allow, the normal PostToolUse arrives.
+- Correlation for AV-21/AV-26: the latest unresolved PreToolUse in the same `session_id` + `agent_id` with equal `tool_name` and deep-equal `tool_input` supplies the `tool_use_id`.
+- Decide fallback: **not triggered** on what could be verified. A late 204 is a clean "no decision", and holds up to 120s were honoured. The terminal-side behaviour below could still trigger it.
+
+## Owed before done
+
+Scratch harness (re-create if the temp dir was cleared): `C:\Users\benbu\AppData\Local\Temp\claude\30a9097ea8fcfb1f\23e4d5f3-9d16-457d-aa31-d86775f82627\scratchpad\cap\`. The server (`server.js`) logs to `log.jsonl` and replies by path: `/allow`, `/deny`, `/hold/<s>` (204 after s), `/holdallow/<s>`. To regenerate settings, run `node gen.js <out> <path> <timeout>` in Git Bash with `MSYS_NO_PATHCONV=1`.
+
+1. `node server.js 47913`. In an empty scratch dir run `claude --settings <cap>\s_hold60.json --setting-sources project` and ask "use Write to create x.txt containing hi". Record whether the terminal permission prompt is visible in the first 5s. Leave it alone: after the 204 at 60s, does the prompt appear (or stay) and does answering Yes write the file? Repeat with `s_hold10.json` and `s_hold120.json`.
+2. Race: with `s_holdallow.json` (allows at 20s), answer **No** in the terminal at about 5s. Record which answer wins and whether `log.jsonl` shows `closed_before_reply` right after your keypress. Repeat with Esc instead of No.
+3. Timeout: with `s_tmo.json` (timeout 5, server holds 30), confirm the terminal prompt is usable after 5s.
+4. Kill: with `s_kill.json`, close the terminal window during the hold and confirm `closed_before_reply` in the log.
+5. Done-when: with `s_allow.json` one write goes through without touching the terminal. With `s_deny.json` one is denied, and Claude quotes "ZEBRA-42".
+
+If step 1 shows no terminal prompt during the hold and none after the 204, take the Decide fallback.
