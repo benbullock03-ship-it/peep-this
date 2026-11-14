@@ -31,7 +31,9 @@ Built: `tauri.conf.json` (`transparent`, `shadow: false`), `styles.css` (transpa
 
 Checked by Claude at 100%: a screen capture shows the editor through the window and a 6px shadow band darkening it (`#191A1B` to `#0E0E0F`). `WindowFromPoint` on the two transparent corners returns the window underneath; card and shadow return the widget.
 
+Live check 2026-11-14 (Claude, at the owner's request): card over a dark editor and over a white topmost window at 100%. Both are crisp, and the shadow falls cleanly on each with no fringe.
+
 Owed:
-- Owner: card over a light and a dark window; crisp at 150% and 200%.
+- Crisp at 150% and 200%: not checked. It needs the display scale changed, which would disrupt the owner's desktop.
 - **CPU:** release build, 3 live sessions, 2 runs of 30s each. Transparent 0.91% and 1.07%, opaque 1.15% and 1.22%. Transparency costs nothing measurable. The ~1% total comes from peeps animating for live sessions and was there before this ticket. It needs its own ticket if §8 "idle" means sessions busy rather than idle.
 
