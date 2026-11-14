@@ -1,7 +1,7 @@
 ---
 id: AV-28
 title: Child peep rows for subagents
-status: in-progress
+status: done
 depends: [AV-27, AV-44]
 attended: false
 ---
@@ -19,10 +19,14 @@ attended: false
 
 **Done when:** the owner watched a real fan-out and could say what each agent was doing without opening the terminal.
 
-## Owed before done
+## Done 2026-11-14
 
-- Owner watches a real fan-out (3+ parallel agents) in `npm run tauri dev`: bubbles and chips readable, finished children linger 30s then fold into "done N" (click reopens), "+N more" at >4, a subagent's approval card under its child with allow/deny/hold working, no animation restarts on snapshots.
-- Built and checked against demo data in headless Chrome only (78 Vitest tests pass).
+Live check by Claude at the owner's request, in `npm run tauri dev`:
+
+- **Real fan-out:** 5 parallel subagents from a live session. Children showed with readable bubbles, type and chip. Finished ones showed their result line plus "8s · 1 tool" and lingered, then folded into "✓ done 4" and "done 5". Clicking it reopens them newest first, and clicking again folds them.
+- **Synthetic fan-out** of 5 running agents on placeholder `lc-delta` via `SubagentStart`/`PreToolUse` hooks. Real agents were too short-lived: the harness blocks foreground `sleep`, and the auto-mode classifier refused part of a second batch. Results: "+1 more", "– show fewer" and back.
+- **Child approvals:** a `Write` request and a destructive `rm -rf` request with `agent_id` mounted under their own children, sorted first, and pulled the hidden fifth child into view. The parent had no card. Allow by mouse worked. An 80ms tap on the destructive card did nothing, and a 1.25s hold allowed it. Both decisions appear on the parent's trail. Child deny was not clicked separately; it is the same AV-23 card whose deny was proven in AV-26 and AV-24.
+- **Snapshots:** 7 peep nodes tagged before 3 snapshots were all still there afterwards, none recreated, and the open row stayed open.
 
 ## Decisions taken without a ruling
 
