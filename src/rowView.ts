@@ -12,7 +12,6 @@ export type RowView = {
   attention: boolean;
   color: string;
   accessory: string;
-  subagents: number;
   contextPct: number | null;
   alive: boolean;
 };
@@ -49,7 +48,6 @@ export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFo
     attention: isAttention(state),
     color,
     accessory,
-    subagents: Math.max(0, Math.floor(s.subagents || 0)),
     contextPct: contextFill(s.contextPct),
     alive: s.alive,
   };

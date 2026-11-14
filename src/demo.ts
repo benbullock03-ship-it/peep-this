@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { LastTool, PendingApproval, Session, Snapshot, State } from "./model";
+import type { Agent, LastTool, PendingApproval, Session, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: Required<LastTool>; state: State }[] = [
@@ -51,6 +51,7 @@ const PENDING: Record<number, Omit<PendingApproval, "receivedAt" | "releaseAt">>
     id: "demo-req-shell",
     tool: "Bash",
     cwd: "C:/Users/demo/Projects/accounts-payable/pipelines/ingest-01",
+    agentId: "demo-agent-tests",
     input: { command: SHELL_CMD, description: "Build and run the row tests" },
     risk: { tier: "shell", field: "command", span: spanOf(SHELL_CMD, "npm run build"), reason: "shell command" },
   },
@@ -67,6 +68,36 @@ const PENDING: Record<number, Omit<PendingApproval, "receivedAt" | "releaseAt">>
     },
   },
 };
+
+type AgentSeed = [id: string, type: string, description: string, state: State, tool?: LastTool, done?: { agoS: number; tookS: number; tools: number; result: string }];
+
+// ingest-01 has a child holding the shell card; research-02 overflows, has one lingering and three folded.
+const KIDS: Record<number, AgentSeed[]> = {
+  0: [
+    ["demo-agent-tests", "general-purpose", "Run the row tests", "waiting", { name: "Bash", target: SHELL_CMD }],
+    ["demo-agent-schema", "Explore", "Find the line item schema", "working", { name: "Read", target: "pipelines/ingest/schema.sql" }],
+  ],
+  1: [
+    ["demo-agent-a", "Explore", "Find vendor_id callers", "working", { name: "Grep", target: "vendor_id" }],
+    ["demo-agent-b", "Explore", "Map the vendor docs", "thinking"],
+    ["demo-agent-c", "Explore", "Check the API limits", "working", { name: "WebFetch", target: "vendor docs/api" }],
+    ["demo-agent-d", "Plan", "Draft the rollout", "thinking"],
+    ["demo-agent-e", "general-purpose", "Summarise open issues", "working", { name: "Read", target: "docs/vendors.md" }],
+    ["demo-agent-f", "Explore", "List the webhooks", "success", undefined, { agoS: 4, tookS: 72, tools: 6, result: "Found 3 webhooks in src/vendor/hooks.ts" }],
+    ["demo-agent-g", "Explore", "Read the changelog", "success", undefined, { agoS: 90, tookS: 41, tools: 3, result: "v2 drops the batch endpoint" }],
+    ["demo-agent-h", "Plan", "Order the migrations", "success", undefined, { agoS: 120, tookS: 95, tools: 0, result: "Migrate auth first, then billing" }],
+    ["demo-agent-i", "general-purpose", "Count failing jobs", "success", undefined, { agoS: 200, tookS: 30, tools: 4, result: "12 jobs failed since Monday" }],
+  ],
+};
+
+function kidsFor(i: number, now: number): Agent[] | undefined {
+  return KIDS[i]?.map(([id, agentType, description, state, lastTool, done], k) => {
+    const endedAt = done ? now - done.agoS * 1000 : undefined;
+    const startedAt = done ? endedAt! - done.tookS * 1000 : now - (k + 1) * 20_000;
+    const task = state === "working" && lastTool ? `${lastTool.name} ${lastTool.target}` : state === "waiting" ? asks(lastTool!.name) : done ? "Done" : "Thinking";
+    return { id, agentType, description, state, stateSince: endedAt ?? now - 5_000, task, lastTool, startedAt, endedAt, toolCount: done?.tools ?? k + 1, result: done?.result };
+  });
+}
 
 function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number): PendingApproval {
   return { ...p, receivedAt: now, releaseAt: now + HOLD_MS };
@@ -101,7 +132,8 @@ export function demoSnapshot(now: number): Snapshot {
       state: a.state,
       stateSince: now - i * 60_000,
       task: taskFor(i, a.state),
-      subagents: i === 0 ? 2 : 0,
+      subagents: KIDS[i]?.filter((k) => !k[5]).length ?? 0,
+      agents: kidsFor(i, now),
       // Low, amber (70+) and red (90+) context for the segmented bars.
       contextPct: [74, 35, 93, 12, 47, undefined][i],
       alive: true,
@@ -117,11 +149,15 @@ function withPending(s: Session, i: number, now: number): Session {
 /** Drops a decided demo request; the session moves on as the backend would. */
 export function demoDecide(snap: Snapshot, requestId: string, decision: "allow" | "deny", now: number): Snapshot {
   const sessions = snap.sessions.map((s, i) => {
-    if (!s.pending?.some((p) => p.id === requestId)) return s;
-    const pending = s.pending.filter((p) => p.id !== requestId);
-    if (pending.length) return { ...s, pending };
+    const decided = s.pending?.find((p) => p.id === requestId);
+    if (!decided) return s;
+    const pending = s.pending!.filter((p) => p.id !== requestId);
     const state: State = decision === "allow" ? "working" : "thinking";
-    return { ...s, pending: undefined, state, stateSince: now, task: taskFor(i, state) };
+    const agents = s.agents?.map((a) =>
+      a.id === decided.agentId ? { ...a, state, stateSince: now, task: state === "working" ? `${decided.tool} ${SHELL_CMD}` : "Thinking" } : a,
+    );
+    if (pending.length) return { ...s, pending, agents };
+    return { ...s, pending: undefined, agents, state, stateSince: now, task: taskFor(i, state) };
   });
   return { ...snap, sessions };
 }

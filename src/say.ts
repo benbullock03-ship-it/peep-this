@@ -1,5 +1,5 @@
 import { byOldest, SHELL_TOOLS, targetOf } from "./approval";
-import type { PendingApproval, Session } from "./model";
+import type { Agent, PendingApproval, Session } from "./model";
 
 /** Mirrors `STUCK_AFTER_MS` in state.rs: a session turns stuck this long after its last event. */
 export const STUCK_AFTER_MS = 6 * 60 * 1000;
@@ -36,5 +36,36 @@ export function sayFor(s: Session, now: number): string {
       return meaningful(task) ? task : "Hmm… thinking it over.";
     default:
       return "Resting. Ready when you are.";
+  }
+}
+
+const toolText = (t: Agent["lastTool"]) => (t ? [t.name, t.target].filter(Boolean).join(" ") : "");
+
+/** The bubble line for a subagent child row; `pending` is that agent's held requests only. */
+export function kidSayFor(a: Agent, pending: readonly PendingApproval[] | undefined, now: number): string {
+  const task = a.task ?? "";
+  const asked = a.description.trim();
+  if (a.endedAt !== undefined) {
+    if (a.state === "idle") return "Stopped when the session closed.";
+    if (a.result) return a.result;
+    if (a.state === "error") return meaningful(task) ? task : "Something went wrong.";
+    return "All done!";
+  }
+  switch (a.state) {
+    case "working": {
+      const tool = toolText(a.lastTool) || (meaningful(task) ? task : "");
+      return tool ? `Running ${tool}…` : "Working…";
+    }
+    case "waiting":
+      if (pending?.length) return askFor([...pending].sort(byOldest)[0]);
+      return meaningful(task) ? task : "Waiting for you.";
+    case "error":
+      return meaningful(task) ? task : "Something went wrong.";
+    case "stuck":
+      return `zzz… no reply for ${Math.floor((STUCK_AFTER_MS + Math.max(0, now - a.stateSince)) / 60_000)} min`;
+    case "thinking":
+      return meaningful(task) ? task : asked || "Hmm… thinking it over.";
+    default:
+      return asked || "Resting.";
   }
 }

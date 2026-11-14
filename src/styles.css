@@ -245,20 +245,6 @@ body {
   align-items: flex-end;
 }
 
-.ps-badge {
-  position: absolute;
-  top: -2px;
-  right: -6px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  background: var(--ps-accent);
-  color: var(--ps-on-st);
-  font: 500 10px/14px var(--mono);
-  text-align: center;
-  pointer-events: none;
-}
-
 .ps-bubble {
   position: relative;
   align-self: flex-start;
@@ -442,6 +428,201 @@ body {
   padding-top: 8px;
   border-top: 1px solid var(--ps-line);
   font-size: 11px;
+}
+
+/* ---------- subagent child rows (AV-28) ---------- */
+/* Indented under the parent's peep column, hung off a dotted 2px rail. */
+.ps-kids {
+  position: relative;
+  margin: 2px 14px 4px 34px;
+  padding-left: 12px;
+}
+
+.ps-kids::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 10px;
+  width: 2px;
+  background: repeating-linear-gradient(180deg, var(--ps-shelf-top) 0 4px, transparent 4px 8px);
+}
+
+.ps-kid {
+  position: relative;
+}
+
+.ps-kid::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 30px;
+  width: 8px;
+  height: 2px;
+  background: var(--ps-shelf-top);
+}
+
+.ps-kid-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  padding-top: 6px;
+}
+
+.ps-kid-stand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ps-kid-plank {
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--ps-shelf) 0 4px, var(--ps-shelf-top) 4px 8px);
+}
+
+.ps-kid-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+
+.ps-kid-say {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.ps-kid-say > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ps-kid-say::before {
+  left: -5px;
+  bottom: 4px;
+  width: 3px;
+  height: 3px;
+  box-shadow: -3px 3px 0 var(--ps-text);
+}
+
+.is-att .ps-kid-say::before {
+  box-shadow: -3px 3px 0 var(--st);
+}
+
+/* A parent in attention must not fill its calm children's bubbles. */
+.ps-kid:not(.is-att) .ps-kid-say {
+  background: var(--ps-panel);
+  color: var(--ps-text);
+  border-color: var(--ps-text);
+  font-weight: 400;
+}
+
+.ps-kid:not(.is-att) .ps-kid-say::before {
+  background: var(--ps-text);
+  box-shadow: -3px 3px 0 var(--ps-text);
+}
+
+.ps-kid.is-done:not(.is-att) .ps-kid-say {
+  border-color: var(--st);
+}
+
+.ps-kid.is-done:not(.is-att) .ps-kid-say::before {
+  background: var(--st);
+  box-shadow: -3px 3px 0 var(--st);
+}
+
+.ps-kid-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ps-kid-name {
+  flex: none;
+  color: var(--ps-text);
+}
+
+.ps-kid-desc,
+.ps-kid-stats {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ps-dim);
+}
+
+.ps-kid-desc {
+  flex: 1 1 auto;
+}
+
+.ps-kid-stats {
+  flex: 0 1 auto;
+}
+
+.ps-kid-chip {
+  margin-left: auto;
+  gap: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
+.ps-kid-chip .ps-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.ps-kid-cards {
+  padding: 6px 0 2px;
+}
+
+.ps-kid-toggle {
+  position: relative;
+  display: block;
+  margin-top: 6px;
+  padding: 1px 6px;
+  font: 11px var(--mono);
+  color: var(--ps-muted);
+  background: var(--ps-panel);
+  border: 1px dashed var(--ps-line);
+  cursor: pointer;
+}
+
+.ps-kid-toggle::before {
+  content: "";
+  position: absolute;
+  left: -13px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: var(--ps-shelf-top);
+}
+
+.ps-kid-toggle:hover {
+  color: var(--ps-text);
+  border-color: var(--ps-muted);
+}
+
+.ps-kid-toggle:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 1px;
+}
+
+.ps-kid-done {
+  color: var(--st-success);
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--st-success) 45%, transparent);
+}
+
+.ps-kid-done[aria-expanded="true"] {
+  background: var(--ps-panel-2);
 }
 
 /* ---------- row lifecycle ---------- */

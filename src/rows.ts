@@ -1,6 +1,7 @@
 import { createCards, type Decide } from "./approvalCard";
 import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
+import { createKids, type KidsRender } from "./kidRows";
 import type { Session, TrailEntry } from "./model";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { sortSessions } from "./sort";
@@ -40,7 +41,6 @@ type Row = {
   stage: HTMLElement;
   peepWrap: HTMLElement;
   peep: HTMLElement;
-  badge: HTMLElement;
   // [closed, open] copies of the same text.
   names: HTMLElement[];
   labels: HTMLElement[];
@@ -50,6 +50,7 @@ type Row = {
   last: Partial<RowView>;
   session: Session;
   cards?: (pending: Session["pending"]) => number;
+  kids: KidsRender;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
@@ -106,8 +107,6 @@ function createRow(s: Session, decide?: Decide): Row {
   peep.setAttribute("size", PEEP_SIZE);
   peep.setAttribute("aria-hidden", "true");
   peepWrap.appendChild(peep);
-  const badge = el("span", "ps-badge", peepWrap);
-  badge.hidden = true;
   const body = el("span", "ps-body", closed);
   const say = bubble(body);
   const meta = el("span", "ps-meta", body);
@@ -132,6 +131,8 @@ function createRow(s: Session, decide?: Decide): Row {
     host.hidden = true;
     cards = createCards(host, decide);
   }
+  const kidsHost = el("div", "ps-kids", item);
+  kidsHost.hidden = true;
   return {
     el: item,
     closed,
@@ -139,7 +140,6 @@ function createRow(s: Session, decide?: Decide): Row {
     stage,
     peepWrap,
     peep,
-    badge,
     names: [name, openName],
     labels: [label, openLabel],
     says: [say, openSay],
@@ -148,6 +148,7 @@ function createRow(s: Session, decide?: Decide): Row {
     last: {},
     session: s,
     cards,
+    kids: createKids(kidsHost, decide),
   };
 }
 
@@ -177,11 +178,6 @@ function updateRow(r: Row, v: RowView) {
     }
   }
   if (l.name !== v.name || l.label !== v.label || l.say !== v.say) r.closed.setAttribute("aria-label", `${v.name}: ${v.label}. ${v.say}`);
-  if (l.subagents !== v.subagents) {
-    r.badge.textContent = v.subagents > 0 ? String(v.subagents) : "";
-    r.badge.hidden = v.subagents <= 0;
-    r.badge.title = v.subagents === 1 ? "1 subagent running" : `${v.subagents} subagents running`;
-  }
   if (l.alive !== v.alive) r.el.dataset.alive = String(v.alive);
   r.last = v;
 }
@@ -275,6 +271,7 @@ export function createList(
   const rows = new Map<string, Row>();
   let open: Row | null = null;
   let ticker = 0;
+  let foldTimer = 0;
   let firstRender = true;
 
   function close(restoreFocus = false) {
@@ -315,6 +312,7 @@ export function createList(
     const sorted = sortSessions(sessions);
     const seen = new Set<string>();
     const now = Date.now();
+    let foldAt: number | null = null;
     let prev: Element | null = null;
     for (const s of sorted) {
       seen.add(s.id);
@@ -329,8 +327,11 @@ export function createList(
         clearTimeout(Number(r.el.dataset.leaveTimer));
         r.el.classList.remove("leaving");
       }
-      updateRow(r, toRowView(s, identityOf, now));
-      r.cards?.(s.alive ? s.pending : undefined);
+      const view = toRowView(s, identityOf, now);
+      updateRow(r, view);
+      const kids = r.kids(s, view.color, now);
+      if (kids.foldAt !== null && (foldAt === null || kids.foldAt < foldAt)) foldAt = kids.foldAt;
+      r.cards?.(s.alive ? s.pending?.filter((p) => !kids.claimed.has(p.id)) : undefined);
       if (r === open) {
         fillFacts(r, now);
         fillTrail(r, trailOf?.(s.id));
@@ -354,5 +355,8 @@ export function createList(
     }
     empty.hidden = sorted.length > 0;
     if (sorted.length > 0) firstRender = false;
+    // Finished children fold on time even when no snapshot arrives.
+    clearTimeout(foldTimer);
+    if (foldAt !== null) foldTimer = window.setTimeout(() => render(sessions), Math.max(0, foldAt - Date.now()) + 50);
   };
 }

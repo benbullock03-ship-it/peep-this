@@ -17,11 +17,28 @@ export type Session = {
   stateSince: number;
   task: string;
   lastTool?: LastTool;
+  /** Running count from the backend; the UI renders `agents` instead. */
   subagents: number;
+  agents?: Agent[];
   contextPct?: number;
   alive: boolean;
   endedAt?: number;
   pending?: PendingApproval[];
+};
+
+/** A subagent of a session (state.rs `Agent`); finished once `endedAt` is set. */
+export type Agent = {
+  id: string;
+  agentType: string;
+  description: string;
+  state: State;
+  stateSince: number;
+  task: string;
+  lastTool?: LastTool;
+  startedAt: number;
+  endedAt?: number;
+  toolCount: number;
+  result?: string;
 };
 
 export type RiskTier = "safe" | "shell" | "destructive";
