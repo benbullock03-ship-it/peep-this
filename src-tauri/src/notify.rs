@@ -35,8 +35,6 @@ pub fn should_toast(last_toast: Option<u64>, now: u64, view: WidgetView) -> bool
     last_toast.is_none_or(|t| now.saturating_sub(t) >= DEDUP_MS)
 }
 
-/// AV-24 must register this same key.
-pub const INBOX_HOTKEY: &str = "Ctrl+Alt+I";
 /// The waiting alert fires on the hook's state event, just before the broker records the held request.
 pub const SHOW_DELAY_MS: u64 = 200;
 
@@ -60,7 +58,10 @@ pub fn toast_content(s: &Session) -> ToastContent {
         if p.risk.tier == crate::risk::Tier::Safe {
             c.buttons = vec![("Allow", format!("allow:{}", p.id)), ("Deny", format!("deny:{}", p.id))];
         } else {
-            c.hint = Some(format!("Review it in Peep This ({INBOX_HOTKEY})"));
+            c.hint = Some(match crate::hotkey::registered() {
+                Some(key) => format!("Review it in Peep This ({key})"),
+                None => "Review it in Peep This".into(),
+            });
         }
     }
     c
@@ -247,7 +248,7 @@ mod tests {
             s.pending = vec![held("ap-2", T0, tier)];
             let c = toast_content(&s);
             assert!(c.buttons.is_empty(), "{tier:?}");
-            assert!(c.hint.as_deref().is_some_and(|h| h.contains(INBOX_HOTKEY)), "{tier:?}");
+            assert!(c.hint.as_deref().is_some_and(|h| h.starts_with("Review it in Peep This")), "{tier:?}");
         }
     }
 

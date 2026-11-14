@@ -122,6 +122,43 @@ body {
   white-space: nowrap;
 }
 
+/* ---------- keyboard inbox (AV-24): pending count and the empty-press flash ---------- */
+.ps-pending {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  background: var(--st-waiting);
+  color: var(--ps-on-st);
+  font: 500 11px/16px var(--mono);
+  letter-spacing: 0;
+  vertical-align: 1px;
+}
+
+.ps-head.is-flash .ps-title {
+  animation: head-flash 480ms steps(1, end);
+}
+
+@keyframes head-flash {
+  0%,
+  50% {
+    background: var(--ps-accent);
+    color: var(--ps-on-st);
+  }
+  25%,
+  75% {
+    background: var(--ps-panel);
+    color: var(--ps-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-head.is-flash .ps-title {
+    animation: none;
+    background: var(--ps-accent);
+    color: var(--ps-on-st);
+  }
+}
+
 .ps-usage {
   min-width: 0;
   display: flex;
@@ -705,6 +742,20 @@ body {
   color: var(--ps-muted);
 }
 
+.notice--warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-color: var(--st-waiting);
+  color: var(--ps-text);
+}
+
+.notice--warn > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- integration banner ---------- */
 .banner {
   display: flex;
@@ -795,6 +846,41 @@ body {
 .card.deciding {
   opacity: 0.55;
   pointer-events: none;
+}
+
+.card:focus {
+  outline: none;
+}
+
+.card.is-inbox {
+  border-color: var(--ps-accent);
+  border-left-color: var(--tier);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+.card-keys {
+  display: none;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 10px;
+  color: var(--ps-dim);
+}
+
+.card.is-inbox .card-keys {
+  display: flex;
+}
+
+.card-key kbd {
+  margin-right: 4px;
+  padding: 0 3px;
+  border: 1px solid var(--ps-muted);
+  color: var(--ps-text);
+  font: 500 10px var(--mono);
+}
+
+.card[data-tier="destructive"] .card-key:first-child kbd {
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .card-head {
@@ -1182,6 +1268,27 @@ body {
   color: var(--ps-muted);
   font-size: 12px;
   font-weight: 500;
+}
+
+.hotkey-row {
+  display: flex;
+  gap: 6px;
+}
+
+.hotkey-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 2px solid var(--ps-line);
+  background: var(--ps-panel);
+  color: var(--ps-text);
+  font: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.hotkey-input:focus {
+  border-color: var(--ps-accent);
 }
 
 .log-filters {

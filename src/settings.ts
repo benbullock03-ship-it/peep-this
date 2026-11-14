@@ -1,10 +1,15 @@
+import { comboFromKey } from "./inbox";
 import type { TrailEntry, TrailOutcome } from "./model";
 import { entryTitle, filterTrail, formatWhen, LOG_MAX, markOf, OUTCOMES, sessionOptions, shownTarget, type TrailFilter } from "./trail";
+
+/** hotkey.rs `Status`. */
+export type HotkeyStatus = { hotkey: string; registered: boolean; error?: string };
 
 export type SettingsApi = {
   log: () => Promise<TrailEntry[]>;
   enabled: () => Promise<boolean>;
   setEnabled: (on: boolean) => Promise<boolean>;
+  hotkey?: { get: () => Promise<HotkeyStatus>; set: (combo: string) => Promise<HotkeyStatus> };
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement, text?: string) {
@@ -33,6 +38,8 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   el("p", "settings-note", host, "Keeps the command or path, never file contents. Entries older than 90 days are removed.");
   const err = el("p", "settings-error", host);
   err.hidden = true;
+
+  const hotkey = api.hotkey ? createHotkeyField(host, api.hotkey) : null;
 
   el("h3", "settings-sub", host, "Decision log");
   const filters = el("div", "log-filters", host);
@@ -116,7 +123,71 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     }
     renderSessions();
     renderList();
+    await hotkey?.refresh();
   }
 
-  return { refresh };
+  return { refresh, hotkeyStatus: (s: HotkeyStatus) => hotkey?.show(s) };
+}
+
+/** The inbox hotkey: press a combination in the field, then Save (Enter). Esc puts the live one back. */
+function createHotkeyField(host: HTMLElement, api: NonNullable<SettingsApi["hotkey"]>) {
+  el("h3", "settings-sub", host, "Inbox hotkey");
+  const row = el("div", "hotkey-row", host);
+  const input = el("input", "hotkey-input", row);
+  input.readOnly = true;
+  input.setAttribute("aria-label", "Inbox hotkey");
+  input.placeholder = "Press a combination";
+  const save = el("button", "card-btn hotkey-save", row, "Save");
+  save.type = "button";
+  el("p", "settings-note", host, "Brings the oldest pending approval into focus. Y allow, N deny, R reason, Tab next, Enter terminal, Esc back.");
+  const msg = el("p", "settings-error", host);
+  msg.hidden = true;
+
+  let live: HotkeyStatus | null = null;
+
+  function show(s: HotkeyStatus) {
+    live = s;
+    input.value = s.hotkey;
+    msg.hidden = !s.error;
+    msg.textContent = s.error ?? "";
+  }
+
+  async function commit() {
+    if (!input.value || (live?.registered && input.value === live.hotkey)) return;
+    save.disabled = true;
+    try {
+      show(await api.set(input.value));
+    } catch (e) {
+      msg.textContent = String(e);
+      msg.hidden = false;
+    } finally {
+      save.disabled = false;
+    }
+  }
+
+  input.addEventListener("keydown", (e) => {
+    const bare = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+    if (e.key === "Tab" && bare) return;
+    e.preventDefault();
+    if (e.key === "Enter" && bare) void commit();
+    else if (e.key === "Escape" && bare) {
+      if (live) show(live);
+    } else {
+      const combo = comboFromKey(e);
+      if (combo) input.value = combo;
+    }
+  });
+  save.addEventListener("click", () => void commit());
+
+  return {
+    show,
+    async refresh() {
+      try {
+        show(await api.get());
+      } catch (e) {
+        msg.textContent = `Could not read the hotkey: ${e}`;
+        msg.hidden = false;
+      }
+    },
+  };
 }

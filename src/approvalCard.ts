@@ -78,7 +78,43 @@ function body(card: HTMLElement, p: PendingApproval) {
   }
 }
 
+/** What the keyboard inbox (AV-24) drives; the same paths the buttons use. */
+export type CardHandle = {
+  el: HTMLElement;
+  /** `Y` down: allows, or starts the 1s hold on a destructive request. */
+  allowKey: () => void;
+  /** `Y` up, Tab or leaving: drops an unfinished hold. */
+  holdStop: () => void;
+  deny: () => void;
+  openReason: () => void;
+  /** False when the reason field was not open. */
+  closeReason: () => boolean;
+  focus: () => void;
+};
+
 type Card = { el: HTMLElement; dispose: () => void };
+
+const handles = new Map<string, CardHandle>();
+
+export const findCard = (requestId: string) => handles.get(requestId);
+
+function keyHints(card: HTMLElement, destructive: boolean) {
+  const box = el("div", "card-keys", card);
+  box.setAttribute("aria-hidden", "true");
+  const hints: [string, string][] = [
+    ["Y", destructive ? "hold to allow" : "allow"],
+    ["N", "deny"],
+    ["R", "reason"],
+    ["Tab", "next"],
+    ["Enter", "terminal"],
+    ["Esc", "back"],
+  ];
+  for (const [k, what] of hints) {
+    const item = el("span", "card-key", box);
+    el("kbd", "", item, k);
+    item.append(what);
+  }
+}
 
 function createCard(p: PendingApproval, decide: Decide): Card {
   const tier = p.risk.tier;
@@ -137,6 +173,8 @@ function createCard(p: PendingApproval, decide: Decide): Card {
     }
   };
 
+  let holdStart: () => void = () => void send("allow");
+  let holdStop: () => void = () => {};
   if (tier === "destructive") {
     allow.style.setProperty("--hold-ms", `${HOLD_MS}ms`);
     const hold = createHold(() => {
@@ -152,6 +190,8 @@ function createCard(p: PendingApproval, decide: Decide): Card {
       allow.classList.remove("holding");
       hold.cancel();
     };
+    holdStart = start;
+    holdStop = stop;
     allow.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       allow.setPointerCapture(e.pointerId);
@@ -171,9 +211,8 @@ function createCard(p: PendingApproval, decide: Decide): Card {
   }
   deny.addEventListener("click", () => void send("deny"));
 
-  withReason.addEventListener("click", () => {
-    reasonBox.hidden = !reasonBox.hidden;
-    if (reasonBox.hidden) return;
+  const openReason = () => {
+    reasonBox.hidden = false;
     recent.replaceChildren();
     for (const r of loadReasons()) {
       const b = el("button", "card-reason-chip", recent, r);
@@ -185,15 +224,50 @@ function createCard(p: PendingApproval, decide: Decide): Card {
       });
     }
     input.focus();
+  };
+  withReason.addEventListener("click", () => {
+    if (reasonBox.hidden) openReason();
+    else reasonBox.hidden = true;
   });
+  card.tabIndex = -1;
+  const closeReason = () => {
+    if (reasonBox.hidden) return false;
+    reasonBox.hidden = true;
+    card.focus({ preventScroll: true });
+    return true;
+  };
   input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeReason();
+      return;
+    }
     if (e.key !== "Enter") return;
     e.preventDefault();
     const reason = input.value.trim();
     if (reason) void send("deny", reason);
   });
 
-  return { el: card, dispose: () => card.remove() };
+  keyHints(card, tier === "destructive");
+  const handle: CardHandle = {
+    el: card,
+    allowKey: holdStart,
+    holdStop,
+    deny: () => void send("deny"),
+    openReason,
+    closeReason,
+    focus: () => (reasonBox.hidden ? card : input).focus({ preventScroll: true }),
+  };
+  handles.set(p.id, handle);
+  return {
+    el: card,
+    dispose: () => {
+      holdStop();
+      card.remove();
+      if (handles.get(p.id) === handle) handles.delete(p.id);
+    },
+  };
 }
 
 /** Keeps one card per pending request inside `host`, oldest first, so typed reasons survive re-renders. */

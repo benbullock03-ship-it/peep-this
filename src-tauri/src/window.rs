@@ -230,6 +230,28 @@ pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
     }
 }
 
+#[cfg(windows)]
+pub fn hwnd<R: Runtime>(app: &AppHandle<R>) -> Option<isize> {
+    app.get_webview_window(LABEL)?.hwnd().ok().map(|h| h.0 as isize)
+}
+
+#[cfg(not(windows))]
+pub fn hwnd<R: Runtime>(_app: &AppHandle<R>) -> Option<isize> {
+    None
+}
+
+/// Shows the widget and takes the keyboard (AV-24 inbox).
+pub fn summon<R: Runtime>(app: &AppHandle<R>) {
+    set_hidden(app, false);
+    if let Some(h) = hwnd(app) {
+        if crate::focus::foreground_window() != Some(h) {
+            if let Err(e) = crate::focus::raise(h) {
+                eprintln!("peepthis: inbox could not take focus: {e}");
+            }
+        }
+    }
+}
+
 /// Positions the main window (saved spot or default dock) before it is shown.
 pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let Some(w) = app.get_webview_window(LABEL) else { return Ok(()) };

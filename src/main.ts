@@ -2,10 +2,11 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
 import { createList } from "./rows";
-import { createSettings, type SettingsApi } from "./settings";
+import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
 import { ROW_TRAIL } from "./trail";
 import { watchContentHeight } from "./windowFit";
 
@@ -40,24 +41,70 @@ function mountSettings(api: SettingsApi) {
   }
   settingsBtn.hidden = false;
   settingsBtn.addEventListener("click", () => showSettings(settingsEl.hidden !== false));
-  return { show: showSettings, refresh: () => settings.refresh() };
+  return { show: showSettings, refresh: () => settings.refresh(), hotkeyStatus: settings.hotkeyStatus };
+}
+
+function mountInbox(deps: Pick<InboxDeps, "reveal" | "focusTerminal" | "leave">) {
+  return createInbox({
+    header: document.querySelector<HTMLElement>("#header")!,
+    badge: document.querySelector<HTMLElement>("#pending")!,
+    ...deps,
+  });
+}
+
+/** A clash with another app stays on screen until a free combination is saved. */
+function createHotkeyNotice(openSettings: () => void) {
+  const n = document.createElement("div");
+  n.className = "notice notice--warn";
+  n.hidden = true;
+  const text = document.createElement("span");
+  const change = document.createElement("button");
+  change.type = "button";
+  change.className = "card-btn";
+  change.textContent = "Change";
+  change.addEventListener("click", openSettings);
+  n.append(text, change);
+  root.prepend(n);
+  return (s: HotkeyStatus) => {
+    n.hidden = s.registered;
+    text.textContent = s.error ?? `The inbox hotkey ${s.hotkey} is not active.`;
+  };
 }
 
 function runDemo() {
   let snap = demoSnapshot(Date.now());
+  let inbox: ReturnType<typeof mountInbox> | null = null;
   const render = createList(root, demoIdentity, undefined, async (id, decision) => {
     snap = demoDecide(snap, id, decision, Date.now());
     render(snap.sessions);
+    inbox?.sync(snap.sessions);
     return true;
   });
   let trailOn = true;
-  mountSettings({ log: async () => [], enabled: async () => trailOn, setEnabled: async (on) => (trailOn = on) });
+  let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
+  const settings = mountSettings({
+    log: async () => [],
+    enabled: async () => trailOn,
+    setEnabled: async (on) => (trailOn = on),
+    hotkey: { get: async () => hotkey, set: async (combo) => (hotkey = { hotkey: combo, registered: true }) },
+  });
+  inbox = mountInbox({ reveal: () => settings.show(false), focusTerminal: () => {}, leave: () => {} });
+  inbox.setHotkey(hotkey.hotkey);
+  // No global hotkey in a browser: the same combination works while the page has focus.
+  window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.altKey && e.code === "KeyI") {
+      e.preventDefault();
+      inbox?.open();
+    }
+  });
   const renderLimits = createLimits(limitsEl);
   render(snap.sessions);
+  inbox.sync(snap.sessions);
   renderLimits(snap.rateLimits);
   setInterval(() => {
     snap = demoStep(snap, Date.now());
     render(snap.sessions);
+    inbox?.sync(snap.sessions);
     renderLimits(snap.rateLimits);
   }, DEMO_STEP_MS);
 }
@@ -82,12 +129,32 @@ async function runLive() {
     log: () => invoke<TrailEntry[]>("trail_log"),
     enabled: () => invoke<boolean>("trail_enabled"),
     setEnabled: (on) => invoke<boolean>("set_trail_enabled", { on }),
+    hotkey: {
+      get: () => invoke<HotkeyStatus>("inbox_hotkey"),
+      set: (hotkey) => invoke<HotkeyStatus>("set_inbox_hotkey", { hotkey }),
+    },
   });
   await listen("open-settings", () => settings.show(true));
+  const inbox = mountInbox({
+    reveal: () => settings.show(false),
+    focusTerminal: (id) => void invoke<boolean>("focus_session", { sessionId: id }).catch((err) => console.error("peepthis: focus_session failed", err)),
+    leave: (restore) => void invoke<boolean>("inbox_return", { restore }).catch((err) => console.error("peepthis: inbox_return failed", err)),
+  });
+  const hotkeyNotice = createHotkeyNotice(() => settings.show(true));
+  const applyHotkey = (s: HotkeyStatus) => {
+    hotkeyNotice(s);
+    inbox.setHotkey(s.registered ? s.hotkey : null);
+    settings.hotkeyStatus(s);
+  };
+  await listen<HotkeyStatus>("hotkey-status", (e) => applyHotkey(e.payload));
+  invoke<HotkeyStatus>("inbox_hotkey").then(applyHotkey, (err) => console.error("peepthis: inbox_hotkey failed", err));
+  await listen("inbox-open", () => inbox.open());
+  await listen("inbox-empty", () => inbox.flash());
   const loadRecent = async () => {
     try {
       recent = await invoke<Record<string, TrailEntry[]>>("trail_recent", { perSession: ROW_TRAIL });
       renderList(sessions);
+      inbox.sync(sessions);
     } catch (err) {
       console.error("peepthis: trail_recent failed", err);
     }
@@ -106,6 +173,7 @@ async function runLive() {
   const render = (snap: Snapshot) => {
     sessions = snap.sessions;
     renderList(snap.sessions);
+    inbox.sync(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);
   };

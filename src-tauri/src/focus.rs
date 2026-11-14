@@ -110,6 +110,18 @@ pub fn terminal_is_foreground(pid: u32, cwd: &str) -> bool {
     resolve(&table, &sys::top_level_windows(), pid, folder_hint(cwd)).is_some_and(|w| sys::foreground() == Some(w.hwnd))
 }
 
+pub fn foreground_window() -> Option<isize> {
+    sys::foreground()
+}
+
+/// Raises a window remembered earlier; Ok(false) when it has closed since.
+pub fn raise(hwnd: isize) -> Result<bool, FocusError> {
+    if !sys::exists(hwnd) {
+        return Ok(false);
+    }
+    sys::bring_to_front(hwnd).map(|_| true)
+}
+
 /// Ok(false) means no window was found, so the frontend flashes the row.
 #[tauri::command]
 pub fn focus_session(session_id: String, store: tauri::State<'_, Arc<Store>>) -> Result<bool, String> {
@@ -144,7 +156,7 @@ mod sys {
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         BringWindowToTop, EnumWindows, GetForegroundWindow, GetWindow, GetWindowLongW, GetWindowTextW,
-        GetWindowThreadProcessId, IsIconic, IsWindowVisible, SetForegroundWindow, ShowWindow, GWL_EXSTYLE,
+        GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, SetForegroundWindow, ShowWindow, GWL_EXSTYLE,
         GW_OWNER, SW_RESTORE, WS_EX_TOOLWINDOW,
     };
 
@@ -221,6 +233,10 @@ mod sys {
         (!h.is_null()).then_some(h as isize)
     }
 
+    pub fn exists(hwnd: isize) -> bool {
+        hwnd != 0 && unsafe { IsWindow(hwnd as HWND) } != 0
+    }
+
     fn alt_tap() {
         let key = |flags| INPUT {
             r#type: INPUT_KEYBOARD,
@@ -270,6 +286,9 @@ mod sys {
     }
     pub fn foreground() -> Option<isize> {
         None
+    }
+    pub fn exists(_hwnd: isize) -> bool {
+        false
     }
 }
 

@@ -1,5 +1,6 @@
 mod approve;
 mod focus;
+mod hotkey;
 mod ingest;
 mod install;
 mod notify;
@@ -185,6 +186,7 @@ pub fn run() {
         // Must be registered first: a second launch exits here and shows the running widget.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| window::set_hidden(app, false)))
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+        .plugin(hotkey::plugin())
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             window::fit_window,
@@ -195,7 +197,10 @@ pub fn run() {
             trail::trail_log,
             trail::trail_recent,
             trail::trail_enabled,
-            trail::set_trail_enabled
+            trail::set_trail_enabled,
+            hotkey::inbox_hotkey,
+            hotkey::set_inbox_hotkey,
+            hotkey::inbox_return
         ])
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
@@ -221,6 +226,7 @@ pub fn run() {
             integrator.refresh(&store);
             app.manage(integrator);
             tray::setup(app)?;
+            hotkey::setup(app.handle());
 
             let sources: Vec<Box<dyn AgentSource>> = vec![Box::new(ClaudeSource::new())];
             source::spawn_all(sources, || {
