@@ -26,6 +26,7 @@ From 2026-11-14 a fourth: can I deal with what needs me from here, without openi
 
 - Frameless, always on top, no taskbar entry. Docks to the right edge of the primary monitor on first run, about 360px wide, height fits its rows up to a cap, then scrolls.
 - Draggable by its header. Position and monitor persist across restarts; if the saved monitor is gone, fall back to the default dock.
+- Transparent window (AV-35). The panel is the AV-44 card: square, 2px border in the text colour, hard shadow `rgba(0,0,0,0.45)` offset 6px right and down, no blur. Border and shadow never carry state. The window is larger than the card by the shadow, and docking, clamping and height fit use the card rect, so the shadow may overhang the 12px margin. A window region limits hit testing to card plus shadow, so clicks on the transparent corners reach the window underneath.
 - Tray icon: left click toggles the widget, menu has Show/Hide, Install integration / Uninstall integration, Start at login (checked by default), Quit.
 - Starts at login.
 
@@ -301,11 +302,7 @@ The owner's "Pixel desktop" design (`design/shell/`) replaces the row and header
 
 ### 12.1 Pixel chrome (AV-34, AV-35)
 
-- The Tauri window is transparent. The panel is a square-cornered card with a 2px border in the text colour and a striped title bar (AV-44 design; replaces the earlier three-stair corners).
-- Hard shadow: solid `rgba(0,0,0,0.45)`, offset 6px right and down, no blur.
-- No edge light. Border and shadow never carry state; state lives in rows and peeps.
-- Docking and clamping use the card's rect, not the window's, which is larger by the shadow.
-- **Verify** (AV-34): transparency and click-through on Windows 11 at 100/150/200% scaling.
+Built: see §3.1. AV-34 recorded the platform answers.
 
 ### 12.2 Bars (AV-36)
 

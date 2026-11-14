@@ -1,5 +1,7 @@
 //! AV-11: docking, height fit and position persistence (spec §3.1).
 //! All positions are physical pixels in the virtual desktop; sizes the frontend sends are logical.
+//! The window is transparent and larger than the card by the hard shadow on its right and bottom
+//! (AV-35). Docking and clamping use the card rect, so the shadow may overhang the margin.
 
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
@@ -13,6 +15,8 @@ use tauri::{AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition,
 pub const WIDTH: f64 = 360.0;
 pub const MIN_HEIGHT: f64 = 48.0;
 pub const MARGIN: f64 = 12.0;
+/// Hard shadow offset (logical); matches `.ps` box-shadow and its right/bottom margin.
+pub const SHADOW: f64 = 6.0;
 pub const MAX_HEIGHT_FRACTION: f64 = 0.7;
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
 const SHOW_FALLBACK: Duration = Duration::from_secs(2);
@@ -66,6 +70,7 @@ fn to_phys(logical: f64, scale: f64) -> i32 {
     (logical * scale).round() as i32
 }
 
+/// `w`/`h` are the card's size; the card shares the window's top-left.
 fn clamp_into(work: &Rect, x: i32, y: i32, w: i32, h: i32) -> (i32, i32) {
     let x = x.min(work.right() - w).max(work.x);
     let y = y.min(work.bottom() - h).max(work.y);
@@ -77,16 +82,18 @@ fn default_dock(m: &MonitorInfo, w: i32, h: i32) -> (i32, i32) {
     clamp_into(&m.work, m.work.right() - w - margin, m.work.y + margin, w, h)
 }
 
-/// Where the window's outer top-left goes. `size` is logical. None when there are no monitors.
-/// Saved spot wins if its monitor still exists (same name, position, size) and the saved rect
-/// overlaps that monitor's work area (clamped fully inside); otherwise the primary's default dock.
+/// Where the window's outer top-left goes. `size` is the logical window size, shadow included.
+/// None when there are no monitors. Saved spot wins if its monitor still exists (same name,
+/// position, size) and the saved card overlaps that monitor's work area (clamped fully inside);
+/// otherwise the primary's default dock.
 pub fn place(
     saved: Option<&Saved>,
     monitors: &[MonitorInfo],
     primary: Option<&MonitorId>,
     size: (f64, f64),
 ) -> Option<(i32, i32)> {
-    let phys = |m: &MonitorInfo| (to_phys(size.0, m.scale), to_phys(size.1, m.scale));
+    let card = (size.0 - SHADOW, size.1 - SHADOW);
+    let phys = |m: &MonitorInfo| (to_phys(card.0, m.scale), to_phys(card.1, m.scale));
     if let Some(s) = saved {
         if let Some(m) = monitors.iter().find(|m| m.id == s.monitor) {
             let (w, h) = phys(m);
@@ -102,14 +109,35 @@ pub fn place(
     Some(default_dock(m, w, h))
 }
 
-/// Logical height for `content` logical px, capped at 70% of the work area, and the outer top
-/// (physical) moved up if the new height would cross the work area's bottom.
+/// Logical window height for `content` logical px (shadow included), capped at 70% of the work
+/// area, and the outer top (physical) moved up if the card would cross the work area's bottom.
 pub fn fit(content: f64, top: i32, m: &MonitorInfo) -> (f64, i32) {
     let cap = (MAX_HEIGHT_FRACTION * m.work.h as f64 / m.scale).floor().max(MIN_HEIGHT);
     let h = content.ceil().clamp(MIN_HEIGHT, cap);
-    let hp = to_phys(h, m.scale);
-    let y = if top + hp > m.work.bottom() { m.work.bottom() - hp } else { top };
+    let card = to_phys(h - SHADOW, m.scale);
+    let y = if top + card > m.work.bottom() { m.work.bottom() - card } else { top };
     (h, y.max(m.work.y))
+}
+
+/// Card and shadow rects in window-relative physical px; their union is the hit-test region,
+/// so clicks on the two transparent corners beside the shadow reach the window underneath.
+pub fn hit_region(w: i32, h: i32, scale: f64) -> [Rect; 2] {
+    let s = to_phys(SHADOW, scale);
+    [Rect { x: 0, y: 0, w: w - s, h: h - s }, Rect { x: s, y: s, w: w - s, h: h - s }]
+}
+
+#[cfg(windows)]
+fn set_region(hwnd: isize, rects: [Rect; 2]) {
+    use windows_sys::Win32::Graphics::Gdi::{CombineRgn, CreateRectRgn, DeleteObject, SetWindowRgn, RGN_OR};
+    unsafe {
+        let [a, b] = rects;
+        let rgn = CreateRectRgn(a.x, a.y, a.right(), a.bottom());
+        let other = CreateRectRgn(b.x, b.y, b.right(), b.bottom());
+        CombineRgn(rgn, rgn, other, RGN_OR);
+        DeleteObject(other);
+        // The system owns `rgn` once it is set.
+        SetWindowRgn(hwnd as _, rgn, 1);
+    }
 }
 
 fn info(m: &Monitor) -> MonitorInfo {
@@ -204,6 +232,11 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, content: f64) -> tauri::Result<()
     w.set_size(LogicalSize::new(WIDTH, h))?;
     if y != pos.y {
         w.set_position(PhysicalPosition::new(pos.x, y))?;
+    }
+    #[cfg(windows)]
+    {
+        let size = w.outer_size()?;
+        set_region(w.hwnd()?.0 as isize, hit_region(size.width as i32, size.height as i32, mon.scale_factor()));
     }
     if !USER_HIDDEN.load(Ordering::SeqCst) && !w.is_visible()? {
         w.show()?;
@@ -324,10 +357,10 @@ mod tests {
         for (scale, tb) in [(1.0, 48), (1.25, 60), (1.5, 72)] {
             let m = mon("D1", 0, 0, 1920, 1080, scale, tb);
             let (x, y) = place(None, &[m.clone()], Some(&m.id), SIZE).unwrap();
-            let w = to_phys(WIDTH, scale);
+            let card_w = to_phys(WIDTH - SHADOW, scale);
             let margin = to_phys(MARGIN, scale);
-            assert_eq!((x, y), (1920 - w - margin, margin), "scale {scale}");
-            assert!(y + to_phys(200.0, scale) <= 1080 - tb);
+            assert_eq!((x, y), (1920 - card_w - margin, margin), "scale {scale}");
+            assert!(y + to_phys(200.0 - SHADOW, scale) <= 1080 - tb);
         }
     }
 
@@ -336,7 +369,45 @@ mod tests {
         let mut m = mon("D1", 0, 0, 1920, 1080, 1.0, 0);
         m.work = Rect { x: 0, y: 0, w: 1872, h: 1080 };
         let (x, _) = place(None, &[m.clone()], Some(&m.id), SIZE).unwrap();
-        assert_eq!(x, 1872 - 360 - 12);
+        assert_eq!(x, 1872 - 354 - 12);
+    }
+
+    #[test]
+    fn window_docked_card_keeps_margin_and_shadow_overhangs_it() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let (x, _) = place(None, &[m.clone()], Some(&m.id), SIZE).unwrap();
+        let card_right = x + 354;
+        let window_right = x + 360;
+        assert_eq!(1920 - card_right, 12);
+        assert!(window_right > card_right && window_right <= 1920);
+    }
+
+    #[test]
+    fn window_card_may_touch_work_edge_with_shadow_past_it() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let s = Saved { monitor: m.id.clone(), x: 1900, y: 2000 };
+        let off = place(Some(&s), &[m.clone()], Some(&m.id), SIZE);
+        // Fully off the work area: default dock, not a clamp.
+        assert_eq!(off, place(None, &[m.clone()], Some(&m.id), SIZE));
+        let s = Saved { monitor: m.id.clone(), x: 1800, y: 900 };
+        let (x, y) = place(Some(&s), &[m.clone()], Some(&m.id), SIZE).unwrap();
+        assert_eq!((x + 354, y + 194), (1920, 1040));
+    }
+
+    #[test]
+    fn window_saved_position_from_before_av35_restores_same_card_spot() {
+        // Pre-AV-35 saves stored the window's top-left, which is also the card's top-left.
+        let m = mon("D1", 0, 0, 1920, 1080, 1.25, 50);
+        let s = Saved { monitor: m.id.clone(), x: 600, y: 300 };
+        assert_eq!(place(Some(&s), &[m.clone()], Some(&m.id), SIZE), Some((600, 300)));
+    }
+
+    #[test]
+    fn window_hit_region_is_card_plus_offset_shadow() {
+        let [card, shadow] = hit_region(540, 300, 1.5);
+        assert_eq!(card, Rect { x: 0, y: 0, w: 531, h: 291 });
+        assert_eq!(shadow, Rect { x: 9, y: 9, w: 531, h: 291 });
+        assert_eq!((shadow.right(), shadow.bottom()), (540, 300));
     }
 
     #[test]
@@ -391,8 +462,8 @@ mod tests {
         let prim = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
         let s = Saved { monitor: prim.id.clone(), x: 1800, y: 950 };
         let (x, y) = place(Some(&s), &[prim.clone()], Some(&prim.id), SIZE).unwrap();
-        assert_eq!(x, 1920 - to_phys(WIDTH, 1.5));
-        assert_eq!(y, 1080 - 72 - to_phys(200.0, 1.5));
+        assert_eq!(x, 1920 - to_phys(WIDTH - SHADOW, 1.5));
+        assert_eq!(y, 1080 - 72 - to_phys(200.0 - SHADOW, 1.5));
     }
 
     #[test]
@@ -416,7 +487,7 @@ mod tests {
     fn window_fit_moves_up_to_stay_above_taskbar() {
         let m = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
         let (h, y) = fit(400.0, 900, &m);
-        assert_eq!(y, 1008 - to_phys(h, 1.5));
+        assert_eq!(y, 1008 - to_phys(h - SHADOW, 1.5));
         assert!(y >= 0);
     }
 

@@ -40,7 +40,7 @@ html,
 body {
   height: 100%;
   margin: 0;
-  background: var(--ps-desk);
+  background: transparent;
   color: var(--ps-text);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
@@ -57,7 +57,7 @@ body {
 }
 
 /* ---------- card (Pixel desktop) ---------- */
-/* The right and bottom margin hold the hard shadow inside the opaque window until AV-35. */
+/* The right and bottom margin hold the hard shadow; window.rs SHADOW must match. */
 .ps {
   flex: 0 1 auto;
   min-height: 0;
