@@ -1,9 +1,12 @@
 import { createCards, type Decide } from "./approvalCard";
 import { createBar, type Bar } from "./bar";
 import { detailFields } from "./details";
-import type { Session } from "./model";
+import type { Session, TrailEntry } from "./model";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { sortSessions } from "./sort";
+import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
+
+export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
 
 export const EMPTY_TEXT = "No Claude Code sessions running";
 const PEEP_SIZE = "32";
@@ -31,6 +34,7 @@ type Row = {
   last: Partial<RowView>;
   session: Session;
   details: Details | null;
+  trail: { el: HTMLElement; key: string } | null;
   cards?: (pending: Session["pending"]) => number;
 };
 
@@ -65,7 +69,7 @@ function createRow(s: Session, decide?: Decide): Row {
   }
   const ctx = createBar("ctx");
   row.appendChild(ctx.el);
-  return { el: row, peep, badge, name, task, status, label, ctx, last: {}, session: s, details: null, cards };
+  return { el: row, peep, badge, name, task, status, label, ctx, last: {}, session: s, details: null, trail: null, cards };
 }
 
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
@@ -111,7 +115,26 @@ function fillDetails(r: Row, now: number) {
   }
 }
 
-function expand(r: Row) {
+function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined) {
+  if (!r.trail) return;
+  const key = trailKey(entries);
+  if (key === r.trail.key) return;
+  r.trail.key = key;
+  const host = r.trail.el;
+  host.replaceChildren();
+  host.hidden = !entries?.length;
+  const now = Date.now();
+  for (const e of entries ?? []) {
+    const item = el("div", "trail-item", host);
+    item.dataset.outcome = e.outcome;
+    item.title = entryTitle(e, now);
+    el("span", "trail-mark", item).textContent = markOf(e.outcome);
+    el("span", "trail-tool", item).textContent = e.tool;
+    el("span", "trail-target", item).textContent = shownTarget(e);
+  }
+}
+
+function expand(r: Row, trail?: readonly TrailEntry[]) {
   const d = el("dl", "details");
   const values = new Map<string, HTMLElement>();
   for (const f of detailFields(r.session, Date.now())) {
@@ -121,6 +144,11 @@ function expand(r: Row) {
   }
   r.details = { el: d, values };
   r.el.insertBefore(d, r.ctx.el);
+  const t = el("div", "row-trail");
+  t.setAttribute("aria-label", "Recent approval decisions");
+  r.trail = { el: t, key: "-" };
+  r.el.insertBefore(t, r.ctx.el);
+  fillTrail(r, trail);
   r.el.classList.add("expanded");
   r.el.setAttribute("aria-expanded", "true");
   r.peep.setAttribute("size", PEEP_SIZE_EXPANDED);
@@ -130,6 +158,8 @@ function expand(r: Row) {
 function collapse(r: Row) {
   r.details?.el.remove();
   r.details = null;
+  r.trail?.el.remove();
+  r.trail = null;
   r.el.classList.remove("expanded");
   r.el.setAttribute("aria-expanded", "false");
   r.peep.setAttribute("size", PEEP_SIZE);
@@ -150,7 +180,13 @@ function flash(row: HTMLElement) {
   row.dataset.flashTimer = String(setTimeout(() => row.classList.remove("flash"), FLASH_MS));
 }
 
-export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?: OnFocus, onDecide?: Decide) {
+export function createList(
+  root: HTMLElement,
+  identityOf?: IdentityOf,
+  onFocus?: OnFocus,
+  onDecide?: Decide,
+  trailOf?: TrailOf,
+) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
   empty.textContent = EMPTY_TEXT;
@@ -171,7 +207,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
     const wasOpen = open === r;
     close();
     if (wasOpen) return;
-    expand(r);
+    expand(r, trailOf?.(r.session.id));
     open = r;
     ticker = window.setInterval(() => open && fillDetails(open, Date.now()), TICK_MS);
   }
@@ -219,7 +255,10 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
       }
       updateRow(r, toRowView(s, identityOf));
       r.el.classList.toggle("has-cards", (r.cards?.(s.alive ? s.pending : undefined) ?? 0) > 0);
-      if (r === open) fillDetails(r, Date.now());
+      if (r === open) {
+        fillDetails(r, Date.now());
+        fillTrail(r, trailOf?.(s.id));
+      }
       // Fading rows hold their slot, so ordering skips over them.
       let next: Element | null = prev ? prev.nextElementSibling : list.firstElementChild;
       while (next && next !== r.el && next.classList.contains("leaving")) next = next.nextElementSibling;

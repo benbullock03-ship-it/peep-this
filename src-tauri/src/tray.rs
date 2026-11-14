@@ -72,13 +72,14 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     apply_autostart_default(handle);
 
     let show_hide = MenuItem::with_id(app, "toggle", "Show/Hide", true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", "Decision log and settings", true, None::<&str>)?;
     let install = MenuItem::with_id(app, "install", "Install integration", true, None::<&str>)?;
     let uninstall = MenuItem::with_id(app, "uninstall", "Uninstall integration", true, None::<&str>)?;
     let autostart_on = handle.autolaunch().is_enabled().unwrap_or(false);
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, autostart_on, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
-    let menu = Menu::with_items(app, &[&show_hide, &sep()?, &install, &uninstall, &sep()?, &autostart, &sep()?, &quit])?;
+    let menu = Menu::with_items(app, &[&show_hide, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &sep()?, &quit])?;
 
     let autostart_item = autostart.clone();
     TrayIconBuilder::with_id("main")
@@ -88,6 +89,10 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "toggle" => toggle(app),
+            "settings" => {
+                window::set_hidden(app, false);
+                let _ = app.emit("open-settings", ());
+            }
             "install" => run_integration(app, "install"),
             "uninstall" => run_integration(app, "uninstall"),
             "autostart" => {

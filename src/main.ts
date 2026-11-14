@@ -3,14 +3,18 @@ import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { createLimits } from "./limits";
-import type { Snapshot } from "./model";
+import type { Session, Snapshot, TrailEntry } from "./model";
 import { createList } from "./rows";
+import { createSettings } from "./settings";
+import { ROW_TRAIL } from "./trail";
 import { watchContentHeight } from "./windowFit";
 
 const DEMO_STEP_MS = 3200;
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
 const limitsEl = document.querySelector<HTMLElement>("#limits")!;
+const settingsEl = document.querySelector<HTMLElement>("#settings")!;
+const settingsBtn = document.querySelector<HTMLButtonElement>("#settings-btn")!;
 
 // peep.js stops its rAF loop when no <peep-bot> is connected, so detaching the list idles rendering while hidden.
 const scroller = document.querySelector<HTMLElement>("#scroller")!;
@@ -50,12 +54,46 @@ async function runLive() {
     return;
   }
   const [{ invoke }, { listen }] = await Promise.all([import("@tauri-apps/api/core"), import("@tauri-apps/api/event")]);
+  let recent: Record<string, TrailEntry[]> = {};
+  let sessions: Session[] = [];
   const renderList = createList(
     root,
     undefined,
     (id) => invoke<boolean>("focus_session", { sessionId: id }),
     (requestId, decision, reason) => invoke<boolean>("decide_approval", { requestId, decision, reason }),
+    (id) => recent[id],
   );
+  const settings = createSettings(
+    settingsEl,
+    {
+      log: () => invoke<TrailEntry[]>("trail_log"),
+      enabled: () => invoke<boolean>("trail_enabled"),
+      setEnabled: (on) => invoke<boolean>("set_trail_enabled", { on }),
+    },
+    () => showSettings(false),
+  );
+  function showSettings(open: boolean) {
+    settingsEl.hidden = !open;
+    root.hidden = open;
+    settingsBtn.setAttribute("aria-pressed", String(open));
+    if (open) void settings.refresh();
+  }
+  settingsBtn.hidden = false;
+  settingsBtn.addEventListener("click", () => showSettings(settingsEl.hidden !== false));
+  await listen("open-settings", () => showSettings(true));
+  const loadRecent = async () => {
+    try {
+      recent = await invoke<Record<string, TrailEntry[]>>("trail_recent", { perSession: ROW_TRAIL });
+      renderList(sessions);
+    } catch (err) {
+      console.error("peepthis: trail_recent failed", err);
+    }
+  };
+  await listen<TrailEntry>("trail", () => {
+    void loadRecent();
+    if (settingsEl.hidden === false) void settings.refresh();
+  });
+  void loadRecent();
   const renderLimits = createLimits(limitsEl, () =>
     invoke<Snapshot>("get_snapshot").then((s) => s.rateLimits?.at),
   );
@@ -63,6 +101,7 @@ async function runLive() {
   await listen<TrayResult>("integration-result", (e) => banner.trayResult(e.payload));
   await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
   const render = (snap: Snapshot) => {
+    sessions = snap.sessions;
     renderList(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);
@@ -86,7 +125,7 @@ async function startWindowFit() {
   if (!("__TAURI_INTERNALS__" in window)) return;
   const { invoke } = await import("@tauri-apps/api/core");
   const header = document.querySelector<HTMLElement>("#header")!;
-  watchContentHeight([header, root], (height) => {
+  watchContentHeight([header, root, settingsEl], (height) => {
     if (!root.isConnected) return;
     invoke("fit_window", { height }).catch((err) => console.error("peepthis: fit_window failed", err));
   });

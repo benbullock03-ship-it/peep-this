@@ -12,6 +12,7 @@ mod window;
 mod state;
 mod store;
 mod ticker;
+mod trail;
 
 use std::sync::Arc;
 
@@ -125,6 +126,35 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     }));
 }
 
+fn wire_trail(app: &tauri::App, store: &Arc<Store>, broker: &approve::Broker) {
+    let trail = trail::Trail::open(&ingest::server::default_dir());
+    let pruner = Arc::clone(&trail);
+    let spawned = std::thread::Builder::new().name("trail-prune".into()).spawn(move || match pruner.prune(store::now_ms()) {
+        Ok(0) => {}
+        Ok(n) => println!("peepthis: trail pruned {n} entries"),
+        Err(e) => eprintln!("peepthis: trail prune failed: {e}"),
+    });
+    if let Err(e) = spawned {
+        eprintln!("peepthis: trail prune thread failed: {e}");
+    }
+    app.manage(Arc::clone(&trail));
+    let (handle, weak) = (app.handle().clone(), Arc::downgrade(store));
+    broker.set_recorder(Box::new(move |d| {
+        let name = weak
+            .upgrade()
+            .and_then(|st| st.snapshot().sessions.into_iter().find(|s| s.id == d.session_id).map(|s| s.name))
+            .unwrap_or_default();
+        let entry = trail::Entry::from_decision(d, &name);
+        match trail.record(&entry) {
+            Ok(true) => {
+                let _ = handle.emit("trail", &entry);
+            }
+            Ok(false) => {}
+            Err(e) => eprintln!("peepthis: trail write failed: {e}"),
+        }
+    }));
+}
+
 struct WidgetEnv;
 
 impl approve::Env for WidgetEnv {
@@ -161,7 +191,11 @@ pub fn run() {
             focus::focus_session,
             install::install_integration,
             install::uninstall_integration,
-            approve::decide_approval
+            approve::decide_approval,
+            trail::trail_log,
+            trail::trail_recent,
+            trail::trail_enabled,
+            trail::set_trail_enabled
         ])
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
@@ -177,6 +211,7 @@ pub fn run() {
             wire_alerts(app, &store);
             ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
             let broker = approve::Broker::new(Arc::clone(&store), Box::new(WidgetEnv), approve::HOLD_MS);
+            wire_trail(app, &store, &broker);
             broker.spawn();
             app.manage(Arc::clone(&broker));
             let endpoint = ingest::server::spawn(Arc::clone(&store), Some(broker), &ingest::server::default_dir())

@@ -2,7 +2,7 @@
 //! or releases them to the terminal prompt with no decision.
 
 use std::net::TcpStream;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::Duration;
 
 use serde::Serialize;
@@ -12,6 +12,7 @@ use crate::ingest::http;
 use crate::risk::{self, Verdict};
 use crate::state::{ApprovalOutcome, Event, Session, State};
 use crate::store::{self, Store};
+use crate::trail::Outcome;
 
 pub const HOLD_MS: u64 = 60_000;
 /// After Claude Code drops a held request (the terminal answered), a `PostToolUse` within this window means "yes".
@@ -114,6 +115,18 @@ impl Request {
     }
 }
 
+/// One settled request, handed to the recorder (the decision trail).
+pub struct Decision<'a> {
+    pub session_id: &'a str,
+    pub request: &'a PendingApproval,
+    pub outcome: Outcome,
+    pub reason: Option<&'a str>,
+    pub via: Option<Release>,
+    pub at: u64,
+}
+
+pub type Recorder = Box<dyn Fn(&Decision<'_>) + Send + Sync>;
+
 struct Held {
     session_id: String,
     meta: PendingApproval,
@@ -139,11 +152,29 @@ pub struct Broker {
     hold_ms: u64,
     inner: Mutex<Inner>,
     wake: Condvar,
+    recorder: OnceLock<Recorder>,
 }
 
 impl Broker {
     pub fn new(store: Arc<Store>, env: Box<dyn Env>, hold_ms: u64) -> Arc<Broker> {
-        Arc::new(Broker { store, env, hold_ms, inner: Mutex::new(Inner::default()), wake: Condvar::new() })
+        Arc::new(Broker {
+            store,
+            env,
+            hold_ms,
+            inner: Mutex::new(Inner::default()),
+            wake: Condvar::new(),
+            recorder: OnceLock::new(),
+        })
+    }
+
+    pub fn set_recorder(&self, r: Recorder) {
+        let _ = self.recorder.set(r);
+    }
+
+    fn record(&self, session_id: &str, request: &PendingApproval, outcome: Outcome, reason: Option<&str>, via: Option<Release>, at: u64) {
+        if let Some(r) = self.recorder.get() {
+            r(&Decision { session_id, request, outcome, reason, via, at });
+        }
     }
 
     pub fn spawn(self: &Arc<Self>) {
@@ -202,10 +233,20 @@ impl Broker {
         } else {
             Reply::Deny(reason.map(|r| r.trim().to_string()).filter(|r| !r.is_empty()).unwrap_or_else(|| DEFAULT_DENY.into()))
         };
-        let (session_id, agent_id) = (h.session_id.clone(), h.meta.agent_id.clone());
+        let (session_id, agent_id, meta) = (h.session_id.clone(), h.meta.agent_id.clone(), h.meta.clone());
+        let reason = match &reply {
+            Reply::Deny(r) => Some(r.clone()),
+            _ => None,
+        };
         let delivered = h.responder.reply(reply);
         self.sync(&session_id);
         println!("peepthis: approval {id} {} (delivered: {delivered})", if allow { "allowed" } else { "denied" });
+        if delivered {
+            let outcome = if allow { Outcome::Allowed } else { Outcome::Denied };
+            self.record(&session_id, &meta, outcome, reason.as_deref(), None, now);
+        } else {
+            self.record(&session_id, &meta, Outcome::Released, None, Some(Release::Disconnected), now);
+        }
         if delivered {
             let outcome = if allow { ApprovalOutcome::Allowed } else { ApprovalOutcome::Denied };
             self.store.apply(&session_id, Event::Approval { agent_id, outcome }, now);
@@ -281,6 +322,7 @@ impl Broker {
                 h.responder.reply(Reply::Release);
             }
             self.sync(&sid);
+            self.record(&sid, &h.meta, Outcome::Released, None, Some(why), now);
         }
     }
 
@@ -632,6 +674,36 @@ mod tests {
         r.broker.sweep(T0 + 3);
         assert!(replies(&sub).is_empty(), "the subagent's request stays held");
         assert_eq!(r.session().pending.len(), 1);
+    }
+
+    #[test]
+    fn every_settled_request_reaches_the_recorder() {
+        let r = rig();
+        let log: Arc<Mutex<Vec<(String, Outcome, Option<String>, Option<Release>)>>> = Arc::default();
+        let sink = Arc::clone(&log);
+        r.broker.set_recorder(Box::new(move |d: &Decision<'_>| {
+            sink.lock().unwrap().push((d.request.tool.clone(), d.outcome, d.reason.map(str::to_owned), d.via));
+        }));
+        let (a, _) = r.request("permission_request.json", T0);
+        r.broker.decide(&a, true, None, T0 + 1).unwrap();
+        let (b, _) = r.request("permission_request.json", T0 + 2);
+        r.broker.decide(&b, false, Some("nope".into()), T0 + 3).unwrap();
+        r.request("permission_request.json", T0 + 4);
+        r.broker.sweep(T0 + 4 + HOLD_MS);
+        let (_, gone) = r.request("permission_request.json", T0 + HOLD_MS + 10);
+        gone.closed.store(true, Ordering::SeqCst);
+        r.broker.sweep(T0 + HOLD_MS + 20);
+        let log = log.lock().unwrap();
+        let outcomes: Vec<_> = log.iter().map(|(_, o, reason, via)| (*o, reason.clone(), *via)).collect();
+        assert_eq!(
+            outcomes,
+            vec![
+                (Outcome::Allowed, None, None),
+                (Outcome::Denied, Some("nope".into()), None),
+                (Outcome::Released, None, Some(Release::Window)),
+                (Outcome::Released, None, Some(Release::Disconnected)),
+            ]
+        );
     }
 
     #[test]

@@ -37,7 +37,25 @@ export type PendingApproval = {
   risk: { tier: RiskTier; field?: string; span?: [number, number]; reason: string };
 };
 
-export type RateLimits = { fiveHourPct: number; sevenDayPct: number; at: number };
+export type TrailOutcome = "allowed" | "denied" | "released" | "auto-allowed";
+
+/** One line of the decision trail (src-tauri/src/trail.rs). */
+export type TrailEntry = {
+  t: number;
+  sessionId: string;
+  session: string;
+  cwd: string;
+  tool: string;
+  target: string;
+  tier: RiskTier;
+  outcome: TrailOutcome;
+  reason?: string;
+  rule?: string;
+  via?: string;
+  agentId?: string;
+};
+
+export type RateLimits ={ fiveHourPct: number; sevenDayPct: number; at: number };
 
 export type Snapshot = {
   sessions: Session[];
