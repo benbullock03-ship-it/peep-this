@@ -1,3 +1,4 @@
+import { createCards, type Decide } from "./approvalCard";
 import { createBar, type Bar } from "./bar";
 import { detailFields } from "./details";
 import type { Session } from "./model";
@@ -30,6 +31,7 @@ type Row = {
   last: Partial<RowView>;
   session: Session;
   details: Details | null;
+  cards?: (pending: Session["pending"]) => number;
 };
 
 function el(tag: string, cls: string, parent?: HTMLElement): HTMLElement {
@@ -39,7 +41,7 @@ function el(tag: string, cls: string, parent?: HTMLElement): HTMLElement {
   return e;
 }
 
-function createRow(s: Session): Row {
+function createRow(s: Session, decide?: Decide): Row {
   const row = el("div", "row");
   row.dataset.id = s.id;
   row.tabIndex = 0;
@@ -55,9 +57,15 @@ function createRow(s: Session): Row {
   const status = el("div", "status", row);
   el("span", "led", status);
   const label = el("span", "label", status);
+  let cards: Row["cards"];
+  if (decide) {
+    const host = el("div", "cards", row);
+    host.hidden = true;
+    cards = createCards(host, decide);
+  }
   const ctx = createBar("ctx");
   row.appendChild(ctx.el);
-  return { el: row, peep, badge, name, task, status, label, ctx, last: {}, session: s, details: null };
+  return { el: row, peep, badge, name, task, status, label, ctx, last: {}, session: s, details: null, cards };
 }
 
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
@@ -142,7 +150,7 @@ function flash(row: HTMLElement) {
   row.dataset.flashTimer = String(setTimeout(() => row.classList.remove("flash"), FLASH_MS));
 }
 
-export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?: OnFocus) {
+export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?: OnFocus, onDecide?: Decide) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
   empty.textContent = EMPTY_TEXT;
@@ -177,6 +185,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
   list.addEventListener("click", (e) => {
     const r = rowOf(e);
     if (!r || r.el.classList.contains("leaving")) return;
+    if ((e.target as Element).closest(".cards")) return;
     if (onFocus && (e.target as Element).closest(".peep, .name")) {
       void requestFocus(onFocus, r.session.id, () => flash(r.el));
       return;
@@ -199,7 +208,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
-        r = createRow(s);
+        r = createRow(s, onDecide);
         rows.set(s.id, r);
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }
@@ -209,6 +218,7 @@ export function createList(root: HTMLElement, identityOf?: IdentityOf, onFocus?:
         r.el.classList.remove("leaving");
       }
       updateRow(r, toRowView(s, identityOf));
+      r.el.classList.toggle("has-cards", (r.cards?.(s.alive ? s.pending : undefined) ?? 0) > 0);
       if (r === open) fillDetails(r, Date.now());
       // Fading rows hold their slot, so ordering skips over them.
       let next: Element | null = prev ? prev.nextElementSibling : list.firstElementChild;

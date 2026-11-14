@@ -1,7 +1,7 @@
 import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
-import { demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { createLimits } from "./limits";
 import type { Snapshot } from "./model";
 import { createList } from "./rows";
@@ -27,9 +27,13 @@ function showNotice(text: string) {
 }
 
 function runDemo() {
-  const render = createList(root, demoIdentity);
-  const renderLimits = createLimits(limitsEl);
   let snap = demoSnapshot(Date.now());
+  const render = createList(root, demoIdentity, undefined, async (id, decision) => {
+    snap = demoDecide(snap, id, decision, Date.now());
+    render(snap.sessions);
+    return true;
+  });
+  const renderLimits = createLimits(limitsEl);
   render(snap.sessions);
   renderLimits(snap.rateLimits);
   setInterval(() => {
@@ -46,20 +50,19 @@ async function runLive() {
     return;
   }
   const [{ invoke }, { listen }] = await Promise.all([import("@tauri-apps/api/core"), import("@tauri-apps/api/event")]);
-  const renderList = createList(root, undefined, (id) => invoke<boolean>("focus_session", { sessionId: id }));
+  const renderList = createList(
+    root,
+    undefined,
+    (id) => invoke<boolean>("focus_session", { sessionId: id }),
+    (requestId, decision, reason) => invoke<boolean>("decide_approval", { requestId, decision, reason }),
+  );
   const renderLimits = createLimits(limitsEl, () =>
     invoke<Snapshot>("get_snapshot").then((s) => s.rateLimits?.at),
   );
   const banner = createBanner(root, { install: () => invoke("install_integration") });
   await listen<TrayResult>("integration-result", (e) => banner.trayResult(e.payload));
   await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
-  const renderApprovals = import.meta.env.DEV
-    ? (await import("./devApprovals")).createDevApprovals(document.body, (requestId, decision, reason) =>
-        invoke<boolean>("decide_approval", { requestId, decision, reason }),
-      )
-    : undefined;
   const render = (snap: Snapshot) => {
-    renderApprovals?.(snap.sessions);
     renderList(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);

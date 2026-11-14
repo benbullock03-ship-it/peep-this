@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
 import type { Session } from "./model";
 import { contextFill, toRowView } from "./rowView";
 
@@ -52,5 +52,17 @@ describe("demo", () => {
     const a = demoSnapshot(0);
     const b = demoStep(a, 5);
     expect(a.sessions.filter((x, i) => x.state !== b.sessions[i].state)).toHaveLength(1);
+  });
+
+  it("holds one card of each tier on waiting rows, and a decision clears it", () => {
+    const a = demoSnapshot(0);
+    const held = a.sessions.filter((s) => s.pending?.length);
+    expect(held.map((s) => s.pending![0].risk.tier).sort()).toEqual(["destructive", "safe", "shell"]);
+    expect(held.every((s) => s.state === "waiting")).toBe(true);
+    let s = a;
+    for (let t = 1; t < 50; t++) s = demoStep(s, t);
+    expect(s.sessions.filter((x) => x.pending?.length)).toHaveLength(3);
+    const b = demoDecide(a, held[0].pending![0].id, "deny", 9);
+    expect(b.sessions.find((s) => s.id === held[0].id)).toMatchObject({ state: "thinking", pending: undefined });
   });
 });
