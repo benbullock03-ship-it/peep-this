@@ -35,6 +35,56 @@ pub fn should_toast(last_toast: Option<u64>, now: u64, view: WidgetView) -> bool
     last_toast.is_none_or(|t| now.saturating_sub(t) >= DEDUP_MS)
 }
 
+/// AV-24 must register this same key.
+pub const INBOX_HOTKEY: &str = "Ctrl+Alt+I";
+/// The waiting alert fires on the hook's state event, just before the broker records the held request.
+pub const SHOW_DELAY_MS: u64 = 200;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToastContent {
+    pub title: String,
+    pub body: String,
+    pub hint: Option<String>,
+    /// (label, activation argument)
+    pub buttons: Vec<(&'static str, String)>,
+    /// The held request this toast is about, if any.
+    pub request: Option<String>,
+}
+
+/// AV-25: buttons only for a `safe` request; other tiers point at the inbox.
+pub fn toast_content(s: &Session) -> ToastContent {
+    let req = s.pending.iter().max_by(|a, b| (a.received_at, &a.id).cmp(&(b.received_at, &b.id)));
+    let mut c = ToastContent { title: s.name.clone(), body: s.task.clone(), hint: None, buttons: Vec::new(), request: None };
+    if let Some(p) = req {
+        c.request = Some(p.id.clone());
+        if p.risk.tier == crate::risk::Tier::Safe {
+            c.buttons = vec![("Allow", format!("allow:{}", p.id)), ("Deny", format!("deny:{}", p.id))];
+        } else {
+            c.hint = Some(format!("Review it in Peep This ({INBOX_HOTKEY})"));
+        }
+    }
+    c
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Click {
+    Focus,
+    Decide { id: String, allow: bool },
+    Ignore,
+}
+
+/// `action` is the button argument (None for a body click). A toast whose request has resolved does nothing.
+pub fn click_action(action: Option<&str>, request: Option<&str>, pending: impl Fn(&str) -> bool) -> Click {
+    match action.map(|a| a.split_once(':')) {
+        Some(Some((verb @ ("allow" | "deny"), id))) if pending(id) => {
+            Click::Decide { id: id.to_string(), allow: verb == "allow" }
+        }
+        Some(_) => Click::Ignore,
+        None if request.is_some_and(|id| !pending(id)) => Click::Ignore,
+        None => Click::Focus,
+    }
+}
+
 pub type Show = Box<dyn Fn(&Session) + Send + Sync>;
 pub type View = Box<dyn Fn() -> WidgetView + Send + Sync>;
 
@@ -64,35 +114,33 @@ impl Notifier {
     }
 }
 
-/// Shows the toast on its own thread; `on_click` runs when the user clicks it while the widget is running.
+/// Shows the toast on the calling thread; `on_click` gets the button argument (None for the body) while the widget runs.
 #[cfg(windows)]
-pub fn toast(bundle_id: &str, title: String, body: String, on_click: impl Fn() + Send + 'static) {
+pub fn toast(bundle_id: &str, c: &ToastContent, on_click: impl Fn(Option<String>) + Send + 'static) {
     use tauri_winrt_notification::{Duration, Sound, Toast};
     // Dev builds have no installed Start-menu shortcut carrying the bundle AUMID, so Windows would drop their toasts.
     let app_id = if cfg!(debug_assertions) { Toast::POWERSHELL_APP_ID.to_string() } else { bundle_id.to_string() };
-    let spawned = std::thread::Builder::new().name("toast".into()).spawn(move || {
-        let result = Toast::new(&app_id)
-            .title(&title)
-            .text1(&body)
-            .duration(Duration::Short)
-            .sound(Some(Sound::Default))
-            .on_activated(move |_| {
-                on_click();
-                Ok(())
-            })
-            .show();
-        if let Err(e) = result {
-            eprintln!("peepthis: toast failed: {e}");
-        }
-    });
-    if let Err(e) = spawned {
-        eprintln!("peepthis: toast thread failed: {e}");
+    let mut t = Toast::new(&app_id).title(&c.title).text1(&c.body).duration(Duration::Short).sound(Some(Sound::Default));
+    if let Some(hint) = &c.hint {
+        t = t.text2(hint);
+    }
+    for (label, action) in &c.buttons {
+        t = t.add_button(label, action);
+    }
+    let result = t
+        .on_activated(move |action| {
+            on_click(action);
+            Ok(())
+        })
+        .show();
+    if let Err(e) = result {
+        eprintln!("peepthis: toast failed: {e}");
     }
 }
 
 #[cfg(not(windows))]
-pub fn toast(_bundle_id: &str, title: String, body: String, _on_click: impl Fn() + Send + 'static) {
-    println!("peepthis: toast {title}: {body}");
+pub fn toast(_bundle_id: &str, c: &ToastContent, _on_click: impl Fn(Option<String>) + Send + 'static) {
+    println!("peepthis: toast {}: {}", c.title, c.body);
 }
 
 #[cfg(test)]
@@ -164,6 +212,68 @@ mod tests {
             T0 + 1,
         );
         assert!(!entered_waiting(Some(&done), &reminder));
+    }
+
+    fn held(id: &str, at: u64, tier: crate::risk::Tier) -> crate::approve::PendingApproval {
+        crate::approve::PendingApproval {
+            id: id.into(),
+            tool: "Read".into(),
+            input: serde_json::json!({ "file_path": "C:/p/a.rs" }),
+            cwd: "C:/p".into(),
+            agent_id: None,
+            received_at: at,
+            release_at: at + 60_000,
+            risk: crate::risk::Verdict { tier, field: None, span: None, reason: "" },
+        }
+    }
+
+    #[test]
+    fn notify_safe_request_gets_allow_and_deny_buttons() {
+        use crate::risk::Tier;
+        let mut s = session(vec![perm()]);
+        s.pending = vec![held("ap-1", T0, Tier::Safe)];
+        let c = toast_content(&s);
+        assert_eq!(c.title, "demo");
+        assert_eq!(c.body, s.task);
+        assert_eq!(c.buttons, vec![("Allow", "allow:ap-1".to_string()), ("Deny", "deny:ap-1".to_string())]);
+        assert_eq!((c.hint, c.request.as_deref()), (None, Some("ap-1")));
+    }
+
+    #[test]
+    fn notify_shell_and_destructive_get_no_buttons_and_the_inbox_hint() {
+        use crate::risk::Tier;
+        for tier in [Tier::Shell, Tier::Destructive] {
+            let mut s = session(vec![perm()]);
+            s.pending = vec![held("ap-2", T0, tier)];
+            let c = toast_content(&s);
+            assert!(c.buttons.is_empty(), "{tier:?}");
+            assert!(c.hint.as_deref().is_some_and(|h| h.contains(INBOX_HOTKEY)), "{tier:?}");
+        }
+    }
+
+    #[test]
+    fn notify_toast_follows_the_newest_request_and_plain_waits_stay_plain() {
+        use crate::risk::Tier;
+        let mut s = session(vec![perm()]);
+        assert_eq!(toast_content(&s), ToastContent { title: "demo".into(), body: s.task.clone(), hint: None, buttons: vec![], request: None });
+        s.pending = vec![held("ap-old", T0, Tier::Destructive), held("ap-new", T0 + 5, Tier::Safe)];
+        let c = toast_content(&s);
+        assert_eq!(c.request.as_deref(), Some("ap-new"));
+        assert_eq!(c.buttons.len(), 2);
+    }
+
+    #[test]
+    fn notify_clicks_route_to_decide_focus_or_nothing() {
+        let live = |id: &str| id == "ap-1";
+        assert_eq!(click_action(Some("allow:ap-1"), Some("ap-1"), live), Click::Decide { id: "ap-1".into(), allow: true });
+        assert_eq!(click_action(Some("deny:ap-1"), Some("ap-1"), live), Click::Decide { id: "ap-1".into(), allow: false });
+        assert_eq!(click_action(None, Some("ap-1"), live), Click::Focus, "body still focuses while pending");
+        assert_eq!(click_action(None, None, live), Click::Focus, "toast with no request focuses as before");
+        let gone = |_: &str| false;
+        assert_eq!(click_action(Some("allow:ap-1"), Some("ap-1"), gone), Click::Ignore);
+        assert_eq!(click_action(None, Some("ap-1"), gone), Click::Ignore, "resolved toast does nothing");
+        assert_eq!(click_action(Some("bogus"), None, live), Click::Ignore);
+        assert_eq!(click_action(Some("shred:ap-1"), None, live), Click::Ignore);
     }
 
     #[test]

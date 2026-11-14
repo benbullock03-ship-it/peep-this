@@ -72,9 +72,31 @@ fn shell_log(sh: &state::Shell) -> String {
     out
 }
 
+fn is_pending(store: &Store, id: &str) -> bool {
+    store.snapshot().sessions.iter().any(|s| s.pending.iter().any(|p| p.id == id))
+}
+
+fn toast_clicked(handle: &tauri::AppHandle, store: &Store, session_id: &str, request: Option<&str>, action: Option<String>) {
+    match notify::click_action(action.as_deref(), request, |id| is_pending(store, id)) {
+        notify::Click::Ignore => {}
+        notify::Click::Focus => match focus::focus_by_id(store, session_id) {
+            Ok(true) => {}
+            Ok(false) => eprintln!("peepthis: toast click found no window for {session_id}"),
+            Err(e) => eprintln!("peepthis: toast click focus failed: {e}"),
+        },
+        notify::Click::Decide { id, allow } => {
+            let Some(broker) = handle.try_state::<Arc<approve::Broker>>() else { return };
+            if let Err(e) = broker.decide(&id, allow, None, store::now_ms()) {
+                eprintln!("peepthis: toast decision failed: {e}");
+            }
+        }
+    }
+}
+
 fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     let bundle_id = app.config().identifier.clone();
-    let focus_store = Arc::downgrade(store);
+    let handle = app.handle().clone();
+    let weak = Arc::downgrade(store);
     let notifier = notify::Notifier::new(
         Box::new(|| notify::WidgetView {
             focused: window::is_focused(),
@@ -82,15 +104,20 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
             overflowing: window::is_overflowing(),
         }),
         Box::new(move |s| {
-            let (id, store) = (s.id.clone(), focus_store.clone());
-            notify::toast(&bundle_id, s.name.clone(), s.task.clone(), move || {
-                let Some(store) = store.upgrade() else { return };
-                match focus::focus_by_id(&store, &id) {
-                    Ok(true) => {}
-                    Ok(false) => eprintln!("peepthis: toast click found no window for {id}"),
-                    Err(e) => eprintln!("peepthis: toast click focus failed: {e}"),
-                }
+            let (s, weak, handle, bundle_id) = (s.clone(), weak.clone(), handle.clone(), bundle_id.clone());
+            let spawned = std::thread::Builder::new().name("toast".into()).spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(notify::SHOW_DELAY_MS));
+                let fresh = weak.upgrade().and_then(|st| st.snapshot().sessions.into_iter().find(|x| x.id == s.id));
+                let content = notify::toast_content(fresh.as_ref().unwrap_or(&s));
+                let (id, request) = (s.id.clone(), content.request.clone());
+                notify::toast(&bundle_id, &content, move |action| {
+                    let Some(store) = weak.upgrade() else { return };
+                    toast_clicked(&handle, &store, &id, request.as_deref(), action);
+                });
             });
+            if let Err(e) = spawned {
+                eprintln!("peepthis: toast thread failed: {e}");
+            }
         }),
     );
     store.set_alert(Box::new(move |s| {
