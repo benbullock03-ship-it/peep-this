@@ -34,7 +34,14 @@ Decide: does `tauri-winrt-notification` deliver button activations in-process wi
 - Toast Deny uses the broker's default reason ("Denied from Peep This."). Deny with reason stays on the card.
 - The 200ms delay re-reads the session; if the request resolved in that window the toast shows without buttons.
 
+## Live check 2026-11-14
+
+During the AV-23 harness runs the widget raised real toasts, read back from `ToastNotificationManager.History` for the dev app id:
+
+- `safe` Write `x.txt`: `<actions><action content="Allow" arguments="allow:ap-…-1"/><action content="Deny" arguments="deny:ap-…-1"/></actions>`, so the 200ms delay found the held request.
+- `shell` `mkdir …`: no actions, third line "Review it in Peep This (Ctrl+Alt+I)".
+
 ## Owed before done
 
-- Owner, with the widget unfocused and another app in front: a file read (or in-project edit) toast shows Allow and Deny, and Allow goes through; a shell command's toast shows no buttons and the inbox line. If the buttons appear but do nothing, the in-process route fails and the buttons come out.
+- Owner, with the widget unfocused and another app in front: click Allow on a `safe` toast and see it go through. This is the one thing the harness cannot do: whether Windows delivers the button activation to the running process. If the buttons do nothing, they come out.
 - Checks: `npm run build` clean, 56 Vitest, 233 + 15 cargo tests.
