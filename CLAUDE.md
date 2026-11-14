@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Tauri 2 + Vite + TS; core backend (state engine, session files, event server, transcripts) in place, UI surfaces in progress. Full behaviour is in `docs/spec.md`; work is in `tickets/` (`AV-NN-*.md`, frontmatter `status`/`depends`/`attended`). A ticket moves to `tickets/archive/` (`git mv`) once its status is `done`; `npm run tickets` indexes both folders. The decisions below come from the design grill on 2026-11-13 and stand until the user overrides them.
+Tauri 2 + Vite + TS; core backend (state engine, session files, event server, transcripts) in place, UI surfaces in progress. Full behaviour is in `docs/spec.md`; work is in `tickets/` (`AV-NN-*.md`, frontmatter `status`/`depends`/`attended`). A ticket moves to `tickets/archive/` (`git mv`) once its status is `done`; `npm run tickets` indexes both folders. The decisions below come from the design grills on 2026-11-13 and 2026-11-14 (mission control, then surface) and stand until the user overrides them.
 
 ## Commands
 
@@ -58,9 +58,38 @@ Peep This: an always-on-top Windows desktop widget that lists the Claude Code se
 - **Size:** 32px peep in compact rows, 64px when a row is expanded. Use multiples of 32 only; other sizes render unevenly sized pixels.
 - **Rows:** the compact row follows the mock: peep, session name (mono), task text, state LED and label, plus a thin context bar. Click to expand cwd, model, last tool and time in state.
 - **Alerts:** on entering `waiting`, show a Windows toast and pulse the row. Clicking either focuses that session's terminal window.
-- **Actions:** focus only. The widget is read-only. It never answers prompts, approves permissions or kills sessions.
+- **Actions:** focus, plus permission decisions once AV-20 to AV-26 land (see Mission control). It never answers questions, sends replies, kills or starts sessions.
 - **Usage shown:** per-session context % and account 5-hour/7-day rate-limit %. No token counts or cost.
 - **Lifecycle:** when a session's PID dies, show a done state, then fade it out after about 1 minute.
+
+## Mission control (grill 2026-11-14, spec §11, tickets AV-20 to AV-33)
+
+Planned, not built. This overturns the earlier "read-only, focus only" rule. Build order: approvals, then subagents and shells, then rules, then digest.
+
+- **Thesis:** the widget is where the fleet is run from; the terminal is the detail view.
+- **Inline approvals:** allow, deny, deny with reason, by answering the `PermissionRequest` hook. Widget holds the request about 60s, then releases to the terminal prompt; releases at once if that terminal is focused. Decisions come only from the widget UI, never over HTTP.
+- **Risk tiers:** `safe` (reads, in-project edits) one click; `shell` one click with the full command; `destructive` hold 1s, never from a toast, never auto-allowed. Classifier fails closed.
+- **Surfaces:** approval card under the row with a real diff or full command; global-hotkey keyboard inbox (`Y`/`N`/`R`/`Tab`); toast buttons for `safe` only.
+- **Trail:** every decision logged locally and shown on the expanded row.
+- **Subagents:** indented child rows, each a 32px peep in the parent's colour with an accessory hashed from the agent type. Finished ones linger 30s with their result, then fold into a "done N" counter. Replaces the count badge.
+- **Shells:** chip rows under the parent with five states: running, quiet, serving (port shown), exited, failed. Failed bubbles a red dot to the parent.
+- **Rules:** suggested after three identical-shaped allows, confirmed by the user, stored in the widget, revocable from the trail.
+- **Digest:** while-you-were-away card from events; model summary via `claude -p` is opt-in.
+- **Not taken:** collision radar, forecasts, phone remote, trust dial, global pause, orphan shells, launching sessions.
+
+## Surface (surface grill 2026-11-14, spec §12, tickets AV-34 to AV-43)
+
+Planned, not built. Build order: verify, chrome, bars and motion, snap, strip, then hotkey, peek, flyout, empty state.
+
+- **Chrome:** transparent window; pixel-cut card with three 2px stairs per corner, 2px border, hard black shadow offset 4px, no blur. No edge light.
+- **Bars:** context and rate limits are 10 square blocks; amber from 70%, red from 90%.
+- **Motion:** stepped, 4 to 6 frames over about 160ms. Reduced motion is instant.
+- **Snap:** live magnet within 16px of work-area edges and corners on any monitor; floats elsewhere. The snapped edge is the anchor for every resize.
+- **Modes:** `panel`, `strip`, `hidden`; launches in `strip`. `Ctrl+Alt+P` toggles panel/strip, tray click toggles hidden. No `Esc`.
+- **Strip:** pixel-cut plate of 32px peeps, parents only, 8 then `+N`; column on side edges, row on top/bottom. Hover 200ms peeks, click pins.
+- **Waiting while collapsed:** only that row flies out from its peep; the approval card mounts there.
+- **Empty:** one house peep, `idle`, yellow, no accessory.
+- **Not taken:** pill, edge tab, Mica, perch card, floating chips, coloured shadow, ghost outline, auto-collapse, auto-expand.
 
 ## Data sources (hybrid)
 

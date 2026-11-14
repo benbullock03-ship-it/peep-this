@@ -1,6 +1,6 @@
 # Peep This spec
 
-Status: draft 2026-11-13. Decisions come from the design grill recorded in `CLAUDE.md`. Items marked **Verify** are assumptions about Claude Code internals that the ticket implementing them must confirm against a live session before building on them.
+Status: draft 2026-11-13, revised 2026-11-14. Decisions come from the design grills recorded in `CLAUDE.md`. §1 to §10 describe what is built; §11 is the mission-control direction from the second grill and §12 the surface direction from the third, both planned and not yet built. Items marked **Verify** are assumptions about Claude Code internals that the ticket implementing them must confirm against a live session before building on them.
 
 ## 1. Goal
 
@@ -10,10 +10,12 @@ A glanceable Windows desktop widget that answers three questions without switchi
 2. Does any of them need me?
 3. How full is each context window, and how close am I to my rate limits?
 
+From 2026-11-14 a fourth: can I deal with what needs me from here, without opening the terminal? (§11)
+
 ## 2. Non-goals (v1)
 
 - Agents other than Claude Code (the adapter seam exists, no second adapter ships).
-- Acting on sessions: no replying, approving permissions, killing, or starting sessions.
+- Acting on sessions beyond permission decisions (§11.1): no replying, answering questions, killing, or starting sessions.
 - Token counts, cost, history of ended sessions.
 - macOS/Linux. Code should not gratuitously block them, but nothing is tested there.
 - Changing the peep art. `design/peep.js` is the user's; new poses are a request to the user.
@@ -220,3 +222,109 @@ Triggered from the tray or a first-run banner. Never automatic.
 ## 10. Open questions
 
 None blocking. The **Verify** items above are resolved inside their tickets and recorded there.
+
+## 11. Mission control (planned, grill 2026-11-14)
+
+The widget becomes the place a fleet of sessions is run from; the terminal becomes the detail view. Nothing here is built. Each subsection names its tickets, and the ticket that builds a part moves it into §3 to §9 and removes it from here. Build order: approvals (AV-20 to AV-26), subagents and shells (AV-27 to AV-30), rules (AV-31), digest (AV-32, AV-33).
+
+### 11.1 Inline approvals (AV-20, AV-21)
+
+- The widget answers `PermissionRequest` hooks instead of replying 204. Actions: allow, deny, deny with a typed reason that goes back to Claude as feedback.
+- Widget first, then release: the request is held for a window (default 60s, configurable). With no answer the widget replies "no decision" and the normal terminal prompt takes over. It releases at once if that session's terminal is the foreground window, if the session moves on or dies, or if the widget hides or quits.
+- Decisions originate only from the widget's own UI through a Tauri command. No HTTP route accepts a decision, so a leaked token can at worst show a fake card.
+- **Verify** (AV-20): the decision response shape for `http` hooks, that a held hook releases cleanly to the terminal prompt, and per-event timeouts.
+- Still out: answering questions, free-text replies, writing "always allow" rules into Claude Code's settings.
+
+### 11.2 Risk tiers (AV-22)
+
+A pure classifier puts every request in one of three tiers and fails closed (unknown is never `safe`).
+
+| Tier | Examples | Guard |
+|---|---|---|
+| `safe` | Reads; edits inside the session cwd | One click; approvable from a toast |
+| `shell` | Shell commands, edits outside cwd, MCP and unknown tools | One click with the full command shown |
+| `destructive` | Recursive or forced delete, force-push, hard reset, publish/deploy, pipe-to-shell, writes to settings or credential files | Hold 1s to confirm; never from a toast; never auto-allowed |
+
+### 11.3 Approval card (AV-23, AV-25)
+
+A session with a pending request opens a card under its row: a compact coloured diff of the real change for `Edit`/`Write`, the full command with the risky token highlighted and the cwd for shells, key arguments for other tools. Allow, Deny, Deny with reason, and a countdown to release. The waiting toast gains Allow and Deny for the `safe` tier only.
+
+### 11.4 Keyboard inbox (AV-24)
+
+A global hotkey brings the oldest pending request across all sessions into focus. `Y` allow, `N` deny, `R` deny with reason, `Tab` next, `Enter` focus the terminal, `Esc` dismiss. Focus returns to the window the user came from.
+
+### 11.5 Decision trail (AV-26)
+
+Every allow, deny, release and auto-allow is logged locally with time, session, tool, target, tier and the rule that fired. The expanded row shows the last few; settings has the full searchable log. The trail stores commands and paths, never file contents: the one exception to §6.5 and §8, and it can be turned off.
+
+### 11.6 Subagent child rows (AV-27, AV-28)
+
+Replaces the count badge (§3.3) and the subagent rule in §4. Each running subagent is an indented child row with its own 32px peep in the parent's colour, an accessory hashed from the agent type, its own state and current tool. On finish it shows its result's first line, duration and tool count for 30s, then folds into a "done N" counter on the parent. More than 4 running collapse to "+N more". Peep art is used unchanged.
+
+### 11.7 Background shells (AV-29, AV-30)
+
+Each background shell is a chip row under its parent with the command and runtime, in one of five states: `running`, `quiet` (no output for a while), `serving` (a listening port was found; the port is shown), `exited`, `failed` (exit code and last error line). A failed shell puts a red dot on the parent row that survives collapsing. Shells that outlive their session are out of scope.
+
+### 11.8 Suggested rules (AV-31)
+
+After the third manual allow of the same shape (project + tool + normalised target) the widget offers to auto-allow it. Confirmed rules live in the widget's own store, are listed and revocable, and each use is written to the trail and shown as a tick. The `destructive` tier is never offered and never matched.
+
+### 11.9 While-you-were-away digest (AV-32, AV-33)
+
+On return from a locked screen or idle period, one card: blocked on you, failed, finished, still running, with time taken, files changed and commands run per session. Built from events only by default. An opt-in setting adds a one-sentence summary per session from a headless `claude -p` call on Haiku, which spends rate limit and needs the network.
+
+### 11.10 Considered and not taken
+
+Collision radar (two sessions on one file or branch), usage forecasts, phone remote, orphan shell tracking, a per-session trust dial, a global pause switch, launching sessions.
+
+## 12. Surface (planned, surface grill 2026-11-14)
+
+How the widget looks, collapses and docks. Nothing here is built; §3.1 describes the window as it is today. Each ticket that builds a part moves it into §3 and removes it from here. Build order: verify (AV-34), chrome (AV-35), bars and motion (AV-36, AV-37), snap (AV-38), strip (AV-39), then hotkey, peek, flyout and empty state (AV-40 to AV-43).
+
+### 12.1 Pixel-cut chrome (AV-34, AV-35)
+
+- The Tauri window is transparent. The panel is a card in `#141218` whose corners are three 2px stairs (a 6px corner) with a 2px border, so the chrome is drawn in the same language as the peep art.
+- Hard shadow: solid `rgba(0,0,0,0.5)`, offset 4px right and down, no blur.
+- No edge light. Border and shadow never carry state; state lives in rows and peeps.
+- Docking and clamping use the card's rect, not the window's, which is larger by the shadow.
+- **Verify** (AV-34): transparency and click-through on Windows 11 at 100/150/200% scaling.
+
+### 12.2 Bars (AV-36)
+
+The context bar and the 5h/7d limit bars are rows of 10 square blocks that fill one at a time: neutral, amber from 70%, red from 90%.
+
+### 12.3 Motion (AV-37)
+
+Every transition runs in 4 to 6 discrete frames over about 160ms, matching the peeps' 8 to 12 fps, including window resizes. With `prefers-reduced-motion` everything is instant.
+
+### 12.4 Docking and snap (AV-34, AV-38)
+
+- Live magnet: dragged within 16px of a work-area edge or corner, on any monitor, the widget jumps there with the 12px margin while still held; dragging more than 16px further breaks it free. Dropped elsewhere it floats.
+- The snapped edge or corner is the anchor. It is saved with the position, and every size change keeps the anchored edge fixed.
+- **Verify** (AV-34): a drag method that allows a live magnet. Fallback: snap on release.
+
+### 12.5 Peep strip (AV-39)
+
+- Three modes: `panel`, `strip`, `hidden`. The app launches in `strip`.
+- The strip is a slim pixel-cut plate with one 32px peep per top-level session, in the panel's sort order, capped at 8 and then a `+N` tile. No subagents or shells; a failed shell's red dot shows on its parent's peep.
+- Orientation follows the anchor: a column on the left and right edges, a row on the top and bottom edges, a column at corners and when floating.
+- Strip and panel share the anchor; the panel unfolds from the strip away from the snapped edge. The whole plate drags the widget.
+
+### 12.6 Dismiss and recall (AV-40, AV-41)
+
+- `Ctrl+Alt+P` (rebindable) toggles `panel` and `strip` without taking focus. A header collapse control does the same. No `Esc`, no click-outside.
+- Tray left click toggles `hidden` against the last visible mode.
+- Hovering the strip for 200ms unfolds the panel as a peek that folds back when the mouse leaves. A click pins it as `panel`.
+- The keyboard inbox (§11.4) has its own key.
+
+### 12.7 Waiting flyout (AV-42)
+
+When a session enters `waiting` in `strip` mode, only that session's row slides out beside its peep, amber-lit. It leaves when the state leaves `waiting` or when clicked through to the terminal. The approval card (§11.3) mounts here when the widget is collapsed. Toast rules (§3.6) are unchanged.
+
+### 12.8 Empty state (AV-43)
+
+With no sessions, one house peep: `idle`, yellow, no accessory. 32px in the strip, 64px in the panel above "No sessions running". Art unchanged.
+
+### 12.9 Considered and not taken
+
+Single pill, edge tab, Mica/Acrylic backdrop, perch card, floating chips, state-tinted or accent shadow, ghost snap outline, auto-collapse on idle, auto-expand on waiting, `Esc` to dismiss.
