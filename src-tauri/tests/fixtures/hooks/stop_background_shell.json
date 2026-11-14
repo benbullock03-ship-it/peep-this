@@ -1,0 +1,28 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "default",
+  "effort": { "level": "medium" },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "SECRET-REPLY",
+  "background_tasks": [
+    {
+      "id": "bv4qmnt44",
+      "type": "shell",
+      "status": "running",
+      "description": "Start background HTTP server on port 47932",
+      "command": "node -e \"require(\\\"http\\\").createServer((q,r)=>r.end(\\\"hi\\\")).listen(47932,()=>console.log(\\\"listening 47932\\\"));setTimeout(()=>process.exit(0),45000)\""
+    },
+    {
+      "id": "a127fc11f21b703bc",
+      "type": "subagent",
+      "status": "running",
+      "description": "Nested agent test with b.txt",
+      "agent_type": "general-purpose"
+    }
+  ],
+  "session_crons": []
+}

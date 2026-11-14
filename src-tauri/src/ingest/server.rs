@@ -7,7 +7,7 @@ use std::sync::Arc;
 use serde_json::Value;
 use tiny_http::{Method, Response, Server};
 
-use crate::state::Event;
+use crate::state::{Event, ShellEvent, ShellExit};
 use crate::store::{self, Store};
 
 pub const DEFAULT_PORT: u16 = 47821;
@@ -176,7 +176,13 @@ pub fn parse(route: &Route, body: &[u8]) -> Result<Routed, &'static str> {
     let routed = match route {
         Route::Hook(name) => Routed {
             label: format!("hook {name}"),
-            event: hook_event(name, &v, cwd.as_deref()).map(|e| scope_to_agent(e, &v)),
+            event: hook_event(name, &v, cwd.as_deref()).map(|e| {
+                let e = scope_to_agent(e, &v);
+                match shell_update(name, &v) {
+                    Some(update) => Event::Shell { update, event: Box::new(e) },
+                    None => e,
+                }
+            }),
             rate_limits: None,
             session_id,
             cwd,
@@ -263,6 +269,71 @@ fn scope_to_agent(event: Event, v: &Value) -> Event {
         },
         other => other,
     }
+}
+
+/// Background shell lifecycle carried by a hook payload (spec §11.7).
+fn shell_update(name: &str, v: &Value) -> Option<ShellEvent> {
+    match name {
+        "PostToolUse" => match str_at(v, "/tool_name")?.as_str() {
+            "Bash" | "PowerShell" => Some(ShellEvent::Started {
+                id: str_at(v, "/tool_response/backgroundTaskId").filter(|s| !s.trim().is_empty())?,
+                command: clip(&str_at(v, "/tool_input/command").unwrap_or_default()),
+                description: clip(&str_at(v, "/tool_input/description").unwrap_or_default()),
+            }),
+            "TaskStop" | "KillShell" => Some(ShellEvent::Ended {
+                id: str_at(v, "/tool_input/task_id").or_else(|| str_at(v, "/tool_input/shell_id"))?,
+                exit: ShellExit::Killed,
+            }),
+            _ => None,
+        },
+        "UserPromptSubmit" => task_notification(&str_at(v, "/prompt")?),
+        "Stop" => {
+            let shells: Vec<_> = v
+                .get("background_tasks")?
+                .as_array()?
+                .iter()
+                .filter(|t| t.get("type").and_then(Value::as_str) == Some("shell"))
+                .filter_map(|t| {
+                    let id = str_at(t, "/id").filter(|s| !s.trim().is_empty())?;
+                    let command = str_at(t, "/command").map(|c| clip(&c)).unwrap_or_default();
+                    let description = str_at(t, "/description").map(|d| clip(&d)).unwrap_or_default();
+                    Some((id, command, description))
+                })
+                .collect();
+            (!shells.is_empty()).then_some(ShellEvent::Listed { shells })
+        }
+        _ => None,
+    }
+}
+
+/// A finished background task arrives as a `<task-notification>` prompt with its id, status and an exit-code summary.
+fn task_notification(prompt: &str) -> Option<ShellEvent> {
+    let body = prompt.trim_start().strip_prefix("<task-notification>")?;
+    let tag = |t: &str| {
+        let start = body.find(&format!("<{t}>"))? + t.len() + 2;
+        let end = body[start..].find(&format!("</{t}>"))? + start;
+        Some(body[start..end].trim().to_string())
+    };
+    let id = tag("task-id").filter(|s| !s.is_empty())?;
+    let code = tag("summary").and_then(|s| exit_code_in(&s));
+    let exit = match (tag("status").as_deref(), code) {
+        (_, Some(c)) => ShellExit::Code(c),
+        (Some("failed"), None) => ShellExit::Failed,
+        (Some("killed" | "stopped"), None) => ShellExit::Killed,
+        _ => ShellExit::Unknown,
+    };
+    Some(ShellEvent::Ended { id, exit })
+}
+
+/// `... failed with exit code 3` / `... completed (exit code 0)`.
+fn exit_code_in(summary: &str) -> Option<i32> {
+    let rest = &summary[summary.rfind("exit code")? + "exit code".len()..];
+    let rest = rest.trim_start();
+    let end = rest
+        .char_indices()
+        .find(|&(i, c)| !(c.is_ascii_digit() || (i == 0 && c == '-')))
+        .map_or(rest.len(), |(i, _)| i);
+    rest[..end].parse().ok()
 }
 
 /// First non-blank line, at most `TEXT_MAX_CHARS`.
@@ -495,6 +566,48 @@ mod tests {
             ),
             ("PostToolUse", "post_tool_use_agent_async.json", Event::PostToolUse),
             ("SessionEnd", "session_end.json", Event::Ended),
+            (
+                "PostToolUse",
+                "post_tool_use_bash_background.json",
+                Event::Shell {
+                    update: ShellEvent::Started {
+                        id: "bx33ejiyl".into(),
+                        command: "sleep 2; echo build broke >&2; exit 3".into(),
+                        description: "Run failing command in background".into(),
+                    },
+                    event: Box::new(Event::PostToolUse),
+                },
+            ),
+            (
+                "UserPromptSubmit",
+                "user_prompt_submit_task_notification.json",
+                Event::Shell {
+                    update: ShellEvent::Ended { id: "bx33ejiyl".into(), exit: ShellExit::Code(3) },
+                    event: Box::new(Event::UserPromptSubmit),
+                },
+            ),
+            (
+                "PostToolUse",
+                "post_tool_use_task_stop.json",
+                Event::Shell {
+                    update: ShellEvent::Ended { id: "bydeacx8e".into(), exit: ShellExit::Killed },
+                    event: Box::new(Event::PostToolUse),
+                },
+            ),
+            (
+                "Stop",
+                "stop_background_shell.json",
+                Event::Shell {
+                    update: ShellEvent::Listed {
+                        shells: vec![(
+                            "bv4qmnt44".into(),
+                            r#"node -e "require(\"http\").createServer((q,r)=>r.end(\"hi\")).listen(47932,()=>console.log(\"listening 47932\"));setTimeout(()=>process.exit(0),45000)""#.into(),
+                            "Start background HTTP server on port 47932".into(),
+                        )],
+                    },
+                    event: Box::new(Event::Stop),
+                },
+            ),
         ];
         for (name, file, want) in cases {
             let r = hook(name, file);
@@ -620,6 +733,158 @@ mod tests {
         let s = store.snapshot().sessions[0].clone();
         assert_eq!(s.state, State::Success, "parent's Stop holds while the background agent works");
         assert_eq!((s.agents[0].state, s.agents[0].task.as_str()), (State::Working, "Read b.txt"));
+    }
+
+    #[test]
+    fn task_notifications_map_status_and_exit_code() {
+        let note = |status: &str, summary: &str| {
+            let prompt = format!("<task-notification>\n<task-id>b1</task-id>\n<status>{status}</status>\n<summary>{summary}</summary>\n</task-notification>");
+            let body = serde_json::json!({ "session_id": SID, "prompt": prompt }).to_string();
+            match parse(&Route::Hook("UserPromptSubmit".into()), body.as_bytes()).unwrap().event {
+                Some(Event::Shell { update: ShellEvent::Ended { id, exit }, event }) if *event == Event::UserPromptSubmit => {
+                    assert_eq!(id, "b1");
+                    Some(exit)
+                }
+                Some(Event::UserPromptSubmit) => None,
+                other => panic!("{other:?}"),
+            }
+        };
+        assert_eq!(note("completed", "Background command \"x\" completed (exit code 0)"), Some(ShellExit::Code(0)));
+        assert_eq!(note("failed", "Background command \"x\" failed with exit code 127"), Some(ShellExit::Code(127)));
+        assert_eq!(note("failed", "Background command \"x\" failed"), Some(ShellExit::Failed));
+        assert_eq!(note("killed", "Background command \"x\" was stopped"), Some(ShellExit::Killed));
+        assert_eq!(note("completed", "Agent \"x\" completed"), Some(ShellExit::Unknown));
+        assert_eq!(exit_code_in("failed with exit code -1"), Some(-1));
+
+        let plain = format!(r#"{{"session_id":"{SID}","prompt":"run <task-notification> please"}}"#);
+        let r = parse(&Route::Hook("UserPromptSubmit".into()), plain.as_bytes()).unwrap();
+        assert_eq!(r.event, Some(Event::UserPromptSubmit));
+    }
+
+    #[test]
+    fn foreground_bash_and_shell_less_stop_carry_no_shell_update() {
+        assert_eq!(hook("PostToolUse", "post_tool_use.json").event, Some(Event::PostToolUse));
+        assert_eq!(hook("Stop", "stop.json").event, Some(Event::Stop));
+        let fg = format!(r#"{{"session_id":"{SID}","tool_name":"Bash","tool_input":{{"command":"ls"}},"tool_response":{{"stdout":"x"}}}}"#);
+        assert_eq!(parse(&Route::Hook("PostToolUse".into()), fg.as_bytes()).unwrap().event, Some(Event::PostToolUse));
+        let sub = format!(
+            r#"{{"session_id":"{SID}","agent_id":"a1","agent_type":"Explore","tool_name":"PowerShell","tool_input":{{"command":"npm run dev"}},"tool_response":{{"backgroundTaskId":"b9"}}}}"#
+        );
+        let Some(Event::Shell { update, event }) = parse(&Route::Hook("PostToolUse".into()), sub.as_bytes()).unwrap().event else { panic!() };
+        assert_eq!(update, ShellEvent::Started { id: "b9".into(), command: "npm run dev".into(), description: String::new() });
+        assert!(matches!(*event, Event::Subagent { .. }), "a subagent's shell still belongs to the session");
+    }
+
+    fn send_line(store: &Store, line: &str, now: u64) -> u16 {
+        let v: Value = serde_json::from_str(line).unwrap();
+        let url = format!("/hook/{}", v["hook"].as_str().unwrap());
+        handle(store, TOKEN, &req(&url, Some(TOKEN)), v["body"].to_string().as_bytes(), now)
+    }
+
+    fn shell_line(s: &crate::state::Session) -> String {
+        s.shells
+            .iter()
+            .map(|sh| format!("{}={:?} port={:?} exit={:?} last={:?}", sh.id, sh.state, sh.port, sh.exit_code, sh.last_line))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+
+    /// Replays the captured dev-server + failing-build run, with the ticker's probe pass after every request
+    /// running the real probe logic against a fake process table and temp output files.
+    #[test]
+    fn replayed_dev_server_and_failing_build_show_serving_port_and_failed_exit_code() {
+        use crate::source::claude::shells::{self, Os};
+        use crate::source::{SessionInfo, SourceEvent};
+        use crate::state::ShellState;
+        use crate::ticker::{self, ShellProbe};
+        use std::collections::HashMap;
+
+        let lines: Vec<String> = fixture("shell_background.jsonl").lines().map(str::to_owned).collect();
+        let server_cmd = serde_json::from_str::<Value>(&lines[1]).unwrap()["body"]["tool_input"]["command"].as_str().unwrap().to_string();
+        let wrapper = format!(
+            "\"C:\\Program Files\\Git\\bin\\bash.exe\" -c \"source snapshot.sh && eval '{}' < /dev/null && pwd -P\"",
+            server_cmd.replace('"', "\\\"")
+        );
+        let tmp = temp_dir();
+        let tasks = tmp.join("0123456789abcdef").join(SID).join("tasks");
+        std::fs::create_dir_all(&tasks).unwrap();
+        std::fs::write(tasks.join("b6s7b19v8.output"), "listening 47931\n").unwrap();
+
+        let probe_tmp = tmp.clone();
+        let probe: ShellProbe = Box::new(move |qs| {
+            // 100 = claude.exe, 201 = the shell's bash wrapper, 301 = node holding the port, 202 = a foreground shell.
+            let parents = HashMap::from([(201, 100), (202, 100), (301, 201)]);
+            let ports = [(301u32, 47931u16)];
+            let w = wrapper.clone();
+            let lines = move |pid: u32| match pid {
+                201 => Some(w.clone()),
+                202 => Some("bash.exe -c \"eval 'sleep 5'\"".to_string()),
+                _ => None,
+            };
+            let started = |pid: u32| Some(pid as u64);
+            shells::probe_with(qs, &Os { parents: &parents, ports: &ports, started: &started, command_line: &lines }, &probe_tmp)
+        });
+
+        let store = quiet_store();
+        let info = SessionInfo { id: SID.into(), pid: 100, name: "demo".into(), cwd: "C:\\work\\demo".into(), kind: "interactive".into(), entrypoint: "cli".into() };
+        store.ingest(SourceEvent::Upsert { info, busy: None }, 1_000);
+        let mut at_curl = None;
+        for (i, line) in lines.iter().enumerate() {
+            let now = 1_000 + i as u64 * 1_000;
+            assert_eq!(send_line(&store, line, now), 204, "line {i}");
+            if i == 7 {
+                // Written after the notification so the exit comes from the hook and only the last line from the file.
+                std::fs::write(tasks.join("bx33ejiyl.output"), "build broke\n\n[exited with code 3]\n").unwrap();
+            }
+            ticker::probe_shells(&store, &probe, now + 500);
+            let s = store.snapshot().sessions[0].clone();
+            println!("{}: {:?} | {}", line.split("\"hook\":\"").nth(1).unwrap().split('"').next().unwrap(), s.state, shell_line(&s));
+            if i == 13 {
+                at_curl = Some(s);
+            }
+        }
+
+        let s = at_curl.unwrap();
+        let (srv, build) = (&s.shells[0], &s.shells[1]);
+        assert_eq!((srv.id.as_str(), srv.state, srv.port, srv.pid), ("b6s7b19v8", ShellState::Serving, Some(47931), Some(201)));
+        assert_eq!(srv.last_line.as_deref(), Some("listening 47931"));
+        assert_eq!((build.id.as_str(), build.state, build.exit_code), ("bx33ejiyl", ShellState::Failed, Some(3)));
+        assert_eq!(build.last_line.as_deref(), Some("build broke"));
+        assert_eq!(build.command, "sleep 2; echo build broke >&2; exit 3");
+
+        let end = store.snapshot().sessions[0].clone();
+        assert!(!end.alive);
+        assert_eq!((end.shells[0].state, end.shells[0].port, end.shells[0].exit_code), (ShellState::Exited, None, None), "TaskStop");
+        assert_eq!((end.shells[1].state, end.shells[1].exit_code), (ShellState::Failed, Some(3)));
+        assert!(!format!("{end:?}").contains("SECRET"));
+        let _ = std::fs::remove_dir_all(tmp);
+    }
+
+    #[test]
+    fn replayed_task_stop_completion_and_shell_outliving_the_turn() {
+        use crate::state::ShellState;
+        let store = quiet_store();
+        let lines: Vec<String> = fixture("shell_background_stop.jsonl").lines().map(str::to_owned).collect();
+        let mut after_stop = None;
+        for (i, line) in lines.iter().enumerate() {
+            assert_eq!(send_line(&store, line, 1_000 + i as u64), 204);
+            if i == 14 {
+                after_stop = Some(store.snapshot().sessions[0].clone());
+            }
+        }
+        let s = after_stop.unwrap();
+        assert_eq!(s.state, State::Success);
+        let got: Vec<_> = s.shells.iter().map(|sh| (sh.id.as_str(), sh.state, sh.exit_code)).collect();
+        assert_eq!(
+            got,
+            vec![
+                ("bfm31czn2", ShellState::Exited, Some(0)),
+                ("bv4qmnt44", ShellState::Running, None),
+                ("bydeacx8e", ShellState::Exited, None),
+            ]
+        );
+        let end = store.snapshot().sessions[0].clone();
+        assert_eq!((end.shells[1].state, end.shells[1].exit_code, end.shells[1].ended_at), (ShellState::Exited, Some(0), Some(1_015)));
     }
 
     #[test]

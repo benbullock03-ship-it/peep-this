@@ -92,6 +92,7 @@ Rules:
 - Without hooks (session predates install, or integration not installed): `busy` in the session file maps to `working`, `idle` to `idle`, with transcript tailing (§6.4) refining it when available.
 - Subagents: `PreToolUse` for the `Task`/`Agent` tool increments the count; `SubagentStop` decrements; clamp at 0; reset on `Stop`. The tool is `Agent` (`Task` is still accepted). The count stays until AV-28.
 - Subagent entries (AV-27): events with `agent_id` set drive that agent's own `Agent` entry by the same rules and never the parent's task or tool; they reset the parent's stuck timer. `SubagentStart` creates the entry (fallback: the first event with a new `agent_id`), taking its description from the oldest queued `PreToolUse Agent`. `SubagentStop` ends it with a result line: the first line of `last_assistant_message`, or a hand-back message. A subagent's permission request puts the parent in `waiting` until that agent's next event. `Stop` does not end agents, so background agents outlive the turn. Nested agents are listed flat. Up to 20 finished agents are kept.
+- Background shells (AV-29): a Bash/PowerShell `PostToolUse` with `tool_response.backgroundTaskId` starts a `running` shell. A `<task-notification>` prompt ends it with its status and exit code (and still counts as `UserPromptSubmit`). `TaskStop` ends it as `exited` with no code. `Stop.background_tasks` only adopts shells the widget missed, never ends one. A 5s probe outside the pure function (`ticker.rs`, `source/claude/shells.rs`) finds the shell's wrapper under the session PID, the lowest listening port in its tree (`serving`) and the output file's last write (`quiet` after 2 min), last line and exit marker. Probe events never reset the stuck timer. Shells end with the session; 20 finished are kept.
 
 The derivation is a pure function `(SessionState, Event, now) -> SessionState` in Rust, fully unit-tested from fixtures. Timers call the same function with a synthetic `Tick` event.
 
@@ -158,6 +159,8 @@ type Session = {
   subagents: number;
   agents: { id: string; agentType: string; description: string; state: string; stateSince: number; task: string;
             lastTool?: { name: string; target?: string }; startedAt: number; endedAt?: number; toolCount: number; result?: string }[];
+  shells: { id: string; command: string; description: string; state: "running" | "quiet" | "serving" | "exited" | "failed";
+            stateSince: number; startedAt: number; endedAt?: number; port?: number; exitCode?: number; lastLine?: string }[];
   contextPct?: number;   // used, 0–100
   alive: boolean;
   endedAt?: number;
@@ -174,7 +177,7 @@ type Session = {
 
 Native Claude Code HTTP hooks (`"type": "http"`), verified in AV-06; there is no forwarder binary. Each entry POSTs the hook JSON to `http://127.0.0.1:<port>/hook/<EventName>` with the token as a literal `X-PeepThis-Token` header and `"timeout": 1`. Built by `ingest/hooks.rs`. An unreachable widget is a non-blocking hook error and never fails a turn. The server answers 204 with an empty body, which Claude Code treats as no decision (this matters for `PermissionRequest`).
 
-Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd`. `SessionStart` does not accept `http` hooks; the sessions directory covers it.
+Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd`. `SessionStart` does not accept `http` hooks; the sessions directory covers it. Shell lifecycle rides on existing events: `backgroundTaskId` in `PostToolUse`, `<task-notification>` prompts in `UserPromptSubmit`, and `background_tasks` in `Stop`.
 
 The token persists in `endpoint.json` across restarts, because settings.json holds it literally. The URL holds the port, so hooks reach the widget only on the default port 47821.
 
@@ -272,7 +275,7 @@ Replaces the count badge (§3.3) and the subagent rule in §4. Each running suba
 
 ### 11.7 Background shells (AV-29, AV-30)
 
-Each background shell is a chip row under its parent with the command and runtime, in one of five states: `running`, `quiet` (no output for a while), `serving` (a listening port was found; the port is shown), `exited`, `failed` (exit code and last error line). A failed shell puts a red dot on the parent row that survives collapsing. Shells that outlive their session are out of scope.
+Each background shell is a chip row under its parent with the command and runtime, in one of five states: `running`, `quiet` (no output for a while), `serving` (a listening port was found; the port is shown), `exited`, `failed` (exit code and last error line). A failed shell puts a red dot on the parent row that survives collapsing. Shells that outlive their session are out of scope. Tracking is built (AV-29, §4); `quiet` relies on the undocumented task output file path and degrades alone if that path moves. The chips are AV-30.
 
 ### 11.8 Suggested rules (AV-31)
 

@@ -6,6 +6,9 @@ pub const TARGET_MAX_CHARS: usize = 60;
 /// Finished agents kept per session; the oldest are dropped first.
 pub const FINISHED_AGENTS_KEPT: usize = 20;
 const PENDING_AGENTS_MAX: usize = 8;
+/// A running shell whose output file has not changed for this long is `quiet`.
+pub const SHELL_QUIET_MS: u64 = 2 * 60 * 1000;
+pub const FINISHED_SHELLS_KEPT: usize = 20;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -44,6 +47,7 @@ pub struct Session {
     pub last_tool: Option<LastTool>,
     pub subagents: u32,
     pub agents: Vec<Agent>,
+    pub shells: Vec<Shell>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
     pub alive: bool,
@@ -94,6 +98,73 @@ pub struct Agent {
     pub handback: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ShellState {
+    Running,
+    Quiet,
+    Serving,
+    Exited,
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shell {
+    /// Claude Code's background task id.
+    pub id: String,
+    pub command: String,
+    pub description: String,
+    pub state: ShellState,
+    pub state_since: u64,
+    pub started_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ended_at: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_line: Option<String>,
+    /// OS PID of the shell's wrapper process once the probe has matched it.
+    #[serde(skip)]
+    pub pid: Option<u32>,
+    /// Set once a probe has run after the shell ended, so its last output line is read once.
+    #[serde(skip)]
+    pub tail_read: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShellExit {
+    Code(i32),
+    /// Failed with no code reported.
+    Failed,
+    Killed,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ShellEvent {
+    /// `PostToolUse` of `Bash`/`PowerShell` whose response carries `backgroundTaskId`.
+    Started { id: String, command: String, description: String },
+    /// `<task-notification>` prompt or `TaskStop`.
+    Ended { id: String, exit: ShellExit },
+    /// Shell entries of `Stop.background_tasks` as (id, command, description); unknown ids are adopted.
+    Listed { shells: Vec<(String, String, String)> },
+}
+
+/// What the OS probe saw for one shell (spec §11.7); every field is best effort.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ShellObservation {
+    pub pid: Option<u32>,
+    pub port: Option<u16>,
+    /// Last write to the shell's output file, epoch ms.
+    pub last_output_at: Option<u64>,
+    pub last_line: Option<String>,
+    /// From the output file's `[exited with code N]` / `[killed]` trailer.
+    pub exit: Option<ShellExit>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     SessionStart,
@@ -116,6 +187,10 @@ pub enum Event {
     TranscriptApiError { summary: String },
     TranscriptModel { model: String },
     Statusline { model: Option<String>, context_pct: Option<f64> },
+    /// A hook event that also carries a background shell update; `event` is applied as usual afterwards.
+    Shell { update: ShellEvent, event: Box<Event> },
+    /// OS probe result for one shell; never resets the stuck timer.
+    ShellProbe { id: String, obs: ShellObservation },
     /// Process exited (PID dead) or `SessionEnd` hook.
     Ended,
     Tick,
@@ -145,6 +220,7 @@ impl Session {
             last_tool: None,
             subagents: 0,
             agents: Vec::new(),
+            shells: Vec::new(),
             context_pct: None,
             alive: true,
             ended_at: None,
@@ -253,6 +329,115 @@ impl Session {
             Some(LastTool { name, target: None }) => name.clone(),
             None => "Working".into(),
         }
+    }
+
+    fn apply_shell(&mut self, update: ShellEvent, now: u64) {
+        match update {
+            ShellEvent::Started { id, command, description } => self.add_shell(id, command, description, now),
+            ShellEvent::Listed { shells } => {
+                for (id, command, description) in shells {
+                    self.add_shell(id, command, description, now);
+                }
+            }
+            ShellEvent::Ended { id, exit } => {
+                if let Some(sh) = self.shells.iter_mut().find(|sh| sh.id == id && sh.ended_at.is_none()) {
+                    sh.finish(exit, now);
+                    self.drop_old_finished_shells();
+                }
+            }
+        }
+    }
+
+    fn add_shell(&mut self, id: String, command: String, description: String, now: u64) {
+        if !self.shells.iter().any(|sh| sh.id == id) {
+            self.shells.push(Shell::new(id, command, description, now));
+        }
+    }
+
+    fn probe_shell(&mut self, id: &str, obs: ShellObservation, now: u64) {
+        let Some(sh) = self.shells.iter_mut().find(|sh| sh.id == id) else { return };
+        if sh.ended_at.is_some() {
+            if sh.last_line.is_none() {
+                sh.last_line = obs.last_line;
+            }
+            sh.tail_read = true;
+            return;
+        }
+        if obs.last_line.is_some() {
+            sh.last_line = obs.last_line;
+        }
+        if obs.pid.is_some() {
+            sh.pid = obs.pid;
+        }
+        if let Some(exit) = obs.exit {
+            sh.finish(exit, now);
+            sh.tail_read = true;
+            self.drop_old_finished_shells();
+            return;
+        }
+        sh.port = obs.port;
+        let quiet = obs.last_output_at.is_some_and(|t| now.saturating_sub(t) >= SHELL_QUIET_MS);
+        let state = match (sh.port, quiet) {
+            (Some(_), _) => ShellState::Serving,
+            (None, true) => ShellState::Quiet,
+            (None, false) => ShellState::Running,
+        };
+        sh.enter(state, now);
+    }
+
+    fn drop_old_finished_shells(&mut self) {
+        let finished = self.shells.iter().filter(|sh| sh.ended_at.is_some()).count();
+        let mut excess = finished.saturating_sub(FINISHED_SHELLS_KEPT);
+        self.shells.retain(|sh| {
+            if excess > 0 && sh.ended_at.is_some() {
+                excess -= 1;
+                return false;
+            }
+            true
+        });
+    }
+}
+
+impl Shell {
+    pub fn new(id: impl Into<String>, command: impl Into<String>, description: impl Into<String>, now: u64) -> Self {
+        Shell {
+            id: id.into(),
+            command: command.into(),
+            description: description.into(),
+            state: ShellState::Running,
+            state_since: now,
+            started_at: now,
+            ended_at: None,
+            port: None,
+            exit_code: None,
+            last_line: None,
+            pid: None,
+            tail_read: false,
+        }
+    }
+
+    fn enter(&mut self, state: ShellState, now: u64) {
+        if state != self.state {
+            self.state_since = now;
+        }
+        self.state = state;
+    }
+
+    fn finish(&mut self, exit: ShellExit, now: u64) {
+        let (state, code) = match exit {
+            ShellExit::Code(0) => (ShellState::Exited, Some(0)),
+            ShellExit::Code(c) => (ShellState::Failed, Some(c)),
+            ShellExit::Failed => (ShellState::Failed, None),
+            ShellExit::Killed | ShellExit::Unknown => (ShellState::Exited, None),
+        };
+        self.enter(state, now);
+        self.exit_code = code;
+        self.port = None;
+        self.ended_at = Some(now);
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.ended_at.is_none()
     }
 }
 
@@ -391,6 +576,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
     if !s.alive {
         return s;
     }
+    if let Event::Shell { update, event } = event {
+        s.apply_shell(update, now);
+        return apply(s, *event, now);
+    }
 
     // Restores the pre-stuck state for events that define no transition of their own.
     let unstick = |s: &mut Session| {
@@ -436,6 +625,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             }
             return s;
         }
+        Event::ShellProbe { id, obs } => {
+            s.probe_shell(&id, obs, now);
+            return s;
+        }
         Event::Ended => {
             let st = if s.state == State::Success { State::Success } else { State::Idle };
             let task = if st == State::Success { "Done" } else { "Idle" };
@@ -445,6 +638,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             for a in s.agents.iter_mut().filter(|a| a.ended_at.is_none()) {
                 a.enter(State::Idle, "Idle".into(), now);
                 a.ended_at = Some(now);
+            }
+            // Claude Code stops its background tasks on exit.
+            for sh in s.shells.iter_mut().filter(|sh| sh.ended_at.is_none()) {
+                sh.finish(ShellExit::Unknown, now);
             }
             return s;
         }
@@ -578,6 +775,8 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::SessionFile { .. }
         | Event::Statusline { .. }
         | Event::TranscriptModel { .. }
+        | Event::Shell { .. }
+        | Event::ShellProbe { .. }
         | Event::Ended
         | Event::Tick => unreachable!("handled above"),
     }
@@ -1131,6 +1330,179 @@ mod tests {
         for absent in ["pendingAgents", "waitingOnAgent"] {
             assert!(v.get(absent).is_none(), "unexpected {absent}");
         }
+    }
+
+    // --- background shells (AV-29) ---
+
+    fn shell_started(id: &str, cmd: &str) -> Event {
+        Event::Shell {
+            update: ShellEvent::Started { id: id.into(), command: cmd.into(), description: format!("run {cmd}") },
+            event: Box::new(Event::PostToolUse),
+        }
+    }
+
+    fn shell_ended(id: &str, exit: ShellExit) -> Event {
+        Event::Shell { update: ShellEvent::Ended { id: id.into(), exit }, event: Box::new(Event::UserPromptSubmit) }
+    }
+
+    fn probe(id: &str, obs: ShellObservation) -> Event {
+        Event::ShellProbe { id: id.into(), obs }
+    }
+
+    #[test]
+    fn background_bash_starts_a_running_shell_and_still_applies_post_tool_use() {
+        let s = run(vec![(pre("Bash", Some("npm run dev")), T0), (shell_started("b1", "npm run dev"), T0 + 1)]);
+        assert_eq!(s.state, State::Thinking);
+        let sh = &s.shells[0];
+        assert_eq!((sh.id.as_str(), sh.command.as_str(), sh.state), ("b1", "npm run dev", ShellState::Running));
+        assert_eq!((sh.started_at, sh.state_since, sh.ended_at), (T0 + 1, T0 + 1, None));
+        let again = apply(s.clone(), shell_started("b1", "other"), T0 + 2);
+        assert_eq!(again.shells.len(), 1);
+    }
+
+    #[test]
+    fn probe_with_listening_port_is_serving_and_losing_it_returns_to_running() {
+        let s = run(vec![
+            (shell_started("b1", "vite"), T0),
+            (probe("b1", ShellObservation { pid: Some(77), port: Some(5173), last_output_at: Some(T0), ..Default::default() }), T0 + 5_000),
+        ]);
+        assert_eq!((s.shells[0].state, s.shells[0].port, s.shells[0].pid), (ShellState::Serving, Some(5173), Some(77)));
+        assert_eq!(s.shells[0].state_since, T0 + 5_000);
+        let s = apply(s, probe("b1", ShellObservation { last_output_at: Some(T0 + 6_000), ..Default::default() }), T0 + 10_000);
+        assert_eq!((s.shells[0].state, s.shells[0].port, s.shells[0].pid), (ShellState::Running, None, Some(77)));
+    }
+
+    #[test]
+    fn shell_goes_quiet_after_two_minutes_without_output_and_serving_wins() {
+        let quiet = |at: u64, port| ShellObservation { last_output_at: Some(at), port, ..Default::default() };
+        let s = run(vec![(shell_started("b1", "tsc -w"), T0), (probe("b1", quiet(T0, None)), T0 + SHELL_QUIET_MS - 1)]);
+        assert_eq!(s.shells[0].state, ShellState::Running);
+        let s = apply(s, probe("b1", quiet(T0, None)), T0 + SHELL_QUIET_MS);
+        assert_eq!(s.shells[0].state, ShellState::Quiet);
+        let s = apply(s, probe("b1", quiet(T0, Some(3000))), T0 + SHELL_QUIET_MS + 5_000);
+        assert_eq!(s.shells[0].state, ShellState::Serving);
+        let s = apply(s, probe("b1", ShellObservation::default()), T0 + 10 * MIN);
+        assert_eq!(s.shells[0].state, ShellState::Running, "no output file seen: quiet is never claimed");
+    }
+
+    #[test]
+    fn shell_end_states_from_notifications_and_task_stop() {
+        let s = run(vec![
+            (shell_started("ok", "make"), T0),
+            (shell_started("bad", "make test"), T0),
+            (shell_started("srv", "serve"), T0),
+            (shell_started("odd", "x"), T0),
+            (shell_ended("ok", ShellExit::Code(0)), T0 + 1),
+            (shell_ended("bad", ShellExit::Code(3)), T0 + 2),
+            (shell_ended("srv", ShellExit::Killed), T0 + 3),
+            (shell_ended("odd", ShellExit::Failed), T0 + 4),
+        ]);
+        let got: Vec<_> = s.shells.iter().map(|sh| (sh.id.as_str(), sh.state, sh.exit_code, sh.ended_at)).collect();
+        assert_eq!(
+            got,
+            vec![
+                ("ok", ShellState::Exited, Some(0), Some(T0 + 1)),
+                ("bad", ShellState::Failed, Some(3), Some(T0 + 2)),
+                ("srv", ShellState::Exited, None, Some(T0 + 3)),
+                ("odd", ShellState::Failed, None, Some(T0 + 4)),
+            ]
+        );
+        assert_eq!(s.state, State::Thinking, "the notification prompt still starts a turn");
+        let again = apply(s.clone(), shell_ended("bad", ShellExit::Code(0)), T0 + 9);
+        assert_eq!(again.shells, s.shells, "an ended shell stays ended");
+    }
+
+    #[test]
+    fn probe_trailer_ends_a_shell_and_a_later_probe_fills_the_last_line_once() {
+        let s = run(vec![
+            (shell_started("b1", "cargo build"), T0),
+            (probe("b1", ShellObservation { exit: Some(ShellExit::Code(101)), last_line: Some("error: aborting".into()), ..Default::default() }), T0 + 5),
+        ]);
+        let sh = &s.shells[0];
+        assert_eq!((sh.state, sh.exit_code, sh.last_line.as_deref(), sh.tail_read), (ShellState::Failed, Some(101), Some("error: aborting"), true));
+
+        let s = run(vec![(shell_started("b2", "npm test"), T0), (shell_ended("b2", ShellExit::Code(1)), T0 + 1)]);
+        assert!(!s.shells[0].tail_read);
+        let s = apply(s, probe("b2", ShellObservation { last_line: Some("1 failing".into()), port: Some(1), ..Default::default() }), T0 + 2);
+        let sh = &s.shells[0];
+        assert_eq!((sh.state, sh.last_line.as_deref(), sh.port, sh.tail_read), (ShellState::Failed, Some("1 failing"), None, true));
+    }
+
+    #[test]
+    fn shell_probes_never_reset_the_stuck_timer_or_hook_freshness() {
+        let s = run(vec![
+            (Event::UserPromptSubmit, T0),
+            (shell_started("b1", "x"), T0),
+            (probe("b1", ShellObservation { port: Some(80), ..Default::default() }), T0 + 5 * MIN),
+            (Event::Tick, T0 + 6 * MIN),
+        ]);
+        assert_eq!(s.state, State::Stuck);
+        assert_eq!(s.last_hook_at, Some(T0));
+        assert_eq!(apply(fresh(), probe("nope", ShellObservation::default()), T0), fresh());
+    }
+
+    #[test]
+    fn stop_listing_adopts_unknown_shells_without_ending_known_ones() {
+        let listed = |ids: &[&str]| Event::Shell {
+            update: ShellEvent::Listed { shells: ids.iter().map(|i| (i.to_string(), format!("cmd {i}"), String::new())).collect() },
+            event: Box::new(Event::Stop),
+        };
+        let s = run(vec![(shell_started("b1", "a"), T0), (listed(&["b2"]), T0 + 1)]);
+        assert_eq!(s.state, State::Success);
+        let got: Vec<_> = s.shells.iter().map(|sh| (sh.id.as_str(), sh.command.as_str(), sh.state)).collect();
+        assert_eq!(got, vec![("b1", "a", ShellState::Running), ("b2", "cmd b2", ShellState::Running)]);
+    }
+
+    #[test]
+    fn shells_end_with_the_session() {
+        let s = run(vec![
+            (shell_started("b1", "serve"), T0),
+            (shell_started("b2", "make"), T0),
+            (shell_ended("b2", ShellExit::Code(2)), T0 + 1),
+            (Event::Ended, T0 + 2),
+        ]);
+        assert_eq!((s.shells[0].state, s.shells[0].exit_code, s.shells[0].ended_at), (ShellState::Exited, None, Some(T0 + 2)));
+        assert_eq!((s.shells[1].state, s.shells[1].exit_code), (ShellState::Failed, Some(2)));
+        let after = apply(s.clone(), shell_started("b3", "late"), T0 + 3);
+        assert_eq!(after, s);
+    }
+
+    #[test]
+    fn finished_shells_are_capped_oldest_first() {
+        let mut s = fresh();
+        for i in 0..FINISHED_SHELLS_KEPT + 2 {
+            let id = format!("b{i}");
+            s = apply(apply(s, shell_started(&id, "x"), T0), shell_ended(&id, ShellExit::Code(0)), T0);
+        }
+        s = apply(s, shell_started("live", "x"), T0);
+        assert_eq!(s.shells.len(), FINISHED_SHELLS_KEPT + 1);
+        assert_eq!(s.shells[0].id, "b2");
+    }
+
+    #[test]
+    fn shells_serialise_in_snapshot_shape() {
+        let s = run(vec![
+            (shell_started("b1", "vite"), T0),
+            (probe("b1", ShellObservation { pid: Some(9), port: Some(5173), last_line: Some("ready".into()), ..Default::default() }), T0 + 1),
+        ]);
+        let v = serde_json::to_value(&s).unwrap();
+        let sh = &v["shells"][0];
+        assert_eq!(sh["id"], "b1");
+        assert_eq!(sh["command"], "vite");
+        assert_eq!(sh["description"], "run vite");
+        assert_eq!(sh["state"], "serving");
+        assert_eq!(sh["stateSince"], T0 + 1);
+        assert_eq!(sh["startedAt"], T0);
+        assert_eq!(sh["port"], 5173);
+        assert_eq!(sh["lastLine"], "ready");
+        for absent in ["endedAt", "exitCode", "pid", "tailRead"] {
+            assert!(sh.get(absent).is_none(), "unexpected {absent}");
+        }
+        let states: Vec<_> = [ShellState::Running, ShellState::Quiet, ShellState::Serving, ShellState::Exited, ShellState::Failed]
+            .iter()
+            .map(|st| serde_json::to_value(st).unwrap())
+            .collect();
+        assert_eq!(states, ["running", "quiet", "serving", "exited", "failed"]);
     }
 
     // --- hook-less fallback ---

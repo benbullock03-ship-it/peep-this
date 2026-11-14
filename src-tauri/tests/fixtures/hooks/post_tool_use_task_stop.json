@@ -1,0 +1,19 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "default",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskStop",
+  "tool_input": { "task_id": "bydeacx8e" },
+  "tool_response": {
+    "message": "Successfully stopped task: bydeacx8e (sleep 60)",
+    "task_id": "bydeacx8e",
+    "task_type": "local_bash",
+    "command": "sleep 60"
+  },
+  "tool_use_id": "toolu_013SyEEdwQJFDKJ8DuQuwkAh",
+  "duration_ms": 10
+}

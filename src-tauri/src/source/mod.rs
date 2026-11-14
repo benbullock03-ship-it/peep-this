@@ -23,6 +23,19 @@ pub enum SourceEvent {
 
 pub type Sink = Box<dyn Fn(SourceEvent) + Send>;
 
+/// One background shell for the OS probe to look at.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShellQuery {
+    pub session_id: String,
+    /// 0 for a placeholder session whose session file has not been seen.
+    pub session_pid: u32,
+    pub shell_id: String,
+    pub command: String,
+    /// PID matched by an earlier probe.
+    pub pid: Option<u32>,
+    pub ended: bool,
+}
+
 pub trait AgentSource: Send + 'static {
     /// One-shot scan of the sessions that exist right now.
     fn discover(&mut self) -> Vec<SourceEvent>;

@@ -26,7 +26,9 @@ getrandom = "0.3"
 [target.'cfg(windows)'.dependencies]
 tauri-winrt-notification = "0.8.1"
 windows-sys = { version = "0.61", features = [
+    "Wdk_System_Threading",
     "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
     "Win32_System_Threading",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_UI_WindowsAndMessaging",

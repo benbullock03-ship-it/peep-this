@@ -1,4 +1,5 @@
 pub mod sessions;
+pub mod shells;
 pub mod transcript;
 
 use std::path::PathBuf;

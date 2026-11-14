@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 
 use crate::notify;
-use crate::source::{SessionInfo, SourceEvent};
+use crate::source::{SessionInfo, ShellQuery, SourceEvent};
 use crate::state::{self, Event, Session};
 use crate::ticker;
 
@@ -171,6 +171,28 @@ impl Store {
 
     pub fn tick(&self, now: u64) {
         self.mutate(|inner| ticker::tick(&mut inner.sessions, now));
+    }
+
+    /// Shells of live sessions the probe should look at: running ones, plus ended ones whose output tail is unread.
+    pub fn shell_queries(&self) -> Vec<ShellQuery> {
+        let inner = self.inner.lock().unwrap();
+        let mut out: Vec<ShellQuery> = inner
+            .sessions
+            .values()
+            .filter(|s| s.alive)
+            .flat_map(|s| {
+                s.shells.iter().filter(|sh| sh.is_running() || !sh.tail_read).map(|sh| ShellQuery {
+                    session_id: s.id.clone(),
+                    session_pid: s.pid,
+                    shell_id: sh.id.clone(),
+                    command: sh.command.clone(),
+                    pid: sh.pid,
+                    ended: !sh.is_running(),
+                })
+            })
+            .collect();
+        out.sort_by(|a, b| a.session_id.cmp(&b.session_id));
+        out
     }
 
     pub fn set_rate_limits(&self, five_hour_pct: f64, seven_day_pct: f64, now: u64) {

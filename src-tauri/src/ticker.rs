@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::state::{self, Event, Session, State};
+use crate::source::ShellQuery;
+use crate::state::{self, Event, Session, ShellObservation, State};
 use crate::store::{self, Store};
 
 pub const TICK_INTERVAL: Duration = Duration::from_secs(5);
@@ -28,11 +29,26 @@ pub fn tick(sessions: &mut HashMap<String, Session>, now: u64) -> bool {
     changed
 }
 
-pub fn spawn(store: Arc<Store>) {
+/// OS lookups for background shells; returns one observation per query, in order.
+pub type ShellProbe = Box<dyn Fn(&[ShellQuery]) -> Vec<ShellObservation> + Send>;
+
+/// Runs `probe` outside the store lock and feeds each result back as `ShellProbe` events.
+pub fn probe_shells(store: &Store, probe: &ShellProbe, now: u64) {
+    let queries = store.shell_queries();
+    if queries.is_empty() {
+        return;
+    }
+    for (q, obs) in queries.iter().zip(probe(&queries)) {
+        store.apply(&q.session_id, Event::ShellProbe { id: q.shell_id.clone(), obs }, now);
+    }
+}
+
+pub fn spawn(store: Arc<Store>, probe: ShellProbe) {
     std::thread::Builder::new()
         .name("ticker".into())
         .spawn(move || loop {
             std::thread::sleep(TICK_INTERVAL);
+            probe_shells(&store, &probe, store::now_ms());
             store.tick(store::now_ms());
         })
         .expect("spawn ticker");
@@ -76,6 +92,45 @@ mod tests {
         let before = m.clone();
         assert!(!tick(&mut m, T0 + 60 * STUCK_AFTER_MS));
         assert_eq!(m, before);
+    }
+
+    #[test]
+    fn probe_seam_feeds_observations_for_running_shells_of_live_sessions_only() {
+        use crate::state::{ShellEvent, ShellExit, ShellState};
+        use std::sync::Mutex;
+        let shell = |id: &str| Event::Shell {
+            update: ShellEvent::Started { id: id.into(), command: format!("cmd {id}"), description: String::new() },
+            event: Box::new(Event::PostToolUse),
+        };
+        let store = Store::new(Box::new(|_| {}));
+        store.apply_or_placeholder("live", None, shell("b1"), T0);
+        store.apply_or_placeholder("live", None, shell("b2"), T0);
+        store.apply_or_placeholder(
+            "live",
+            None,
+            Event::Shell { update: ShellEvent::Ended { id: "b2".into(), exit: ShellExit::Code(1) }, event: Box::new(Event::UserPromptSubmit) },
+            T0,
+        );
+        store.apply_or_placeholder("dead", None, shell("b9"), T0);
+        store.apply_or_placeholder("dead", None, Event::Ended, T0);
+
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&seen);
+        let probe: ShellProbe = Box::new(move |qs| {
+            sink.lock().unwrap().extend(qs.iter().map(|q| (q.shell_id.clone(), q.command.clone(), q.ended)));
+            qs.iter()
+                .map(|q| ShellObservation { port: (!q.ended).then_some(8080), last_line: Some("boom".into()), ..Default::default() })
+                .collect()
+        });
+        probe_shells(&store, &probe, T0 + 5_000);
+        assert_eq!(*seen.lock().unwrap(), vec![("b1".into(), "cmd b1".into(), false), ("b2".into(), "cmd b2".into(), true)]);
+        let s = store.snapshot().sessions.into_iter().find(|s| s.id == "live").unwrap();
+        assert_eq!((s.shells[0].state, s.shells[0].port), (ShellState::Serving, Some(8080)));
+        assert_eq!((s.shells[1].state, s.shells[1].last_line.as_deref()), (ShellState::Failed, Some("boom")));
+
+        seen.lock().unwrap().clear();
+        probe_shells(&store, &probe, T0 + 10_000);
+        assert_eq!(seen.lock().unwrap().len(), 1, "an ended shell's tail is read once");
     }
 
     #[test]

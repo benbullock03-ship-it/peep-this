@@ -36,11 +36,15 @@ fn log_snapshot(snap: &Snapshot) {
                 .iter()
                 .map(|a| format!("{}={:?} tools={} result={:?}", a.agent_type, a.state, a.tool_count, a.result))
                 .collect();
-            if agents.is_empty() {
-                format!("{}={:?}", s.name, s.state)
-            } else {
-                format!("{}={:?} [{}]", s.name, s.state, agents.join("; "))
+            let shells: Vec<String> = s.shells.iter().map(shell_log).collect();
+            let mut line = format!("{}={:?}", s.name, s.state);
+            if !agents.is_empty() {
+                line.push_str(&format!(" [{}]", agents.join("; ")));
             }
+            if !shells.is_empty() {
+                line.push_str(&format!(" {{shells: {}}}", shells.join("; ")));
+            }
+            line
         })
         .collect();
     println!(
@@ -49,6 +53,22 @@ fn log_snapshot(snap: &Snapshot) {
         live.len(),
         live.join(", ")
     );
+}
+
+/// `npm run dev=Serving :5173`, `npm run build=Failed exit=1 last="error TS2304"`.
+fn shell_log(sh: &state::Shell) -> String {
+    let cmd: String = sh.command.chars().take(40).collect();
+    let mut out = format!("{cmd}={:?}", sh.state);
+    if let Some(p) = sh.port {
+        out.push_str(&format!(" :{p}"));
+    }
+    if let Some(c) = sh.exit_code {
+        out.push_str(&format!(" exit={c}"));
+    }
+    if let Some(l) = &sh.last_line {
+        out.push_str(&format!(" last={l:?}"));
+    }
+    out
 }
 
 fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
@@ -115,7 +135,7 @@ pub fn run() {
             }));
             app.manage(Arc::clone(&store));
             wire_alerts(app, &store);
-            ticker::spawn(Arc::clone(&store));
+            ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
             let endpoint = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir())
                 .inspect_err(|e| eprintln!("peepthis: event server failed: {e}"))
                 .ok();

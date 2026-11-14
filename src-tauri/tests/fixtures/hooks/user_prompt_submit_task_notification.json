@@ -1,0 +1,9 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "default",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "<task-notification>\n<task-id>bx33ejiyl</task-id>\n<tool-use-id>toolu_01J2fgK3xBLGncgW3Fc5ScZe</tool-use-id>\n<output-file>C:\\Users\\user\\AppData\\Local\\Temp\\claude\\0123456789abcdef\\aaaaaaaa-1111-4222-8333-444444444444\\tasks\\bx33ejiyl.output</output-file>\n<status>failed</status>\n<summary>Background command \"Run failing command in background\" failed with exit code 3</summary>\n</task-notification>"
+}
