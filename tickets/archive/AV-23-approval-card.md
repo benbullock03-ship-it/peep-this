@@ -1,7 +1,7 @@
 ---
 id: AV-23
 title: Approval card on the session row
-status: in-progress
+status: done
 depends: [AV-21, AV-22]
 attended: false
 ---
@@ -50,7 +50,6 @@ Run against the owner's running `npm run tauri dev` with the AV-21 harness: a re
 - **Hold-confirm destructive:** `git reset --hard` held as `destructive`, card showed `Hold to allow` with `--hard` marked. A click: still pending after 1.5s. A 0.5s hold: still pending. A 1.3s hold: decided, card gone, reset ran (`a.txt` dirty back to `orig`).
 - The owner also denied one of these requests from the card with their own reason (`poop`), which the terminal showed verbatim.
 
-## Owed before done
+## Done 2026-11-14
 
-- Owner's look at the card in the widget (diff, command, countdown, buttons, a stacked second request). The behaviour above is proven; how it reads is not.
-- Checks so far: `npm run build` clean, 56 Vitest, 229 + 15 cargo tests. Shots of `?demo` at 360px looked at: no overlap, command wraps, diff scrolls sideways.
+Owner: "card looked fine". Behaviour proven by the live check above; owner also used Deny with reason on a live card. Tree: `src/approvalCard.ts`, `src/approval.ts`, `src/approval.test.ts`, `?demo` cards. Checks: `npm run build` clean, 56 Vitest, 233 + 15 cargo tests. Not separately seen by the owner: two requests stacked on one session (ordering is unit-tested via `byOldest` and the keyed render).
