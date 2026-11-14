@@ -20,5 +20,7 @@ attended: true
 - [ ] A saved position from before this change still restores to the same card position
 - [ ] Crisp at 100%, 150% and 200% scaling: no blurred border or shadow edges
 - [ ] Unit tests for the card-rect maths
+- [ ] Clicks on the shadow-free transparent area pass through: `SetWindowRgn` to card ∪ shadow, reapplied on every resize (AV-34 answer)
+- [ ] Idle CPU on a release build inside §8 (AV-34 measured 1.61% on debug with two windows open, which doesn't count)
 
 **Done when:** the owner saw the card over a light window and a dark one in `npm run tauri dev` and accepted the look.
