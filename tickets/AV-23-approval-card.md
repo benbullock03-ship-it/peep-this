@@ -41,7 +41,16 @@ Decide: diff rendering (recommended: a small in-repo line differ over `old_strin
 - Styling follows the current rounded chrome; AV-34/35 will restyle it with the rest of the panel.
 - A failed `decide_approval` call re-enables the card; a `false` (already released) leaves it disabled until the next snapshot removes it.
 
+## Live check 2026-11-14
+
+Run against the owner's running `npm run tauri dev` with the AV-21 harness: a real interactive `claude` (Haiku, PTY, windowless through WMI, `--settings` with timeout 75), and the card driven by real CDP `Input.dispatchMouseEvent` / `insertText` / `dispatchKeyEvent` on the card's own buttons, not by `decide_approval` directly. Script: session scratchpad `e3fb4e28-…/scratchpad/live23.py`.
+
+- **Allow an edit:** Write `x.txt` held as `safe` ("edit inside the session folder"); card showed `+ hi`, countdown 60s; click on Allow closed the card at once and `x.txt` = `hi`.
+- **Deny with a reason Claude acted on:** Claude chose `mkdir …/test_output`; Deny with reason, typed "Please call the folder av23-reason instead.", Enter. Terminal: `Reason: Please call the folder av23-reason instead.` / `Denied by PermissionRequest hook`; Claude: "You left the name up to me, so I'll use that." The follow-up request was `mkdir …/av23-reason`, allowed from its card; the folder exists. (An earlier run with "reply only ZEBRA23" was delivered but Claude treated it as an injection; one with an exact-command prompt was delivered and Claude kept to the user's exact command. Both are Claude's judgement, not the card.)
+- **Hold-confirm destructive:** `git reset --hard` held as `destructive`, card showed `Hold to allow` with `--hard` marked. A click: still pending after 1.5s. A 0.5s hold: still pending. A 1.3s hold: decided, card gone, reset ran (`a.txt` dirty back to `orig`).
+- The owner also denied one of these requests from the card with their own reason (`poop`), which the terminal showed verbatim.
+
 ## Owed before done
 
-- Owner, in `npm run tauri dev` after reinstalling the integration from the tray (hook timeout 75): allow an edit, deny a command with a reason Claude then acts on, and hold-confirm a destructive command, all from the card. Also: does a stacked second request and the countdown read right.
+- Owner's look at the card in the widget (diff, command, countdown, buttons, a stacked second request). The behaviour above is proven; how it reads is not.
 - Checks so far: `npm run build` clean, 56 Vitest, 229 + 15 cargo tests. Shots of `?demo` at 360px looked at: no overlap, command wraps, diff scrolls sideways.
