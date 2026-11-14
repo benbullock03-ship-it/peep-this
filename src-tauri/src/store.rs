@@ -205,6 +205,18 @@ impl Store {
         });
     }
 
+    /// The approval broker's held requests for one session; not routed through `state::apply`.
+    pub fn set_pending(&self, id: &str, pending: Vec<crate::approve::PendingApproval>) {
+        self.mutate(|inner| {
+            let Some(s) = inner.sessions.get_mut(id) else { return false };
+            if s.pending == pending {
+                return false;
+            }
+            s.pending = pending;
+            true
+        });
+    }
+
     pub fn set_integration(&self, integration: Integration) {
         self.mutate(|inner| {
             let changed = inner.integration != integration;

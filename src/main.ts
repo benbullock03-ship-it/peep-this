@@ -53,7 +53,13 @@ async function runLive() {
   const banner = createBanner(root, { install: () => invoke("install_integration") });
   await listen<TrayResult>("integration-result", (e) => banner.trayResult(e.payload));
   await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
+  const renderApprovals = import.meta.env.DEV
+    ? (await import("./devApprovals")).createDevApprovals(document.body, (requestId, decision, reason) =>
+        invoke<boolean>("decide_approval", { requestId, decision, reason }),
+      )
+    : undefined;
   const render = (snap: Snapshot) => {
+    renderApprovals?.(snap.sessions);
     renderList(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);

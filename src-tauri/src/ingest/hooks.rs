@@ -21,6 +21,12 @@ pub const EVENTS: [&str; 11] = [
 
 /// Seconds. Claude Code's default is 600; a hung widget must not stall a turn.
 pub const TIMEOUT_SECS: u64 = 1;
+/// The broker answers within its hold window; this is only the backstop if the widget hangs.
+pub const PERMISSION_TIMEOUT_SECS: u64 = crate::approve::HOLD_MS / 1000 + 15;
+
+pub fn timeout_secs(event: &str) -> u64 {
+    if event == "PermissionRequest" { PERMISSION_TIMEOUT_SECS } else { TIMEOUT_SECS }
+}
 
 pub fn hook_url(port: u16, event: &str) -> String {
     format!("http://127.0.0.1:{port}/hook/{event}")
@@ -35,7 +41,7 @@ pub fn settings_hooks(port: u16, token: &str) -> Value {
             json!([{ "hooks": [{
                 "type": "http",
                 "url": hook_url(port, event),
-                "timeout": TIMEOUT_SECS,
+                "timeout": timeout_secs(event),
                 "headers": { TOKEN_HEADER: token },
             }]}]),
         );
@@ -56,7 +62,8 @@ mod tests {
         let h = &v["PermissionRequest"][0]["hooks"][0];
         assert_eq!(h["type"], "http");
         assert_eq!(h["url"], "http://127.0.0.1:47821/hook/PermissionRequest");
-        assert_eq!(h["timeout"], 1);
+        assert_eq!(h["timeout"], 75);
         assert_eq!(h["headers"]["X-PeepThis-Token"], "tok");
+        assert_eq!(v["Stop"][0]["hooks"][0]["timeout"], 1);
     }
 }

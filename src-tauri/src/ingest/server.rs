@@ -1,12 +1,14 @@
 //! Loopback event server for hook and statusline payloads (spec §6.5).
 
 use std::io::{self, Read};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::Value;
-use tiny_http::{Method, Response, Server};
 
+use super::http;
+use crate::approve::{self, Broker, TcpResponder};
 use crate::state::{Event, ShellEvent, ShellExit};
 use crate::store::{self, Store};
 
@@ -52,23 +54,34 @@ pub fn default_dir() -> PathBuf {
         .join("PeepThis")
 }
 
-/// Binds 127.0.0.1:47821 (random port if taken), writes `endpoint.json` into `dir` and serves on a background thread.
-pub fn spawn(store: Arc<Store>, dir: &Path) -> io::Result<Endpoint> {
-    spawn_on(store, dir, DEFAULT_PORT)
+/// What `handle` decided: answer now, or hand the connection to the approval broker.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Outcome {
+    Status(u16),
+    Hold(approve::Request),
 }
 
-fn spawn_on(store: Arc<Store>, dir: &Path, port: u16) -> io::Result<Endpoint> {
-    let server = Server::http(("127.0.0.1", port))
-        .or_else(|e| {
-            println!("peepthis: port {port} unavailable ({e}), using a random port; installed hooks will not reach it");
-            Server::http(("127.0.0.1", 0))
-        })
-        .map_err(io::Error::other)?;
-    let port = server
-        .server_addr()
-        .to_ip()
-        .map(|a| a.port())
-        .ok_or_else(|| io::Error::other("event server has no IP address"))?;
+impl Outcome {
+    /// The status sent when nothing holds the request.
+    pub fn status(&self) -> u16 {
+        match self {
+            Outcome::Status(s) => *s,
+            Outcome::Hold(_) => 204,
+        }
+    }
+}
+
+/// Binds 127.0.0.1:47821 (random port if taken), writes `endpoint.json` into `dir` and serves on a background thread.
+pub fn spawn(store: Arc<Store>, broker: Option<Arc<Broker>>, dir: &Path) -> io::Result<Endpoint> {
+    spawn_on(store, broker, dir, DEFAULT_PORT)
+}
+
+fn spawn_on(store: Arc<Store>, broker: Option<Arc<Broker>>, dir: &Path, port: u16) -> io::Result<Endpoint> {
+    let listener = TcpListener::bind(("127.0.0.1", port)).or_else(|e| {
+        println!("peepthis: port {port} unavailable ({e}), using a random port; installed hooks will not reach it");
+        TcpListener::bind(("127.0.0.1", 0))
+    })?;
+    let port = listener.local_addr()?.port();
     // Native HTTP hooks carry the token literally in settings.json, so it must survive restarts.
     let token = match saved_token(dir) {
         Some(t) => t,
@@ -77,61 +90,84 @@ fn spawn_on(store: Arc<Store>, dir: &Path, port: u16) -> io::Result<Endpoint> {
     write_endpoint(dir, port, &token)?;
     println!("peepthis: event server on 127.0.0.1:{port}");
 
-    let expected = token.clone();
+    let expected: Arc<str> = token.clone().into();
     std::thread::Builder::new()
         .name("event-server".into())
         .spawn(move || {
-            for req in server.incoming_requests() {
-                serve(&store, &expected, req);
+            for conn in listener.incoming().flatten() {
+                let (store, broker, expected) = (Arc::clone(&store), broker.clone(), Arc::clone(&expected));
+                // One thread per connection: a held approval must not block the hooks behind it.
+                let _ = std::thread::Builder::new()
+                    .name("event-conn".into())
+                    .spawn(move || serve(&store, broker.as_deref(), &expected, conn));
             }
         })?;
     Ok(Endpoint { port, token })
 }
 
-fn serve(store: &Store, expected: &str, mut req: tiny_http::Request) {
-    let url = req.url().to_string();
-    let token = req
-        .headers()
-        .iter()
-        .find(|h| h.field.equiv(TOKEN_HEADER))
-        .map(|h| h.value.as_str().to_string());
-    let meta = Request {
-        post: *req.method() == Method::Post,
-        url: &url,
-        token: token.as_deref(),
-        declared_len: req.body_length(),
+fn serve(store: &Store, broker: Option<&Broker>, expected: &str, mut conn: TcpStream) {
+    let _ = conn.set_read_timeout(Some(http::READ_TIMEOUT));
+    let req = match http::read_request(&mut conn) {
+        Ok(r) => r,
+        Err(status) => {
+            let _ = http::respond(&conn, status, None);
+            return;
+        }
     };
-    let status = handle(store, expected, &meta, req.as_reader(), store::now_ms());
-    let _ = req.respond(Response::empty(status));
+    let meta = Request {
+        post: req.method == "POST",
+        url: &req.url,
+        token: req.header(TOKEN_HEADER),
+        declared_len: req.declared_len,
+    };
+    let now = store::now_ms();
+    match (handle_full(store, expected, &meta, &req.body[..], now), broker) {
+        (Outcome::Hold(hold), Some(b)) => {
+            let _ = conn.set_read_timeout(None);
+            b.hold(hold, Box::new(TcpResponder(conn)), now);
+        }
+        (outcome, _) => {
+            let _ = http::respond(&conn, outcome.status(), None);
+        }
+    }
 }
 
 /// Authorises, size-checks, parses and dispatches one request; returns the HTTP status.
+#[cfg(test)]
 pub fn handle(store: &Store, expected: &str, req: &Request, body: impl Read, now: u64) -> u16 {
+    handle_full(store, expected, req, body, now).status()
+}
+
+pub fn handle_full(store: &Store, expected: &str, req: &Request, body: impl Read, now: u64) -> Outcome {
     if !token_matches(expected, req.token) {
-        return 401;
+        return Outcome::Status(401);
     }
-    let Some(route) = parse_route(req.url) else { return 404 };
+    let Some(route) = parse_route(req.url) else { return Outcome::Status(404) };
     if !req.post {
-        return 405;
+        return Outcome::Status(405);
     }
     if req.declared_len.is_some_and(|n| n > MAX_BODY) {
-        return 413;
+        return Outcome::Status(413);
     }
     let mut buf = Vec::new();
     if body.take(MAX_BODY as u64 + 1).read_to_end(&mut buf).is_err() {
-        return 400;
+        return Outcome::Status(400);
     }
     if buf.len() > MAX_BODY {
-        return 413;
+        return Outcome::Status(413);
     }
     match parse(&route, &buf) {
         Ok(routed) => {
             dispatch(store, routed, now);
-            204
+            let hold = (route == Route::Hook("PermissionRequest".into()))
+                .then(|| serde_json::from_slice::<Value>(&buf).ok())
+                .flatten()
+                .and_then(|v| approve::Request::from_payload(&v));
+            hold.map_or(Outcome::Status(204), Outcome::Hold)
         }
         Err(e) => {
             println!("peepthis: dropped {:?} payload: {e}", route);
-            400
+            Outcome::Status(400)
         }
     }
 }
@@ -897,11 +933,11 @@ mod tests {
     #[test]
     fn token_survives_restart() {
         let dir = temp_dir();
-        let first = spawn_on(quiet_store(), &dir, 0).unwrap();
-        let second = spawn_on(quiet_store(), &dir, 0).unwrap();
+        let first = spawn_on(quiet_store(), None, &dir, 0).unwrap();
+        let second = spawn_on(quiet_store(), None, &dir, 0).unwrap();
         assert_eq!(first.token, second.token);
         std::fs::write(dir.join("endpoint.json"), r#"{"port":1,"token":"short"}"#).unwrap();
-        let third = spawn_on(quiet_store(), &dir, 0).unwrap();
+        let third = spawn_on(quiet_store(), None, &dir, 0).unwrap();
         assert_ne!(third.token, "short");
         assert_eq!(third.token.len(), 64);
     }
@@ -1029,7 +1065,7 @@ mod tests {
     fn serves_over_loopback_and_writes_endpoint_file() {
         let store = quiet_store();
         let dir = temp_dir();
-        let ep = spawn_on(Arc::clone(&store), &dir, 0).unwrap();
+        let ep = spawn_on(Arc::clone(&store), None, &dir, 0).unwrap();
         let file: Value = serde_json::from_str(&std::fs::read_to_string(dir.join("endpoint.json")).unwrap()).unwrap();
         assert_eq!(file["port"], ep.port);
         assert_eq!(file["token"], ep.token.as_str());
@@ -1043,12 +1079,79 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    struct NoEnv;
+    impl approve::Env for NoEnv {
+        fn terminal_foreground(&self, _: u32, _: &str) -> bool {
+            false
+        }
+        fn widget_hidden(&self) -> bool {
+            false
+        }
+    }
+
+    fn open_permission_request(port: u16, token: &str) -> TcpStream {
+        let body = fixture("permission_request.json");
+        let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        let head = format!(
+            "POST /hook/PermissionRequest HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: {}\r\n{TOKEN_HEADER}: {token}\r\n\r\n",
+            body.len()
+        );
+        s.write_all(format!("{head}{body}").as_bytes()).unwrap();
+        s
+    }
+
+    fn wait_for(mut f: impl FnMut() -> bool) {
+        for _ in 0..200 {
+            if f() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("condition not reached");
+    }
+
+    #[test]
+    fn permission_request_is_held_over_tcp_until_decided() {
+        let store = quiet_store();
+        let broker = Broker::new(Arc::clone(&store), Box::new(NoEnv), approve::HOLD_MS);
+        let dir = temp_dir();
+        let ep = spawn_on(Arc::clone(&store), Some(Arc::clone(&broker)), &dir, 0).unwrap();
+        let mut s = open_permission_request(ep.port, &ep.token);
+        wait_for(|| store.snapshot().sessions.first().is_some_and(|x| !x.pending.is_empty()));
+        // Other hooks still get through while one is held.
+        assert_eq!(post(ep.port, "/hook/Notification", Some(&ep.token), &fixture("notification_permission.json")), 204);
+        let id = store.snapshot().sessions[0].pending[0].id.clone();
+        assert_eq!(broker.decide(&id, false, Some("nope".into()), store::now_ms()), Ok(true));
+        let mut resp = String::new();
+        s.read_to_string(&mut resp).unwrap();
+        assert!(resp.starts_with("HTTP/1.1 200"), "{resp}");
+        let json: Value = serde_json::from_str(resp.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert_eq!(json["hookSpecificOutput"]["decision"]["message"], "nope");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn dropped_connection_is_seen_and_released() {
+        let store = quiet_store();
+        let broker = Broker::new(Arc::clone(&store), Box::new(NoEnv), approve::HOLD_MS);
+        let dir = temp_dir();
+        let ep = spawn_on(Arc::clone(&store), Some(Arc::clone(&broker)), &dir, 0).unwrap();
+        let s = open_permission_request(ep.port, &ep.token);
+        wait_for(|| store.snapshot().sessions.first().is_some_and(|x| !x.pending.is_empty()));
+        drop(s);
+        wait_for(|| {
+            broker.sweep(store::now_ms());
+            store.snapshot().sessions[0].pending.is_empty()
+        });
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
     #[test]
     fn falls_back_to_random_port_when_taken() {
         let held = TcpListener::bind("127.0.0.1:0").unwrap();
         let taken = held.local_addr().unwrap().port();
         let dir = temp_dir();
-        let ep = spawn_on(quiet_store(), &dir, taken).unwrap();
+        let ep = spawn_on(quiet_store(), None, &dir, taken).unwrap();
         assert_ne!(ep.port, taken);
         assert_eq!(post(ep.port, "/hook/Stop", Some(&ep.token), &fixture("stop.json")), 204);
         let _ = std::fs::remove_dir_all(dir);

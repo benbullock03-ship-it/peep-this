@@ -21,6 +21,20 @@ export type Session = {
   contextPct?: number;
   alive: boolean;
   endedAt?: number;
+  pending?: PendingApproval[];
+};
+
+export type RiskTier = "safe" | "shell" | "destructive";
+
+export type PendingApproval = {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+  cwd: string;
+  agentId?: string;
+  receivedAt: number;
+  releaseAt: number;
+  risk: { tier: RiskTier; field?: string; span?: [number, number]; reason: string };
 };
 
 export type RateLimits = { fiveHourPct: number; sevenDayPct: number; at: number };

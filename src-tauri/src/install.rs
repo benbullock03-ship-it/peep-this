@@ -322,6 +322,7 @@ pub fn integration_status(paths: &Paths, ep: &Endpoint) -> Integration {
                 e == event
                     && h.get("url").and_then(Value::as_str) == Some(hooks::hook_url(ep.port, event).as_str())
                     && h.pointer(&format!("/headers/{TOKEN_HEADER}")).and_then(Value::as_str) == Some(ep.token.as_str())
+                    && h.get("timeout").and_then(Value::as_u64) == Some(hooks::timeout_secs(event))
             })
         });
     let dest = paths.wrapper_dest();

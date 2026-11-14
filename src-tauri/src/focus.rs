@@ -101,6 +101,15 @@ pub fn focus_pid_hint(pid: u32, hint: Option<&str>) -> Result<(), FocusError> {
     sys::bring_to_front(w.hwnd)
 }
 
+/// Whether the window `focus_session` would raise for this session is already the foreground window.
+pub fn terminal_is_foreground(pid: u32, cwd: &str) -> bool {
+    if !cfg!(windows) || pid == 0 {
+        return false;
+    }
+    let table = sys::with_start_times(sys::process_table(), pid);
+    resolve(&table, &sys::top_level_windows(), pid, folder_hint(cwd)).is_some_and(|w| sys::foreground() == Some(w.hwnd))
+}
+
 /// Ok(false) means no window was found, so the frontend flashes the row.
 #[tauri::command]
 pub fn focus_session(session_id: String, store: tauri::State<'_, Arc<Store>>) -> Result<bool, String> {
@@ -207,6 +216,11 @@ mod sys {
         out
     }
 
+    pub fn foreground() -> Option<isize> {
+        let h = unsafe { GetForegroundWindow() };
+        (!h.is_null()).then_some(h as isize)
+    }
+
     fn alt_tap() {
         let key = |flags| INPUT {
             r#type: INPUT_KEYBOARD,
@@ -253,6 +267,9 @@ mod sys {
     }
     pub fn bring_to_front(_hwnd: isize) -> Result<(), FocusError> {
         Err(FocusError::NoWindow)
+    }
+    pub fn foreground() -> Option<isize> {
+        None
     }
 }
 

@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use crate::approve::PendingApproval;
+
 pub const STUCK_AFTER_MS: u64 = 6 * 60 * 1000;
 pub const HOOK_FRESH_MS: u64 = 10 * 1000;
 pub const TARGET_MAX_CHARS: usize = 60;
@@ -48,6 +50,8 @@ pub struct Session {
     pub subagents: u32,
     pub agents: Vec<Agent>,
     pub shells: Vec<Shell>,
+    /// Held permission requests; owned by the approval broker, never touched by `apply`.
+    pub pending: Vec<PendingApproval>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
     pub alive: bool,
@@ -165,6 +169,14 @@ pub struct ShellObservation {
     pub exit: Option<ShellExit>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApprovalOutcome {
+    Allowed,
+    Denied,
+    /// The terminal took the request and no `PostToolUse` followed: it said no.
+    Abandoned,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     SessionStart,
@@ -191,6 +203,9 @@ pub enum Event {
     Shell { update: ShellEvent, event: Box<Event> },
     /// OS probe result for one shell; never resets the stuck timer.
     ShellProbe { id: String, obs: ShellObservation },
+    /// The widget answered a held permission request, or the terminal took it (spec §11.1).
+    /// Needed because no `PostToolUse` follows a deny.
+    Approval { agent_id: Option<String>, outcome: ApprovalOutcome },
     /// Process exited (PID dead) or `SessionEnd` hook.
     Ended,
     Tick,
@@ -221,6 +236,7 @@ impl Session {
             subagents: 0,
             agents: Vec::new(),
             shells: Vec::new(),
+            pending: Vec::new(),
             context_pct: None,
             alive: true,
             ended_at: None,
@@ -772,6 +788,31 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             }
             unstick(&mut s);
         }
+        Event::Approval { agent_id, outcome } => match agent_id {
+            Some(id) => {
+                if let Some(a) = s.running_agent_mut(&id).filter(|a| a.state == State::Waiting) {
+                    match outcome {
+                        ApprovalOutcome::Allowed => {
+                            let task = a.working_task();
+                            a.enter(State::Working, task, now);
+                        }
+                        ApprovalOutcome::Denied | ApprovalOutcome::Abandoned => {
+                            a.enter(State::Thinking, "Thinking".into(), now)
+                        }
+                    }
+                }
+                s.release_agent_wait(&id, now);
+            }
+            None if s.state == State::Waiting => match outcome {
+                ApprovalOutcome::Allowed => {
+                    let task = s.working_task();
+                    s.enter(State::Working, task, now);
+                }
+                ApprovalOutcome::Denied => s.enter(State::Thinking, "Thinking".into(), now),
+                ApprovalOutcome::Abandoned => s.enter(State::Idle, "Idle".into(), now),
+            },
+            None => {}
+        },
         Event::SessionFile { .. }
         | Event::Statusline { .. }
         | Event::TranscriptModel { .. }

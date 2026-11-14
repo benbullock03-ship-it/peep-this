@@ -20,7 +20,6 @@ tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 notify = "8"
-tiny_http = "0.12"
 getrandom = "0.3"
 
 [target.'cfg(windows)'.dependencies]

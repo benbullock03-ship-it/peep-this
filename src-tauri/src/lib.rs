@@ -1,3 +1,4 @@
+mod approve;
 mod focus;
 mod ingest;
 mod install;
@@ -97,6 +98,17 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     }));
 }
 
+struct WidgetEnv;
+
+impl approve::Env for WidgetEnv {
+    fn terminal_foreground(&self, pid: u32, cwd: &str) -> bool {
+        focus::terminal_is_foreground(pid, cwd)
+    }
+    fn widget_hidden(&self) -> bool {
+        window::is_hidden()
+    }
+}
+
 pub const UNINSTALL_INTEGRATION_ARG: &str = "--uninstall-integration";
 
 /// Headless: the NSIS uninstaller runs this before removing files. Exit code 0 on success.
@@ -121,7 +133,8 @@ pub fn run() {
             window::fit_window,
             focus::focus_session,
             install::install_integration,
-            install::uninstall_integration
+            install::uninstall_integration,
+            approve::decide_approval
         ])
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
@@ -136,7 +149,10 @@ pub fn run() {
             app.manage(Arc::clone(&store));
             wire_alerts(app, &store);
             ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
-            let endpoint = ingest::server::spawn(Arc::clone(&store), &ingest::server::default_dir())
+            let broker = approve::Broker::new(Arc::clone(&store), Box::new(WidgetEnv), approve::HOLD_MS);
+            broker.spawn();
+            app.manage(Arc::clone(&broker));
+            let endpoint = ingest::server::spawn(Arc::clone(&store), Some(broker), &ingest::server::default_dir())
                 .inspect_err(|e| eprintln!("peepthis: event server failed: {e}"))
                 .ok();
             let integrator = install::Integrator::new(install::Paths::for_this_machine(), endpoint);
@@ -151,6 +167,11 @@ pub fn run() {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let (tauri::RunEvent::Exit, Some(b)) = (event, app.try_state::<Arc<approve::Broker>>()) {
+                b.release_all(approve::Release::Quit);
+            }
+        });
 }
