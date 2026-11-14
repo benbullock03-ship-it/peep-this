@@ -2,18 +2,6 @@ import type { Session } from "./model";
 import { contextFill } from "./rowView";
 import { STATE_LABEL } from "./stateMeta";
 
-/** Fits the last-tool value column of the open row at 13px IBM Plex Mono (7.8px advance). */
-export const DETAIL_MAX_CHARS = 28;
-
-/** Keeps both ends, so a path's drive and filename both stay visible. */
-export function truncateMiddle(s: string, max = DETAIL_MAX_CHARS): string {
-  const chars = Array.from(s);
-  if (chars.length <= max) return s;
-  const keep = max - 1;
-  const head = Math.ceil(keep / 2);
-  return chars.slice(0, head).join("") + "…" + chars.slice(chars.length - (keep - head)).join("");
-}
-
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -30,8 +18,8 @@ export type OpenFacts = {
   since: string;
   model: string;
   kind: string;
+  /** Full text; CSS clamps it to two lines with an end ellipsis. */
   tool: string;
-  toolFull: string;
   ctx: number | null;
   cwd: string;
 };
@@ -44,8 +32,7 @@ export function openFacts(s: Session, now: number): OpenFacts {
     since: `${STATE_LABEL[s.state] ?? s.state} for ${formatDuration(now - s.stateSince)}`,
     model: s.model ?? "",
     kind: [s.kind, s.entrypoint].filter(Boolean).join(" · "),
-    tool: tool ? truncateMiddle(tool) : DASH,
-    toolFull: tool,
+    tool: tool || DASH,
     ctx: contextFill(s.contextPct),
     cwd: s.cwd,
   };

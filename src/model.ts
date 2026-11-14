@@ -3,7 +3,8 @@
 export const STATES = ["idle", "thinking", "working", "waiting", "success", "error", "stuck"] as const;
 export type State = (typeof STATES)[number];
 
-export type LastTool = { name: string; target?: string };
+/** `description` is the shell tool input's own description (Bash/PowerShell only). */
+export type LastTool = { name: string; target?: string; description?: string };
 
 export type Session = {
   id: string;

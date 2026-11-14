@@ -26,9 +26,15 @@ Owner rulings 2026-11-14: peep sizes 48 (rows), 96 (open stage) as designed; AV-
 
 **Done when:** the owner saw the new shell in `npm run tauri dev` with live sessions, opened a row, and accepted the look.
 
+## Follow-up queued (owner, 2026-11-14, after first live look)
+
+- [x] Bash bubble: use the tool's `description` when present ("Running the test suite…"); otherwise program plus first argument ("Running python…", "Running npm test…"). Never a heredoc, pipe or full command in a bubble. Full command stays on Last tool and in the approval card. If `description` is not in the snapshot, add it minimally in Rust with a test.
+- [x] Last tool on the open row: end-ellipsis (no middle cut), wraps to 2 lines, full text on hover.
+- [x] Header mini bars: AV-36's 4px blocks; drop the gap between label and bar to make room; title unchanged. If 4px still overflows, show blocks only and move the % to a tooltip.
+
 ## Owed before done
 
-- Owner check in `npm run tauri dev` with live sessions: look and bubble wording, open/close a row (a snapshot neither closes it nor restarts peeps), approval card by mouse and keyboard incl. the 1s destructive hold, peep click focuses the terminal, no bottom clipping, 3px header mini bars legible, settings button toggles the log.
+- Owner check in `npm run tauri dev` with live sessions: look and bubble wording, open/close a row (a snapshot neither closes it nor restarts peeps), approval card by mouse and keyboard incl. the 1s destructive hold, peep click focuses the terminal, no bottom clipping, 4px header blocks legible without the % (hover shows it), settings button toggles the log.
 - Built and checked in headless Chrome against demo data only (`npm run build`, 69 Vitest tests pass).
 
 ## Decisions taken without a ruling
@@ -47,3 +53,9 @@ Owner rulings 2026-11-14: peep sizes 48 (rows), 96 (open stage) as designed; AV-
 - The integration banner, notices, approval cards and the settings view move onto the shell tokens with square corners and 2px borders, so nothing keeps the old rounded look.
 - Demo mode also mounts the settings view, with an empty log, so the header shows the square icon button there too. Demo tasks are now shaped like `state.rs` output so the bubbles read as they would live.
 - `STATE_META` LED colours are gone; state colours are the design's `--st-*` tokens (error `#FF7A7A` and stuck `#A9B3C6` replace `#FF5D5D` and `#8C97AB`). Only the light-theme token block is left out (AV-45), and so are the strip rules (AV-39).
+- Follow-up: the Bash `description` was not in the snapshot. `PreToolUse` now carries it for Bash/PowerShell only (first line, clipped) and it rides on `lastTool.description` for sessions and subagents. Other tools' descriptions stay out (the Agent one is already the target).
+- Follow-up: the description is turned into a doing phrase ("Run the test suite" -> "Running the test suite…") with a small gerund rule and a list of short verbs that double their last letter. Without one, the bubble says "Running {program} {first plain arg}…": first segment of the command, split at unquoted `|`, `&`, `;` and newlines, everything after a redirect or heredoc dropped, `cd` segments, `VAR=x` and `sudo`/`env`/`time` prefixes skipped, program reduced to its basename without `.exe`. Flags, `$` and quoted prose are not shown as the argument; `run`/`exec`/`x`/`dlx`/`-m` pull in one more argument ("npm run build", "python -m pytest").
+- Follow-up: waiting now prefers the oldest held request over the notification text, so "Needs permission: Bash <full command>" never reaches the bubble. Shell asks read "Can I {description}?" or "Can I run {short}?", using the classifier's flagged span when there is one, so `git fetch && git reset --hard` asks "Can I run git reset?" rather than about the harmless first step. Without a held request, a `Needs permission:` task for a shell tool is rebuilt the same way from `lastTool`. Child bubbles use the same code.
+- Follow-up: Last tool shows the full text from the snapshot, clamped to 2 lines with an end ellipsis (`word-break: break-all`, so line 1 is filled before wrapping), with the full text as the hover title. `truncateMiddle` is gone. state.rs still cuts targets over 60 chars in the middle; the hover shows that 60-char text, not the raw command.
+- Follow-up: 4px blocks with AV-36's 2px gap and no label gap still overflow with the % beside them (about 211px of meters for about 185px free), so the header shows blocks only and the hover title reads "5h 42% · 7d 18% · updated just now". Each meter has an `aria-label` with its %. Measured in headless Chrome at 360px: header scrollWidth equals clientWidth (350), usage 162px.
+- Follow-up: the demo's "Find the line item schema" child now runs `.venv/Scripts/python - <<'EOF'` so the browser demo shows the short Bash bubble.

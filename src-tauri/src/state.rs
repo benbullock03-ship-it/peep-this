@@ -29,6 +29,9 @@ pub struct LastTool {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
+    /// The tool input's own `description` (Bash/PowerShell), for the speech bubble.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -181,7 +184,7 @@ pub enum ApprovalOutcome {
 pub enum Event {
     SessionStart,
     UserPromptSubmit,
-    PreToolUse { tool: String, target: Option<String> },
+    PreToolUse { tool: String, target: Option<String>, description: Option<String> },
     PostToolUse,
     /// `idle` marks the "waiting for a new prompt" reminder.
     Notification { message: String, idle: bool },
@@ -331,18 +334,18 @@ impl Session {
         self.task = task;
     }
 
-    fn set_tool(&mut self, tool: String, target: Option<String>, count_subagent: bool) {
+    fn set_tool(&mut self, tool: String, target: Option<String>, description: Option<String>, count_subagent: bool) {
         if count_subagent && is_subagent_tool(&tool) {
             self.subagents += 1;
         }
         let target = target.map(|t| truncate(&t, TARGET_MAX_CHARS));
-        self.last_tool = Some(LastTool { name: tool, target });
+        self.last_tool = Some(LastTool { name: tool, target, description });
     }
 
     fn working_task(&self) -> String {
         match &self.last_tool {
-            Some(LastTool { name, target: Some(t) }) => format!("{name} {t}"),
-            Some(LastTool { name, target: None }) => name.clone(),
+            Some(LastTool { name, target: Some(t), .. }) => format!("{name} {t}"),
+            Some(LastTool { name, target: None, .. }) => name.clone(),
             None => "Working".into(),
         }
     }
@@ -490,8 +493,8 @@ impl Agent {
 
     fn working_task(&self) -> String {
         match &self.last_tool {
-            Some(LastTool { name, target: Some(t) }) => format!("{name} {t}"),
-            Some(LastTool { name, target: None }) => name.clone(),
+            Some(LastTool { name, target: Some(t), .. }) => format!("{name} {t}"),
+            Some(LastTool { name, target: None, .. }) => name.clone(),
             None => "Working".into(),
         }
     }
@@ -508,13 +511,13 @@ impl Agent {
     fn apply(&mut self, event: &Event, now: u64) {
         self.last_event_at = now;
         match event {
-            Event::PreToolUse { tool, target } => {
+            Event::PreToolUse { tool, target, description } => {
                 self.tool_count += 1;
                 if tool == "SubagentHandback" {
                     self.handback = target.clone();
                 }
                 let target = target.as_ref().map(|t| truncate(t, TARGET_MAX_CHARS));
-                self.last_tool = Some(LastTool { name: tool.clone(), target });
+                self.last_tool = Some(LastTool { name: tool.clone(), target, description: description.clone() });
                 let task = self.working_task();
                 self.enter(State::Working, task, now);
             }
@@ -708,12 +711,17 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
     match event {
         Event::SessionStart => s.enter(State::Idle, "Idle".into(), now),
         Event::UserPromptSubmit => s.enter(State::Thinking, "Thinking".into(), now),
-        Event::PreToolUse { tool, target } | Event::TranscriptToolUse { tool, target } => {
+        Event::PreToolUse { .. } | Event::TranscriptToolUse { .. } => {
+            let (tool, target, description) = match event {
+                Event::PreToolUse { tool, target, description } => (tool, target, description),
+                Event::TranscriptToolUse { tool, target } => (tool, target, None),
+                _ => unreachable!(),
+            };
             if is_hook && is_subagent_tool(&tool) {
                 s.push_pending_agent(target.clone());
             }
             // Only hooks count subagents: SubagentStop is hook-only, and a transcript line racing its PreToolUse would count twice.
-            s.set_tool(tool, target, is_hook);
+            s.set_tool(tool, target, description, is_hook);
             if s.state != State::Success {
                 let task = s.working_task();
                 s.enter(State::Working, task, now);
@@ -764,7 +772,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
                         s.waiting_on_agent = Some((agent_id, prior.0, prior.1));
                     }
                 }
-                Event::PreToolUse { tool, target } if is_subagent_tool(&tool) => {
+                Event::PreToolUse { tool, target, .. } if is_subagent_tool(&tool) => {
                     s.push_pending_agent(target);
                     if !s.release_agent_wait(&agent_id, now) {
                         unstick(&mut s);
@@ -838,7 +846,7 @@ mod tests {
     }
 
     fn pre(tool: &str, target: Option<&str>) -> Event {
-        Event::PreToolUse { tool: tool.into(), target: target.map(Into::into) }
+        Event::PreToolUse { tool: tool.into(), target: target.map(Into::into), description: None }
     }
 
     fn notif(msg: &str, idle: bool) -> Event {
@@ -893,8 +901,23 @@ mod tests {
         assert_eq!(s.task, "Edit src/main.ts");
         assert_eq!(
             s.last_tool,
-            Some(LastTool { name: "Edit".into(), target: Some("src/main.ts".into()) })
+            Some(LastTool { name: "Edit".into(), target: Some("src/main.ts".into()), description: None })
         );
+    }
+
+    #[test]
+    fn bash_description_rides_on_last_tool_and_serialises() {
+        let ev = Event::PreToolUse {
+            tool: "Bash".into(),
+            target: Some("npm test -- --run".into()),
+            description: Some("Run the test suite".into()),
+        };
+        let s = apply(fresh(), ev, T0 + 1);
+        let lt = s.last_tool.as_ref().unwrap();
+        assert_eq!(lt.description.as_deref(), Some("Run the test suite"));
+        assert_eq!(s.task, "Bash npm test -- --run");
+        let v = serde_json::to_value(&s).unwrap();
+        assert_eq!(v["lastTool"]["description"], "Run the test suite");
     }
 
     #[test]

@@ -91,6 +91,6 @@ describe("overflow", () => {
     const ask: PendingApproval = { id: "r1", tool: "Bash", input: { command: "ls" }, cwd: "C:/p", agentId: "a5", receivedAt: T, releaseAt: T + 60_000, risk: { tier: "shell", reason: "shell" } };
     const plan = planKids(running(6), T, { pending: [ask] });
     expect(plan.shown[0].id).toBe("a5");
-    expect(kidView(plan.shown[0], [ask], T)).toMatchObject({ state: "waiting", attention: true, say: "Can I use Bash on ls?" });
+    expect(kidView(plan.shown[0], [ask], T)).toMatchObject({ state: "waiting", attention: true, say: "Can I run ls?" });
   });
 });

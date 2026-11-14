@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { demoSnapshot, demoStep } from "./demo";
-import { ageText, pct, toLimitsView } from "./limits";
+import { ageText, limitsTitle, pct, toLimitsView } from "./limits";
+
+describe("limitsTitle", () => {
+  it("carries both percentages and the age, since the header shows blocks only", () => {
+    expect(limitsTitle({ fiveHour: 42, sevenDay: 7, at: 0 }, 60_000, 180_000)).toBe("5h 42% · 7d 7% · updated 2m ago");
+  });
+});
 
 describe("pct", () => {
   it("rounds, clamps and rejects non-numbers", () => {

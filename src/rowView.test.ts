@@ -50,7 +50,7 @@ describe("demo", () => {
     expect(toRowView(snap.sessions[2], demoIdentity, 1_000_000)).toMatchObject({
       color: "pink",
       accessory: "headphones",
-      say: "Claude needs your permission to use Edit",
+      say: "Can I use Edit on src/labels.ts?",
     });
   });
 

@@ -2,7 +2,7 @@ import type { Identity } from "./identity";
 import type { Agent, LastTool, PendingApproval, Session, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
-const AGENTS: { name: string; identity: Identity; tool: Required<LastTool>; state: State }[] = [
+const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
   { name: "ingest-01", identity: { color: "yellow", accessory: "hardhat" }, tool: { name: "Read", target: "pipelines/ingest/invoices/batch-14/normalise_line_items.py" }, state: "working" },
   { name: "research-02", identity: { color: "lavender", accessory: "glasses" }, tool: { name: "WebFetch", target: "vendor docs" }, state: "thinking" },
   { name: "triage-03", identity: { color: "pink", accessory: "headphones" }, tool: { name: "Edit", target: "src/labels.ts" }, state: "waiting" },
@@ -75,7 +75,7 @@ type AgentSeed = [id: string, type: string, description: string, state: State, t
 const KIDS: Record<number, AgentSeed[]> = {
   0: [
     ["demo-agent-tests", "general-purpose", "Run the row tests", "waiting", { name: "Bash", target: SHELL_CMD }],
-    ["demo-agent-schema", "Explore", "Find the line item schema", "working", { name: "Read", target: "pipelines/ingest/schema.sql" }],
+    ["demo-agent-schema", "Explore", "Find the line item schema", "working", { name: "Bash", target: ".venv/Scripts/python - <<'EOF'" }],
   ],
   1: [
     ["demo-agent-a", "Explore", "Find vendor_id callers", "working", { name: "Grep", target: "vendor_id" }],

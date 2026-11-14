@@ -141,7 +141,7 @@ body {
 .ps-meter {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
 }
 
 .ps-icon {
@@ -184,15 +184,6 @@ body {
 
 .bar[data-level="red"] .bar-block.on {
   background: var(--red);
-}
-
-.bar--mini {
-  gap: 1px;
-}
-
-.bar--mini .bar-block {
-  width: 3px;
-  height: 3px;
 }
 
 .bar--fact .bar-block {
@@ -412,6 +403,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ps-v--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  word-break: break-all;
 }
 
 .ps-path {

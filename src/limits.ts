@@ -28,20 +28,24 @@ export function toLimitsView(rl: RateLimits | undefined): LimitsView | null {
   return { fiveHour, sevenDay, at: rl.at };
 }
 
-type Meter = { value: HTMLElement; bar: Bar };
+/** The header shows blocks only (4px blocks leave no room for the %), so the numbers live in the hover title. */
+export function limitsTitle(v: LimitsView, at: number, now: number): string {
+  return `5h ${v.fiveHour}% · 7d ${v.sevenDay}% · ${ageText(at, now)}`;
+}
+
+type Meter = { item: HTMLElement; bar: Bar };
 
 function meter(root: HTMLElement, label: string): Meter {
   const item = document.createElement("span");
   item.className = "ps-meter";
-  const value = document.createElement("span");
   const bar = createBar("bar--mini");
-  item.append(label, bar.el, value);
+  item.append(label, bar.el);
   root.appendChild(item);
-  return { value, bar };
+  return { item, bar };
 }
 
-function setMeter(m: Meter, v: number) {
-  m.value.textContent = `${v}%`;
+function setMeter(m: Meter, label: string, v: number) {
+  m.item.setAttribute("aria-label", `${label} ${v}%`);
   m.bar.set(v);
 }
 
@@ -54,14 +58,18 @@ export function createLimits(root: HTMLElement, refreshAt?: () => Promise<number
   const five = meter(root, "5h");
   const seven = meter(root, "7d");
   let at = 0;
+  let last: LimitsView | null = null;
+  const retitle = () => {
+    if (last) root.title = limitsTitle(last, at, Date.now());
+  };
 
   root.addEventListener("mouseenter", () => {
     if (root.hidden) return;
-    root.title = ageText(at, Date.now());
+    retitle();
     refreshAt?.()
       .then((fresh) => {
         if (fresh !== undefined && fresh > at) at = fresh;
-        root.title = ageText(at, Date.now());
+        retitle();
       })
       .catch(() => {});
   });
@@ -70,9 +78,10 @@ export function createLimits(root: HTMLElement, refreshAt?: () => Promise<number
     const v = toLimitsView(rl);
     root.hidden = v === null;
     if (!v) return;
-    setMeter(five, v.fiveHour);
-    setMeter(seven, v.sevenDay);
+    last = v;
+    setMeter(five, "5h", v.fiveHour);
+    setMeter(seven, "7d", v.sevenDay);
     at = Math.max(at, v.at);
-    root.title = ageText(at, Date.now());
+    retitle();
   };
 }

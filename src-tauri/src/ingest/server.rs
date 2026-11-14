@@ -254,7 +254,11 @@ fn hook_event(name: &str, v: &Value, cwd: Option<&str>) -> Option<Event> {
             } else {
                 v.get("tool_input").and_then(|i| tool_target(i, cwd))
             };
-            Event::PreToolUse { tool, target }
+            let description = match tool.as_str() {
+                "Bash" | "PowerShell" => str_at(v, "/tool_input/description").and_then(|d| first_line(&d)),
+                _ => None,
+            };
+            Event::PreToolUse { tool, target, description }
         }
         "PostToolUse" | "PostToolUseFailure" => Event::PostToolUse,
         // Fires after PreToolUse while the prompt is on screen; approval is followed by PostToolUse.
@@ -525,17 +529,25 @@ mod tests {
             (
                 "PreToolUse",
                 "pre_tool_use_edit.json",
-                Event::PreToolUse { tool: "Edit".into(), target: Some("src\\main.ts".into()) },
+                Event::PreToolUse { tool: "Edit".into(), target: Some("src\\main.ts".into()), description: None },
             ),
             (
                 "PreToolUse",
                 "pre_tool_use_bash.json",
-                Event::PreToolUse { tool: "Bash".into(), target: Some("npm test".into()) },
+                Event::PreToolUse {
+                    tool: "Bash".into(),
+                    target: Some("npm test".into()),
+                    description: Some("Run the test suite".into()),
+                },
             ),
             (
                 "PreToolUse",
                 "pre_tool_use_agent.json",
-                Event::PreToolUse { tool: "Agent".into(), target: Some("Read note.txt and report contents".into()) },
+                Event::PreToolUse {
+                    tool: "Agent".into(),
+                    target: Some("Read note.txt and report contents".into()),
+                    description: None,
+                },
             ),
             ("PostToolUse", "post_tool_use.json", Event::PostToolUse),
             ("PostToolUseFailure", "post_tool_use_failure.json", Event::PostToolUse),
@@ -579,7 +591,7 @@ mod tests {
                 Event::Subagent {
                     agent_id: "a665acd7e219f0015".into(),
                     agent_type: "general-purpose".into(),
-                    event: Box::new(Event::PreToolUse { tool: "Read".into(), target: Some("b.txt".into()) }),
+                    event: Box::new(Event::PreToolUse { tool: "Read".into(), target: Some("b.txt".into()), description: None }),
                 },
             ),
             (
@@ -666,7 +678,7 @@ mod tests {
         );
         let r = parse(&Route::Hook("PreToolUse".into()), body.as_bytes()).unwrap();
         let Some(Event::Subagent { event, .. }) = r.event else { panic!("{r:?}") };
-        assert_eq!(*event, Event::PreToolUse { tool: "SubagentHandback".into(), target: Some("Found 3 issues".into()) });
+        assert_eq!(*event, Event::PreToolUse { tool: "SubagentHandback".into(), target: Some("Found 3 issues".into()), description: None });
 
         let internal = format!(r#"{{"session_id":"{SID}","agent_type":"","last_assistant_message":""}}"#);
         let r = parse(&Route::Hook("SubagentStop".into()), internal.as_bytes()).unwrap();
@@ -722,7 +734,7 @@ mod tests {
             ]
         );
         assert!(s.agents.iter().all(|a| a.agent_type == "general-purpose"));
-        assert_eq!(s.agents[1].last_tool, Some(crate::state::LastTool { name: "Read".into(), target: Some("b.txt".into()) }));
+        assert_eq!(s.agents[1].last_tool, Some(crate::state::LastTool { name: "Read".into(), target: Some("b.txt".into()), description: None }));
         assert!(!format!("{s:?}").contains("SECRET"));
     }
 

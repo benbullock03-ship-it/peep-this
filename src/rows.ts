@@ -84,7 +84,7 @@ function createFacts(): Facts {
   const kind = el("span", "ps-tag", tags);
   const toolRow = el("div", "ps-fact", box);
   el("span", "ps-k", toolRow).textContent = "Last tool";
-  const tool = el("span", "ps-v", toolRow);
+  const tool = el("span", "ps-v ps-v--clamp", toolRow);
   const ctxRow = el("div", "ps-fact", box);
   el("span", "ps-k", ctxRow).textContent = "Context";
   const ctx = createBar("bar--fact");
@@ -195,7 +195,7 @@ function fillFacts(r: Row, now: number) {
   setText(x.kind, f.kind);
   x.kind.hidden = !f.kind;
   setText(x.tool, f.tool);
-  x.tool.title = f.tool === f.toolFull ? "" : f.toolFull;
+  x.tool.title = f.tool === "—" ? "" : f.tool;
   x.ctx.set(f.ctx ?? 0);
   setText(x.ctxValue, f.ctx === null ? "—" : `${Math.round(f.ctx)}%`);
   setText(x.cwd, f.cwd);

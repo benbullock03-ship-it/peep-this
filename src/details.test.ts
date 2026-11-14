@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, openFacts, truncateMiddle } from "./details";
+import { formatDuration, openFacts } from "./details";
 import type { Session } from "./model";
 
 const base: Session = {
@@ -15,18 +15,6 @@ const base: Session = {
   subagents: 0,
   alive: true,
 };
-
-describe("truncateMiddle", () => {
-  it("leaves short strings alone", () => {
-    expect(truncateMiddle("abc", 5)).toBe("abc");
-    expect(truncateMiddle("abcde", 5)).toBe("abcde");
-  });
-  it("keeps both ends at exactly max chars", () => {
-    const out = truncateMiddle("F:/Projects/some/very/deep/path/file.ts", 15);
-    expect(out).toBe("F:/Proj…file.ts");
-    expect(Array.from(out)).toHaveLength(15);
-  });
-});
 
 describe("formatDuration", () => {
   it("scales units", () => {
@@ -44,17 +32,14 @@ describe("openFacts", () => {
       model: "",
       kind: "interactive · cli",
       tool: "—",
-      toolFull: "",
       ctx: null,
       cwd: "F:\\Projects\\agentview widget",
     });
   });
-  it("joins tool and target, truncating the middle but keeping the full text", () => {
-    const target = "src/some/really/long/directory/name/component.test.ts";
-    const f = openFacts({ ...base, state: "waiting", model: "Opus 5.5", contextPct: 141.6, lastTool: { name: "Edit", target } }, 1_000);
-    expect(f.toolFull).toBe(`Edit ${target}`);
-    expect(f.tool.startsWith("Edit src/")).toBe(true);
-    expect(f.tool.endsWith(".test.ts")).toBe(true);
+  it("joins tool and target in full, never cutting the middle", () => {
+    const target = ".venv/Scripts/python - <<'EOF'";
+    const f = openFacts({ ...base, state: "waiting", model: "Opus 5.5", contextPct: 141.6, lastTool: { name: "Bash", target } }, 1_000);
+    expect(f.tool).toBe(`Bash ${target}`);
     expect(f.ctx).toBe(100);
     expect(f.since).toBe("Needs you for 0s");
   });
