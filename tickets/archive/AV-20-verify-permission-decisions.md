@@ -1,7 +1,7 @@
 ---
 id: AV-20
 title: Verify PermissionRequest decisions over HTTP hooks
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -49,7 +49,24 @@ Sources: the hooks docs (`code.claude.com/docs/en/hooks.md`, PermissionRequest, 
 - Correlation for AV-21/AV-26: the latest unresolved PreToolUse in the same `session_id` + `agent_id` with equal `tool_name` and deep-equal `tool_input` supplies the `tool_use_id`.
 - Decide fallback: **not triggered** on what could be verified. A late 204 is a clean "no decision", and holds up to 120s were honoured. The terminal-side behaviour below could still trigger it.
 
-## Owed before done
+## Verified interactively 2026-11-14 (Claude Code 2.1.325)
+
+Real interactive `claude` (TUI) driven through a pseudo-terminal (pywinpty + pyte screen capture, scratchpad `drive.py`), `--permission-mode default --setting-sources project --model haiku`, against the capture server below. Prompt each time: "use Write to create x.txt containing hi". Note: **auto mode is now the default permission mode**; without `--permission-mode default` the Write ran with no PermissionRequest at all.
+
+- **Terminal prompt during a hold: shown.** The full "Do you want to create x.txt? 1. Yes / 2. … / 3. No" dialog is on screen 4s into every hold (10s, 60s, 120s). The hook does not block it.
+- **After a late 204: the prompt stays and works.** After 10s, 60s and 120s holds ending in 204, the same dialog is still up; Enter (Yes) wrote the file and `PostToolUse` followed. Nothing lost.
+- **`Notification` `permission_prompt` still fires about 6s into a hold** (10s, 60s, 120s runs), while the hook is unanswered. It is skipped when an answer lands sooner (allow, deny, and the timeout run answered at about 6s).
+- **Race, terminal first:** answering **No** or **Esc** in the terminal during a 20s `holdallow` rejected the write ("User rejected write to x.txt"). Claude closed the hook connection within about 1s of the keypress (`closed_before_reply`), and the server's allow at 20s found the socket gone. **The terminal answer wins and the hook answer is discarded.** **No `Stop`, `PostToolUse` or `PostToolUseFailure` fired after the terminal rejection**, although the turn ended on screen ("done"); the next event was `SessionEnd` when the driver quit.
+- **Timeout:** with PermissionRequest `timeout: 5` and the server holding 30s, the connection closed at 5.0s, the terminal prompt stayed usable, and Yes wrote the file.
+- **Esc / kill while held:** both close the connection at once (`closed_before_reply`). Closing the terminal sent no `SessionEnd`.
+- **Done-when:** with `/allow` the write ran without touching the terminal (`PostToolUse`, then `Stop`). With `/deny` the screen showed `Error: Denied from widget: ZEBRA-42 do not write that file` and `Denied by PermissionRequest hook`, Claude quoted ZEBRA-42 back, and `Stop` followed.
+- **Decide fallback: not taken.** Widget-first-then-release works: the terminal dialog is live the whole time, and either side can answer.
+
+Decisions for AV-21 from this run:
+- A connection closed before the widget replies means the terminal (or a timeout or kill) took over. Drop the card. If no `PostToolUse` for that tool arrives within a few seconds, assume the terminal said no: leave `waiting` for `idle`, since no `Stop` will come.
+- Expect a `permission_prompt` `Notification` about 6s into a hold. It must not raise a second toast for a request the widget is already showing.
+
+## Harness
 
 Scratch harness (re-create if the temp dir was cleared): `C:\Users\benbu\AppData\Local\Temp\claude\30a9097ea8fcfb1f\23e4d5f3-9d16-457d-aa31-d86775f82627\scratchpad\cap\`. The server (`server.js`) logs to `log.jsonl` and replies by path: `/allow`, `/deny`, `/hold/<s>` (204 after s), `/holdallow/<s>`. To regenerate settings, run `node gen.js <out> <path> <timeout>` in Git Bash with `MSYS_NO_PATHCONV=1`.
 
@@ -59,4 +76,4 @@ Scratch harness (re-create if the temp dir was cleared): `C:\Users\benbu\AppData
 4. Kill: with `s_kill.json`, close the terminal window during the hold and confirm `closed_before_reply` in the log.
 5. Done-when: with `s_allow.json` one write goes through without touching the terminal. With `s_deny.json` one is denied, and Claude quotes "ZEBRA-42".
 
-If step 1 shows no terminal prompt during the hold and none after the 204, take the Decide fallback.
+All five steps were run on 2026-11-14 through the PTY driver (`drive.py`, `runall.sh`, `summ.py` in session scratchpad `a2ffea77-…/scratchpad`); results above.
