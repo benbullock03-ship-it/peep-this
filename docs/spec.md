@@ -249,6 +249,8 @@ A pure classifier puts every request in one of three tiers and fails closed (unk
 | `shell` | Shell commands, edits outside cwd, MCP and unknown tools | One click with the full command shown |
 | `destructive` | Recursive or forced delete, force-push, hard reset, publish/deploy, pipe-to-shell, writes to settings or credential files | Hold 1s to confirm; never from a toast; never auto-allowed |
 
+Built in `risk.rs` (AV-22): `classify(tool, input, cwd) -> Verdict { tier, field, span, reason }`, where `span` is a byte range into `input[field]` for the card to highlight. Compound and nested commands take the highest tier of any part. Hidden commands (`-EncodedCommand`, nesting deeper than 6) fail closed upward to `destructive`. The full pattern list is in the ticket.
+
 ### 11.3 Approval card (AV-23, AV-25)
 
 A session with a pending request opens a card under its row: a compact coloured diff of the real change for `Edit`/`Write`, the full command with the risky token highlighted and the cwd for shells, key arguments for other tools. Allow, Deny, Deny with reason, and a countdown to release. The waiting toast gains Allow and Deny for the `safe` tier only.

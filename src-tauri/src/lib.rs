@@ -2,6 +2,7 @@ mod focus;
 mod ingest;
 mod install;
 mod notify;
+mod risk;
 mod source;
 pub mod statusline_original;
 mod tray;

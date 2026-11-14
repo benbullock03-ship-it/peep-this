@@ -1,7 +1,7 @@
 ---
 id: AV-22
 title: Risk tier classifier for permission requests
-status: todo
+status: in-progress
 depends: []
 attended: false
 ---
@@ -26,3 +26,40 @@ attended: false
 **Done when:** the test table passes and the owner has read the destructive pattern list and added what is missing.
 
 Decide: is plain `git push` destructive? Recommended: `shell` (reversible, and the user's own rules already gate it by asking).
+
+## Built
+
+`src-tauri/src/risk.rs`: `classify(tool, input, cwd) -> Verdict { tier, field, span, reason }`. `span` is a byte range into `input[field]` (`command`, `file_path` or `notebook_path`). Hand-written lexers for POSIX, PowerShell and cmd. No new crates. Tests: 146 command rows, 24 edit rows, span, tool and nesting tests (`cargo test risk`).
+
+Destructive patterns, for the owner to review:
+
+- **Delete:** `rm`/`del`/`erase`/`rd`/`rmdir`/`ri`/`Remove-Item` with recursive or force (`-rf` clusters, `--recursive`, `--force`, PowerShell prefixes `-r`/`-Rec`/`-fo`/`-Recurse:$true`, cmd `/s` `/q` `/f`); `rimraf`, `shred`, `srm`, `wipe`; `find -delete` and `find -exec <destructive>`; `rsync --delete*`.
+- **Git:** push with `--force*`, `-f`, `--mirror`, `--delete`/`-d`, `--prune`, a `+ref` or `:ref`; `reset --hard`; `clean` (except `-n`); `checkout`/`switch -f` or `.`; `restore .` (unless `--staged`); `branch -D`; `stash drop|clear`; `rm -r|-f` (unless `--cached`); `filter-branch`/`filter-repo`; `reflog expire|delete`; `update-ref -d`.
+- **Publish and deploy:** any of the first three subcommands `publish`, `unpublish`, `deploy`, `*-deploy`, `undeploy`, `yank`, `deprecate`, `release` (not before list/view/show; not as a flag's value); runner scripts (npm, pnpm, yarn, bun, make, gradle, mvn and others) whose name contains deploy or publish, or starts with release; `push` for docker, podman, helm, gem, nuget, `dotnet nuget`; terraform/tofu/pulumi/kubectl/cdk `apply|destroy`, `pulumi up`, `kubectl replace|drain`, helm `install|upgrade|uninstall|rollback`; delete/destroy/rm/terminate subcommands on cloud CLIs (aws, az, gcloud, gh, kubectl, vercel, netlify, firebase and others); `vercel` with no subcommand or `--prod`; `twine upload`; semantic-release, release-it, goreleaser, np; `docker volume rm`, `docker … prune`.
+- **Pipe to shell:** any pipe into sh/bash/zsh/fish, python/node/perl/ruby/php, `cmd`, `powershell`/`pwsh`, `source` when it reads stdin; `iex`/`Invoke-Expression` when piped or given a dynamic argument; any shell or interpreter given a process substitution or command substitution that contains curl/wget/iwr/irm/WebClient; `powershell -EncodedCommand`.
+- **SQL:** `DROP TABLE|DATABASE|SCHEMA|INDEX|VIEW|USER|ROLE|…`, `TRUNCATE TABLE` (or a leading TRUNCATE), `DELETE FROM` with no WHERE, `dropDatabase`, `FLUSHALL`/`FLUSHDB`; `dropdb`, `dropuser`, `prisma migrate reset`, `--force-reset`, `--accept-data-loss`, `db:drop|db:reset|db:purge`. Not checked inside the arguments of git, echo or grep-family commands.
+- **Disk and registry:** format, Format-Volume, diskpart, fdisk/sfdisk/gdisk, parted, wipefs, mkfs*, mke2fs, mkswap, Clear-Disk, Initialize-Disk, Remove-Partition, bcdedit, `dd of=`, `vssadmin delete|resize`, `wmic shadowcopy delete`, `cipher /w`, `diskutil erase*`; `reg add|delete|import|restore|load|unload|copy`, `regedit`/`regini` with arguments, and PowerShell Set-/New-/Remove-/Rename-/Move-/Copy-/Clear- cmdlets (and their aliases) on `HKLM:`/`HKCU:`/`Registry::` paths.
+- **Protected files** (an edit, a redirect, tee, `-o`/`-OutFile`, cp/mv destination, `sed -i`, Set-Content/Out-File, rm): `.env`, `.env.*`, `.envrc`; `.claude/settings*.json`, `.claude/hooks/`, `.claude.json`, `managed-settings.json`; `.git/hooks/`, `.git/config`, `.husky/`; `.ssh/`, `.aws/`, `.gnupg/`, `.kube/`, `.azure/`, `gcloud/`, `.docker/config.json`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `.pgpass`, `credentials(.json)`, `.htpasswd`, `id_rsa*`/`id_ed25519*`/`id_ecdsa*`, `*.pem|key|pfx|p12|jks|keystore|ppk`; shell startup files (`.bashrc`, `.zshrc`, `.profile`, PowerShell profiles).
+- **Inline code:** `python -c`/`node -e` and similar containing rmtree, os.remove, unlink, rmSync, rimraf, Remove-Item or `rm -rf`.
+- Nesting deeper than 6 levels: a command too deeply nested to inspect counts as destructive.
+
+Not covered: `shutdown`/`Stop-Computer`, `chmod -R`/`chown -R`, `kill`, `git config core.hooksPath`, deploy scripts run by file name (`node scripts/deploy.js`), `$'\x72m'` ANSI-C escapes, aliases and functions defined earlier in the same command, symlinks inside the cwd that point outside it (no I/O).
+
+## Decisions taken without a ruling
+
+- Plain `git push` is `shell`, as recommended.
+- `classify` returns a `Verdict` (tier, field, span, reason) rather than a bare `Tier`, so the card gets the span the checklist asks for.
+- Every Bash/PowerShell command is at least `shell`, including read-only ones like `ls`. Only non-shell read tools are `safe`.
+- WebFetch, WebSearch, TodoWrite and BashOutput count as reads (`safe`).
+- `.env.example`, `.env.sample` and `.env.template` are exempt from the `.env` rule. `.envrc`, shell startup files, `.git/config` and `.husky/` count as hook files.
+- Deleting a protected file (`rm .env`) counts as writing it, so it is destructive.
+- `git clean -n` (dry run) is `shell`. `dotnet publish` is `shell` because it is a local build.
+- Any pipe into an interpreter that reads stdin is destructive, not only pipes from curl or iwr.
+- PowerShell `-EncodedCommand` and nesting deeper than 6 levels are destructive, because the classifier cannot see what runs. This goes beyond "unparsed is shell" on purpose: hiding the command is treated as an evasion.
+- A dynamic command name (`$x -rf`, `& ('r'+'m') -r`) is checked against the delete-flag rule.
+- Plain `rm file` and `Remove-Item file`, with no recursive or force flag, are `shell`.
+- Inside cwd: separators and case are normalised, `..` is resolved lexically, NTFS `::$DATA` suffixes and trailing dots are stripped, Git Bash `/f/…` maps to `f:/…`, and `~`, `$VAR` or drive-relative `c:foo` paths count as outside.
+
+## Owed before done
+
+- Owner reads the destructive pattern list under `## Built` and adds what is missing (candidates: shutdown/Stop-Computer, `chmod -R`, kill, `git config core.hooksPath`, deploy scripts run by file name, `$'\x..'` escapes).
