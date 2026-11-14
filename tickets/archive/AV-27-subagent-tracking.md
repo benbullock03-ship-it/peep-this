@@ -1,7 +1,7 @@
 ---
 id: AV-27
 title: Per-subagent state tracking
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -51,6 +51,8 @@ Sources: the hooks docs (`code.claude.com/docs/en/hooks.md`: hook-type support t
 - `src/model.ts` was not extended: the build type-checks without it, and AV-28 adds the type when it renders.
 - Parent still shows `thinking` after its first `PostToolUse Agent` while sibling agents run (existing rule). AV-28's child rows make that visible.
 
-## Owed for done
+## Live check (2026-11-14)
 
-Owner live check: reinstall the integration (status shows `outdated` until then, since `SubagentStart` is new), run `npm run tauri dev`, and in an interactive session ask for three parallel subagents that each read a file. The widget log's snapshot lines should show the parent `Working "Agent …"` while three agent entries go through their own states and finish with result lines. The snapshot log line now appends `[type=State tools=N result=…; …]` per session with agents (orchestrator edit to `lib.rs::log_snapshot`), so the check reads straight from the log.
+Run from an interactive Claude Code session at the owner's request, against `npm run tauri dev`. The integration already had `SubagentStart`. Three parallel Explore agents logged three `SubagentStart` and three `SubagentStop` hooks. The snapshot went from `[Explore=Thinking tools=0 …]` x3 through each agent's own Working/Thinking to `[Explore=Success tools=2 result=Some("22"); Explore=Success tools=2 result=Some("23"); Explore=Success tools=2 result=Some("20")]`. The parent showed `Thinking`/`Working` rather than `Working "Agent …"`, as decision 52 expects.
+
+Original instruction: reinstall the integration (status shows `outdated` until then, since `SubagentStart` is new), run `npm run tauri dev`, and in an interactive session ask for three parallel subagents that each read a file. The widget log's snapshot lines should show the parent `Working "Agent …"` while three agent entries go through their own states and finish with result lines. The snapshot log line now appends `[type=State tools=N result=…; …]` per session with agents (orchestrator edit to `lib.rs::log_snapshot`), so the check reads straight from the log.
