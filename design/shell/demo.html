@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peep This shell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shell.css">
+<script src="./peep.js"></script>
+<script src="./shell.js"></script>
+<style>
+  /* demo page only — not part of the shell */
+  body { margin: 0; background: var(--ps-panel); color: var(--ps-text); font: 15px/1.5 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: clamp(16px, 4vw, 48px); display: flex; flex-direction: column; gap: 48px; }
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  h1 { font: 600 clamp(30px, 5vw, 44px)/1 Fredoka, sans-serif; color: var(--ps-accent); margin: 0 0 8px; }
+  h2 { font: 500 24px Fredoka, sans-serif; margin: 0 0 4px; }
+  p { margin: 0; color: var(--ps-muted); max-width: 62ch; text-wrap: pretty; }
+  .theme { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--ps-line); background: var(--ps-panel-2); color: var(--ps-text); font: 500 14px 'IBM Plex Sans', sans-serif; cursor: pointer; }
+  .desk { margin-top: 16px; background: var(--ps-desk); border-radius: 20px; padding: clamp(16px, 3vw, 36px); display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; justify-content: center; }
+  .col { display: flex; flex-direction: column; gap: 10px; max-width: 100%; }
+  .cap { font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--ps-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Peep This shell</h1>
+      <p>The Pixel desktop shell: the open window and the minimised right-edge strip. Click any peep to open or close its detail view.</p>
+    </div>
+    <button class="theme" id="theme">Switch to light</button>
+  </div>
+
+  <section>
+    <h2>Pixel desktop</h2>
+    <p>A 90s desktop-pet window: hard edges, striped title bar, square speech bubbles. Matches the pixel peeps most closely.</p>
+    <div class="desk">
+      <div class="col"><span class="cap">Open</span><div data-shell="pixel" data-mode="window"></div></div>
+      <div class="col"><span class="cap">Minimised</span><div data-shell="pixel" data-mode="strip"></div></div>
+    </div>
+  </section>
+</div>
+<script>
+  document.querySelectorAll('[data-shell]').forEach(el =>
+    PeepShell.mount(el, { mode: el.dataset.mode, open: el.dataset.mode === 'window' ? 0 : -1 }));
+  const root = document.documentElement, btn = document.getElementById('theme');
+  const set = t => { root.dataset.theme = t; btn.textContent = t === 'light' ? 'Switch to dark' : 'Switch to light'; };
+  set(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  btn.addEventListener('click', () => set(root.dataset.theme === 'light' ? 'dark' : 'light'));
+</script>
+</body>
+</html>

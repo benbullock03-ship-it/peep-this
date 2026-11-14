@@ -295,10 +295,14 @@ Collision radar (two sessions on one file or branch), usage forecasts, phone rem
 
 How the widget looks, collapses and docks. Nothing here is built; §3.1 describes the window as it is today. Each ticket that builds a part moves it into §3 and removes it from here. Build order: verify (AV-34), chrome (AV-35), bars and motion (AV-36, AV-37), snap (AV-38), strip (AV-39), then hotkey, peek, flyout and empty state (AV-40 to AV-43).
 
-### 12.1 Pixel-cut chrome (AV-34, AV-35)
+### 12.0 Pixel desktop shell (AV-44, owner design 2026-11-14)
 
-- The Tauri window is transparent. The panel is a card in `#141218` whose corners are three 2px stairs (a 6px corner) with a 2px border, so the chrome is drawn in the same language as the peep art.
-- Hard shadow: solid `rgba(0,0,0,0.5)`, offset 4px right and down, no blur.
+The owner's "Pixel desktop" design (`design/shell/`) replaces the row and header look: a 90s desktop-pet window, striped title bar, square speech bubbles, each peep on a striped shelf plank. Rows: 48px peep, a bubble saying what the session is doing, name and an outlined state chip. Attention states (`waiting`, `error`, `stuck`) fill the bubble with the state colour and sort first. Clicking a row opens it in place on a 96px stage. 5h/7d sit small in the header as AV-36 block bars. Peep sizes 48 (rows), 96 (detail), 40 (strip) are the owner's ruling over the multiples-of-32 rule. Light theme is AV-45; the strip look folds into AV-39.
+
+### 12.1 Pixel chrome (AV-34, AV-35)
+
+- The Tauri window is transparent. The panel is a square-cornered card with a 2px border in the text colour and a striped title bar (AV-44 design; replaces the earlier three-stair corners).
+- Hard shadow: solid `rgba(0,0,0,0.45)`, offset 6px right and down, no blur.
 - No edge light. Border and shadow never carry state; state lives in rows and peeps.
 - Docking and clamping use the card's rect, not the window's, which is larger by the shadow.
 - **Verify** (AV-34): transparency and click-through on Windows 11 at 100/150/200% scaling.
@@ -320,7 +324,7 @@ Every transition runs in 4 to 6 discrete frames over about 160ms, matching the p
 ### 12.5 Peep strip (AV-39)
 
 - Three modes: `panel`, `strip`, `hidden`. The app launches in `strip`.
-- The strip is a slim pixel-cut plate with one 32px peep per top-level session, in the panel's sort order, capped at 8 and then a `+N` tile. No subagents or shells; a failed shell's red dot shows on its parent's peep.
+- The strip is a slim plate (62px, AV-44 design: square, 2px border, no border on the docked edge, each peep on a mini shelf, attention cells tinted and ringed in the state colour) with one 40px peep per top-level session, in the panel's sort order, capped at 8 and then a `+N` tile. No subagents or shells; a failed shell's red dot shows on its parent's peep.
 - Orientation follows the anchor: a column on the left and right edges, a row on the top and bottom edges, a column at corners and when floating.
 - Strip and panel share the anchor; the panel unfolds from the strip away from the snapped edge. The whole plate drags the widget.
 

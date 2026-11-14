@@ -55,8 +55,9 @@ Peep This: an always-on-top Windows desktop widget that lists the Claude Code se
 
   Running subagents show as a small count badge on the row, not as a state.
 - **Identity:** the project cwd hashes to one of the 5 palette colours (yellow, pink, lavender, blue, green) and one of the 14 accessories, so a project always looks the same.
-- **Size:** 32px peep in compact rows, 64px when a row is expanded. Use multiples of 32 only; other sizes render unevenly sized pixels.
-- **Rows:** the compact row follows the mock: peep, session name (mono), task text, state LED and label, plus a thin context bar. Click to expand cwd, model, last tool and time in state.
+- **Shell (owner design 2026-11-14, AV-44, `design/shell/`):** "Pixel desktop": square card, 2px border, 6px hard shadow, striped title bar, square speech bubbles, peeps on striped shelf planks. `design/shell/` is the reference, like `peep.js` is for the creature; adapt it, don't restyle it.
+- **Size:** 48px peep in rows, 96px on the open row's stage, 40px in the strip, 32px for subagent children. 48 and 40 are the owner's ruling over the old multiples-of-32 rule; don't introduce other sizes.
+- **Rows:** peep on a plank, a speech bubble saying what the session is doing, session name (mono) and an outlined state chip. Attention states (`waiting`, `error`, `stuck`) fill the bubble with the state colour and sort first. Click opens the row in place: stage, tags (time in state, model, kind), last tool, context bar, cwd, decision trail.
 - **Alerts:** on entering `waiting`, show a Windows toast and pulse the row. Clicking either focuses that session's terminal window.
 - **Actions:** focus, plus permission decisions once AV-20 to AV-26 land (see Mission control). It never answers questions, sends replies, kills or starts sessions.
 - **Usage shown:** per-session context % and account 5-hour/7-day rate-limit %. No token counts or cost.
@@ -81,12 +82,12 @@ Planned, not built. This overturns the earlier "read-only, focus only" rule. Bui
 
 Planned, not built. Build order: verify, chrome, bars and motion, snap, strip, then hotkey, peek, flyout, empty state.
 
-- **Chrome:** transparent window; pixel-cut card with three 2px stairs per corner, 2px border, hard black shadow offset 4px, no blur. No edge light.
+- **Chrome:** transparent window; square card per AV-44 (2px border, hard black shadow offset 6px, no blur). No edge light. The three-stair corners were overruled 2026-11-14.
 - **Bars:** context and rate limits are 10 square blocks; amber from 70%, red from 90%.
 - **Motion:** stepped, 4 to 6 frames over about 160ms. Reduced motion is instant.
 - **Snap:** live magnet within 16px of work-area edges and corners on any monitor; floats elsewhere. The snapped edge is the anchor for every resize.
 - **Modes:** `panel`, `strip`, `hidden`; launches in `strip`. `Ctrl+Alt+P` toggles panel/strip, tray click toggles hidden. No `Esc`.
-- **Strip:** pixel-cut plate of 32px peeps, parents only, 8 then `+N`; column on side edges, row on top/bottom. Hover 200ms peeks, click pins.
+- **Strip:** AV-44-design plate of 40px peeps, parents only, 8 then `+N`; column on side edges, row on top/bottom. Hover 200ms peeks, click pins.
 - **Waiting while collapsed:** only that row flies out from its peep; the approval card mounts there.
 - **Empty:** one house peep, `idle`, yellow, no accessory.
 - **Not taken:** pill, edge tab, Mica, perch card, floating chips, coloured shadow, ghost outline, auto-collapse, auto-expand.

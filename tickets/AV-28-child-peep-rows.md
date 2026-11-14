@@ -2,7 +2,7 @@
 id: AV-28
 title: Child peep rows for subagents
 status: todo
-depends: [AV-27]
+depends: [AV-27, AV-44]
 attended: false
 ---
 
