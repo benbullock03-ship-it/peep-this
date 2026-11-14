@@ -5,7 +5,7 @@ import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
 import { createList } from "./rows";
-import { createSettings } from "./settings";
+import { createSettings, type SettingsApi } from "./settings";
 import { ROW_TRAIL } from "./trail";
 import { watchContentHeight } from "./windowFit";
 
@@ -30,6 +30,19 @@ function showNotice(text: string) {
   root.prepend(n);
 }
 
+function mountSettings(api: SettingsApi) {
+  const settings = createSettings(settingsEl, api, () => showSettings(false));
+  function showSettings(open: boolean) {
+    settingsEl.hidden = !open;
+    root.hidden = open;
+    settingsBtn.setAttribute("aria-pressed", String(open));
+    if (open) void settings.refresh();
+  }
+  settingsBtn.hidden = false;
+  settingsBtn.addEventListener("click", () => showSettings(settingsEl.hidden !== false));
+  return { show: showSettings, refresh: () => settings.refresh() };
+}
+
 function runDemo() {
   let snap = demoSnapshot(Date.now());
   const render = createList(root, demoIdentity, undefined, async (id, decision) => {
@@ -37,6 +50,8 @@ function runDemo() {
     render(snap.sessions);
     return true;
   });
+  let trailOn = true;
+  mountSettings({ log: async () => [], enabled: async () => trailOn, setEnabled: async (on) => (trailOn = on) });
   const renderLimits = createLimits(limitsEl);
   render(snap.sessions);
   renderLimits(snap.rateLimits);
@@ -63,24 +78,12 @@ async function runLive() {
     (requestId, decision, reason) => invoke<boolean>("decide_approval", { requestId, decision, reason }),
     (id) => recent[id],
   );
-  const settings = createSettings(
-    settingsEl,
-    {
-      log: () => invoke<TrailEntry[]>("trail_log"),
-      enabled: () => invoke<boolean>("trail_enabled"),
-      setEnabled: (on) => invoke<boolean>("set_trail_enabled", { on }),
-    },
-    () => showSettings(false),
-  );
-  function showSettings(open: boolean) {
-    settingsEl.hidden = !open;
-    root.hidden = open;
-    settingsBtn.setAttribute("aria-pressed", String(open));
-    if (open) void settings.refresh();
-  }
-  settingsBtn.hidden = false;
-  settingsBtn.addEventListener("click", () => showSettings(settingsEl.hidden !== false));
-  await listen("open-settings", () => showSettings(true));
+  const settings = mountSettings({
+    log: () => invoke<TrailEntry[]>("trail_log"),
+    enabled: () => invoke<boolean>("trail_enabled"),
+    setEnabled: (on) => invoke<boolean>("set_trail_enabled", { on }),
+  });
+  await listen("open-settings", () => settings.show(true));
   const loadRecent = async () => {
     try {
       recent = await invoke<Record<string, TrailEntry[]>>("trail_recent", { perSession: ROW_TRAIL });
@@ -125,10 +128,20 @@ async function startWindowFit() {
   if (!("__TAURI_INTERNALS__" in window)) return;
   const { invoke } = await import("@tauri-apps/api/core");
   const header = document.querySelector<HTMLElement>("#header")!;
-  watchContentHeight([header, root, settingsEl], (height) => {
-    if (!root.isConnected) return;
-    invoke("fit_window", { height }).catch((err) => console.error("peepthis: fit_window failed", err));
-  });
+  const shell = getComputedStyle(document.querySelector<HTMLElement>("#shell")!);
+  // The card's border and the margin that holds its hard shadow sit outside the measured parts.
+  const chrome = ["borderTopWidth", "borderBottomWidth", "marginTop", "marginBottom"].reduce(
+    (sum, k) => sum + (parseFloat(shell[k as keyof CSSStyleDeclaration] as string) || 0),
+    0,
+  );
+  watchContentHeight(
+    [header, root, settingsEl],
+    (height) => {
+      if (!root.isConnected) return;
+      invoke("fit_window", { height }).catch((err) => console.error("peepthis: fit_window failed", err));
+    },
+    chrome,
+  );
 }
 
 startWindowFit().catch((err) => console.error("peepthis: window fit failed", err));

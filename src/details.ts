@@ -1,7 +1,9 @@
 import type { Session } from "./model";
+import { contextFill } from "./rowView";
+import { STATE_LABEL } from "./stateMeta";
 
-/** Fits the ~242px value column of a 360px widget at 11px IBM Plex Mono (6.6px advance). */
-export const DETAIL_MAX_CHARS = 36;
+/** Fits the last-tool value column of the open row at 13px IBM Plex Mono (7.8px advance). */
+export const DETAIL_MAX_CHARS = 28;
 
 /** Keeps both ends, so a path's drive and filename both stay visible. */
 export function truncateMiddle(s: string, max = DETAIL_MAX_CHARS): string {
@@ -23,26 +25,28 @@ export function formatDuration(ms: number): string {
   return `${s}s`;
 }
 
-export type DetailField = { key: string; label: string; value: string; full: string };
+/** The open row's facts: tags (time in state, model, kind), last tool, context and cwd. */
+export type OpenFacts = {
+  since: string;
+  model: string;
+  kind: string;
+  tool: string;
+  toolFull: string;
+  ctx: number | null;
+  cwd: string;
+};
 
 const DASH = "—";
 
-export function detailFields(s: Session, now: number): DetailField[] {
+export function openFacts(s: Session, now: number): OpenFacts {
   const tool = s.lastTool ? [s.lastTool.name, s.lastTool.target].filter(Boolean).join(" ") : "";
-  const ctx = s.contextPct === undefined || !Number.isFinite(s.contextPct) ? "" : `${Math.round(s.contextPct)}% used`;
-  const kind = [s.kind, s.entrypoint].filter(Boolean).join(" · ");
-  const f = (key: string, label: string, raw: string): DetailField => ({
-    key,
-    label,
-    value: raw ? truncateMiddle(raw) : DASH,
-    full: raw,
-  });
-  return [
-    f("cwd", "cwd", s.cwd),
-    f("model", "model", s.model ?? ""),
-    f("tool", "last tool", tool),
-    f("since", "in state", formatDuration(now - s.stateSince)),
-    f("ctx", "context", ctx),
-    f("kind", "kind", kind),
-  ];
+  return {
+    since: `${STATE_LABEL[s.state] ?? s.state} for ${formatDuration(now - s.stateSince)}`,
+    model: s.model ?? "",
+    kind: [s.kind, s.entrypoint].filter(Boolean).join(" · "),
+    tool: tool ? truncateMiddle(tool) : DASH,
+    toolFull: tool,
+    ctx: contextFill(s.contextPct),
+    cwd: s.cwd,
+  };
 }

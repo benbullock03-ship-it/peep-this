@@ -8,22 +8,22 @@
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <header id="header" data-tauri-drag-region>
-      <span class="title" data-tauri-drag-region>Peep This</span>
-      <div class="header-end" data-tauri-drag-region>
-        <div id="limits" class="limits" data-tauri-drag-region></div>
-        <button id="settings-btn" class="header-btn" type="button" title="Decision log and settings" aria-label="Decision log and settings" hidden>
+    <div id="shell" class="ps ps--pixel">
+      <header id="header" class="ps-head" data-tauri-drag-region>
+        <span class="ps-title" data-tauri-drag-region>Peep This</span>
+        <div id="limits" class="ps-usage" data-tauri-drag-region></div>
+        <button id="settings-btn" class="ps-icon" type="button" title="Decision log and settings" aria-label="Decision log and settings" hidden>
           <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" shape-rendering="crispEdges">
             <rect x="0" y="1" width="2" height="2" /><rect x="3" y="1" width="7" height="2" />
             <rect x="0" y="4" width="2" height="2" /><rect x="3" y="4" width="7" height="2" />
             <rect x="0" y="7" width="2" height="2" /><rect x="3" y="7" width="7" height="2" />
           </svg>
         </button>
+      </header>
+      <div id="scroller" class="ps-list">
+        <main id="sessions"></main>
+        <section id="settings" hidden></section>
       </div>
-    </header>
-    <div id="scroller">
-      <main id="sessions"></main>
-      <section id="settings" hidden></section>
     </div>
   </body>
 </html>

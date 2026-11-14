@@ -9,13 +9,13 @@ export function createHeightReporter(apply: (height: number) => void): (height: 
   };
 }
 
-/** Reports header + list natural height (CSS px) whenever either changes size. */
-export function watchContentHeight(parts: HTMLElement[], apply: (height: number) => void): () => void {
+/** Reports the parts' summed natural height plus `chrome` (CSS px) whenever any part changes size. */
+export function watchContentHeight(parts: HTMLElement[], apply: (height: number) => void, chrome = 0): () => void {
   const report = createHeightReporter(apply);
   let frame = 0;
   const measure = () => {
     frame = 0;
-    report(parts.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0));
+    report(parts.reduce((sum, el) => sum + el.getBoundingClientRect().height, chrome));
   };
   const ro = new ResizeObserver(() => {
     if (!frame) frame = requestAnimationFrame(measure);

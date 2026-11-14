@@ -28,16 +28,18 @@ describe("contextFill", () => {
 });
 
 describe("toRowView", () => {
-  it("takes LED and label from the design and identity from the cwd", () => {
+  it("takes the label from the design, marks attention states and takes identity from the cwd", () => {
     const v = toRowView(base);
-    expect(v).toMatchObject({ label: "Working", led: "#7FE6FF", color: "blue", accessory: "none", contextPct: null });
-    expect(toRowView({ ...base, state: "waiting" })).toMatchObject({ label: "Needs you", led: "#FFB23E" });
+    expect(v).toMatchObject({ label: "Working", attention: false, color: "blue", accessory: "none", contextPct: null, say: "Running Edit src/main.ts…" });
+    expect(toRowView({ ...base, state: "waiting" })).toMatchObject({ label: "Needs you", attention: true });
+    expect(toRowView({ ...base, state: "stuck" }).attention).toBe(true);
+    expect(toRowView({ ...base, state: "error" }).attention).toBe(true);
   });
 
-  it("falls back to the label when the task is empty and to the id when unnamed", () => {
-    const v = toRowView({ ...base, state: "thinking", task: "", name: "" });
-    expect(v.task).toBe("Thinking");
+  it("falls back to the id when unnamed and to idle for an unknown state", () => {
+    const v = toRowView({ ...base, state: "bogus" as Session["state"], name: "" });
     expect(v.name).toBe("abc12345");
+    expect(v).toMatchObject({ state: "idle", label: "Idle" });
   });
 });
 
@@ -45,7 +47,11 @@ describe("demo", () => {
   it("renders the six design agents with their design identities", () => {
     const snap = demoSnapshot(1_000_000);
     expect(snap.sessions.map((x) => x.name)).toEqual(["ingest-01", "research-02", "triage-03", "digest-04", "sync-05", "scrape-06"]);
-    expect(toRowView(snap.sessions[2], demoIdentity)).toMatchObject({ color: "pink", accessory: "headphones", task: "Waiting for approval" });
+    expect(toRowView(snap.sessions[2], demoIdentity, 1_000_000)).toMatchObject({
+      color: "pink",
+      accessory: "headphones",
+      say: "Claude needs your permission to use Edit",
+    });
   });
 
   it("changes exactly one agent per step", () => {

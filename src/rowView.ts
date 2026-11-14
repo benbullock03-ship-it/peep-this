@@ -1,14 +1,15 @@
 import { identityFor, type Identity } from "./identity";
 import { STATES, type Session, type State } from "./model";
-import { STATE_META } from "./stateMeta";
+import { sayFor } from "./say";
+import { isAttention, STATE_LABEL } from "./stateMeta";
 
 export type RowView = {
   id: string;
   name: string;
-  task: string;
+  say: string;
   state: State;
   label: string;
-  led: string;
+  attention: boolean;
   color: string;
   accessory: string;
   subagents: number;
@@ -36,17 +37,16 @@ export async function requestFocus(onFocus: OnFocus, id: string, flash: () => vo
   if (!ok) flash();
 }
 
-export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFor(x.cwd)): RowView {
+export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFor(x.cwd), now = Date.now()): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
-  const meta = STATE_META[state];
   const { color, accessory } = identityOf(s);
   return {
     id: s.id,
     name: s.name || s.id.slice(0, 8),
-    task: s.task || meta.label,
+    say: sayFor({ ...s, state }, now),
     state,
-    label: meta.label,
-    led: meta.led,
+    label: STATE_LABEL[state],
+    attention: isAttention(state),
     color,
     accessory,
     subagents: Math.max(0, Math.floor(s.subagents || 0)),

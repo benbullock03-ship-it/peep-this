@@ -1,24 +1,26 @@
 import type { Identity } from "./identity";
-import type { PendingApproval, Session, Snapshot, State } from "./model";
+import type { LastTool, PendingApproval, Session, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
-const AGENTS: { name: string; identity: Identity; work: string; state: State }[] = [
-  { name: "ingest-01", identity: { color: "yellow", accessory: "hardhat" }, work: "Parsing invoices batch 14", state: "working" },
-  { name: "research-02", identity: { color: "lavender", accessory: "glasses" }, work: "Reading vendor docs", state: "thinking" },
-  { name: "triage-03", identity: { color: "pink", accessory: "headphones" }, work: "Labelling support tickets", state: "waiting" },
-  { name: "digest-04", identity: { color: "green", accessory: "chef" }, work: "Cooking the weekly digest", state: "success" },
-  { name: "sync-05", identity: { color: "blue", accessory: "bow" }, work: "Syncing CRM records", state: "error" },
-  { name: "scrape-06", identity: { color: "yellow", accessory: "party" }, work: "Crawling pricing pages", state: "stuck" },
+const AGENTS: { name: string; identity: Identity; tool: Required<LastTool>; state: State }[] = [
+  { name: "ingest-01", identity: { color: "yellow", accessory: "hardhat" }, tool: { name: "Read", target: "pipelines/ingest/invoices/batch-14/normalise_line_items.py" }, state: "working" },
+  { name: "research-02", identity: { color: "lavender", accessory: "glasses" }, tool: { name: "WebFetch", target: "vendor docs" }, state: "thinking" },
+  { name: "triage-03", identity: { color: "pink", accessory: "headphones" }, tool: { name: "Edit", target: "src/labels.ts" }, state: "waiting" },
+  { name: "digest-04", identity: { color: "green", accessory: "chef" }, tool: { name: "Write", target: "digest/weekly.md" }, state: "success" },
+  { name: "sync-05", identity: { color: "blue", accessory: "bow" }, tool: { name: "Bash", target: "npm run sync" }, state: "error" },
+  { name: "scrape-06", identity: { color: "yellow", accessory: "party" }, tool: { name: "WebFetch", target: "pricing page" }, state: "stuck" },
 ];
 
-const TASKS: Record<Exclude<State, "working">, string> = {
-  idle: "Queued",
-  thinking: "Planning next step",
-  waiting: "Waiting for approval",
-  success: "Finished",
-  error: "Tool call failed",
+// Shaped like the tasks state.rs writes, so the bubbles read as they would live.
+const TASKS: Record<Exclude<State, "working" | "waiting">, string> = {
+  idle: "Idle",
+  thinking: "Planning the next step",
+  success: "Done",
+  error: "Build failed. A module is missing.",
   stuck: "No response for 6 min",
 };
+
+const asks = (tool: string) => `Claude needs your permission to use ${tool}`;
 
 const FLOW: State[] = ["idle", "thinking", "working", "working", "thinking", "working", "waiting", "success", "error", "stuck"];
 
@@ -78,7 +80,9 @@ export function demoIdentity(s: Session): Identity {
 }
 
 function taskFor(i: number, state: State): string {
-  return state === "working" ? AGENTS[i].work : TASKS[state];
+  const tool = AGENTS[i].tool;
+  if (state === "working") return `${tool.name} ${tool.target}`;
+  return state === "waiting" ? asks(tool.name) : TASKS[state];
 }
 
 export function demoSnapshot(now: number): Snapshot {
@@ -92,8 +96,8 @@ export function demoSnapshot(now: number): Snapshot {
       cwd: i === 0 ? "C:/Users/demo/Projects/accounts-payable/pipelines/ingest-01" : `C:/demo/${a.name}`,
       kind: "interactive",
       entrypoint: i === 2 ? "claude-vscode" : "cli",
-      model: i === 1 ? undefined : "claude-opus-5-5",
-      lastTool: i === 0 ? { name: "Read", target: "pipelines/ingest/invoices/batch-14/normalise_line_items.py" } : undefined,
+      model: i === 1 ? undefined : "Opus 5.5",
+      lastTool: a.tool,
       state: a.state,
       stateSince: now - i * 60_000,
       task: taskFor(i, a.state),
@@ -107,7 +111,7 @@ export function demoSnapshot(now: number): Snapshot {
 
 function withPending(s: Session, i: number, now: number): Session {
   const p = PENDING[i];
-  return p ? { ...s, state: "waiting", task: TASKS.waiting, pending: [arm(p, now)] } : s;
+  return p ? { ...s, state: "waiting", task: asks(p.tool), pending: [arm(p, now)] } : s;
 }
 
 /** Drops a decided demo request; the session moves on as the backend would. */

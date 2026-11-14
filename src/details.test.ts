@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detailFields, formatDuration, truncateMiddle } from "./details";
+import { formatDuration, openFacts, truncateMiddle } from "./details";
 import type { Session } from "./model";
 
 const base: Session = {
@@ -37,25 +37,25 @@ describe("formatDuration", () => {
   });
 });
 
-describe("detailFields", () => {
-  it("fills every field and dashes the missing ones", () => {
-    const f = Object.fromEntries(detailFields(base, 6_000).map((d) => [d.key, d.value]));
-    expect(f).toEqual({
-      cwd: "F:\\Projects\\agentview widget",
-      model: "—",
-      tool: "—",
-      since: "5s",
-      ctx: "—",
+describe("openFacts", () => {
+  it("fills every fact and leaves the missing ones empty", () => {
+    expect(openFacts(base, 6_000)).toEqual({
+      since: "Working for 5s",
+      model: "",
       kind: "interactive · cli",
+      tool: "—",
+      toolFull: "",
+      ctx: null,
+      cwd: "F:\\Projects\\agentview widget",
     });
   });
   it("joins tool and target, truncating the middle but keeping the full text", () => {
     const target = "src/some/really/long/directory/name/component.test.ts";
-    const s = { ...base, model: "claude-opus-5-5", contextPct: 41.6, lastTool: { name: "Edit", target } };
-    const tool = detailFields(s, 0).find((d) => d.key === "tool")!;
-    expect(tool.full).toBe(`Edit ${target}`);
-    expect(tool.value.startsWith("Edit src/")).toBe(true);
-    expect(tool.value.endsWith("component.test.ts")).toBe(true);
-    expect(detailFields(s, 0).find((d) => d.key === "ctx")!.value).toBe("42% used");
+    const f = openFacts({ ...base, state: "waiting", model: "Opus 5.5", contextPct: 141.6, lastTool: { name: "Edit", target } }, 1_000);
+    expect(f.toolFull).toBe(`Edit ${target}`);
+    expect(f.tool.startsWith("Edit src/")).toBe(true);
+    expect(f.tool.endsWith(".test.ts")).toBe(true);
+    expect(f.ctx).toBe(100);
+    expect(f.since).toBe("Needs you for 0s");
   });
 });

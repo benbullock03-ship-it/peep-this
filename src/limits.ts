@@ -32,17 +32,10 @@ type Meter = { value: HTMLElement; bar: Bar };
 
 function meter(root: HTMLElement, label: string): Meter {
   const item = document.createElement("span");
-  item.className = "limit";
-  const text = document.createElement("span");
-  text.className = "limit-text";
-  const name = document.createElement("span");
-  name.className = "limit-label";
-  name.textContent = label;
+  item.className = "ps-meter";
   const value = document.createElement("span");
-  value.className = "limit-value";
-  text.append(name, " ", value);
-  const bar = createBar("limit-bar");
-  item.append(text, bar.el);
+  const bar = createBar("bar--mini");
+  item.append(label, bar.el, value);
   root.appendChild(item);
   return { value, bar };
 }
@@ -59,10 +52,6 @@ function setMeter(m: Meter, v: number) {
 export function createLimits(root: HTMLElement, refreshAt?: () => Promise<number | undefined>) {
   root.hidden = true;
   const five = meter(root, "5h");
-  const sep = document.createElement("span");
-  sep.className = "limit-sep";
-  sep.textContent = "·";
-  root.appendChild(sep);
   const seven = meter(root, "7d");
   let at = 0;
 

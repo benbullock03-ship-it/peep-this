@@ -1,12 +1,16 @@
 import type { State } from "./model";
 
-// LED colours and labels from STATE_META in design/peep-this.dc.html.
-export const STATE_META: Record<State, { label: string; led: string }> = {
-  idle: { label: "Idle", led: "#DDF3FF" },
-  thinking: { label: "Thinking", led: "#C7B2FF" },
-  working: { label: "Working", led: "#7FE6FF" },
-  waiting: { label: "Needs you", led: "#FFB23E" },
-  success: { label: "Done", led: "#7DFFA6" },
-  error: { label: "Error", led: "#FF5D5D" },
-  stuck: { label: "Stuck", led: "#8C97AB" },
+// Labels from the design's LABEL map (design/shell/shell.js); colours live in styles.css as --st-*.
+export const STATE_LABEL: Record<State, string> = {
+  idle: "Idle",
+  thinking: "Thinking",
+  working: "Working",
+  waiting: "Needs you",
+  success: "Done",
+  error: "Error",
+  stuck: "Stuck",
 };
+
+export const ATTENTION: readonly State[] = ["waiting", "error", "stuck"];
+
+export const isAttention = (state: State) => ATTENTION.includes(state);

@@ -9,13 +9,22 @@ function s(id: string, state: State, stateSince: number): Session {
 const ids = (xs: Session[]) => xs.map((x) => x.id);
 
 describe("sortSessions", () => {
-  it("puts waiting sessions first, then newest state change first", () => {
-    const out = sortSessions([s("a", "working", 100), s("b", "waiting", 10), s("c", "idle", 300), s("d", "waiting", 50)]);
-    expect(ids(out)).toEqual(["d", "b", "c", "a"]);
+  it("puts attention states (waiting, error, stuck) first, then newest state change first", () => {
+    const out = sortSessions([
+      s("a", "working", 100),
+      s("b", "waiting", 10),
+      s("c", "idle", 300),
+      s("d", "error", 50),
+      s("e", "stuck", 20),
+      s("f", "success", 400),
+      s("g", "thinking", 200),
+    ]);
+    expect(ids(out)).toEqual(["d", "e", "b", "f", "c", "g", "a"]);
   });
 
   it("orders ties by id so the list does not jitter", () => {
     expect(ids(sortSessions([s("y", "idle", 5), s("x", "idle", 5)]))).toEqual(["x", "y"]);
+    expect(ids(sortSessions([s("y", "stuck", 5), s("x", "waiting", 5)]))).toEqual(["x", "y"]);
   });
 
   it("does not mutate its input", () => {

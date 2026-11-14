@@ -1,6 +1,6 @@
 import { createCards, type Decide } from "./approvalCard";
 import { createBar, type Bar } from "./bar";
-import { detailFields } from "./details";
+import { openFacts } from "./details";
 import type { Session, TrailEntry } from "./model";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { sortSessions } from "./sort";
@@ -9,8 +9,8 @@ import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
 export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
 
 export const EMPTY_TEXT = "No Claude Code sessions running";
-const PEEP_SIZE = "32";
-const PEEP_SIZE_EXPANDED = "64";
+const PEEP_SIZE = "48";
+const PEEP_SIZE_OPEN = "96";
 export const FLASH_MS = 1000;
 /** Matches the `row-leave` animation in styles.css. */
 export const LEAVE_MS = 600;
@@ -20,56 +20,135 @@ const ENTER_MS = 320;
 const STAGGER_MS = 40;
 const MAX_STAGGER = 8;
 
-type Details = { el: HTMLElement; values: Map<string, HTMLElement> };
+type Facts = {
+  el: HTMLElement;
+  since: HTMLElement;
+  model: HTMLElement;
+  kind: HTMLElement;
+  tool: HTMLElement;
+  ctx: Bar;
+  ctxValue: HTMLElement;
+  cwd: HTMLElement;
+  trail: HTMLElement;
+  trailKey: string;
+};
 
 type Row = {
   el: HTMLElement;
+  closed: HTMLButtonElement;
+  head: HTMLButtonElement;
+  stage: HTMLElement;
+  peepWrap: HTMLElement;
   peep: HTMLElement;
   badge: HTMLElement;
-  name: HTMLElement;
-  task: HTMLElement;
-  status: HTMLElement;
-  label: HTMLElement;
-  ctx: Bar;
+  // [closed, open] copies of the same text.
+  names: HTMLElement[];
+  labels: HTMLElement[];
+  says: HTMLElement[];
+  plank: HTMLElement;
+  facts: Facts;
   last: Partial<RowView>;
   session: Session;
-  details: Details | null;
-  trail: { el: HTMLElement; key: string } | null;
   cards?: (pending: Session["pending"]) => number;
 };
 
-function el(tag: string, cls: string, parent?: HTMLElement): HTMLElement {
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   e.className = cls;
   parent?.appendChild(e);
   return e;
 }
 
+function button(cls: string, parent: HTMLElement): HTMLButtonElement {
+  const b = el("button", cls, parent);
+  b.type = "button";
+  return b;
+}
+
+function chip(parent: HTMLElement): HTMLElement {
+  const c = el("span", "ps-chip", parent);
+  el("span", "ps-dot", c);
+  return el("span", "", c);
+}
+
+function bubble(parent: HTMLElement): HTMLElement {
+  return el("span", "", el("span", "ps-bubble", parent));
+}
+
+function createFacts(): Facts {
+  const box = el("div", "ps-facts");
+  const tags = el("div", "ps-tags", box);
+  const since = el("span", "ps-tag is-st", tags);
+  const model = el("span", "ps-tag", tags);
+  const kind = el("span", "ps-tag", tags);
+  const toolRow = el("div", "ps-fact", box);
+  el("span", "ps-k", toolRow).textContent = "Last tool";
+  const tool = el("span", "ps-v", toolRow);
+  const ctxRow = el("div", "ps-fact", box);
+  el("span", "ps-k", ctxRow).textContent = "Context";
+  const ctx = createBar("bar--fact");
+  ctxRow.appendChild(ctx.el);
+  const ctxValue = el("span", "", ctxRow);
+  const cwd = el("div", "ps-path", box);
+  const trail = el("div", "ps-trail", box);
+  trail.setAttribute("aria-label", "Recent approval decisions");
+  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-" };
+}
+
 function createRow(s: Session, decide?: Decide): Row {
-  const row = el("div", "row");
-  row.dataset.id = s.id;
-  row.tabIndex = 0;
-  row.setAttribute("aria-expanded", "false");
-  const wrap = el("div", "peep", row);
+  const item = el("div", "ps-item");
+  item.dataset.id = s.id;
+
+  const closed = button("ps-row", item);
+  closed.setAttribute("aria-expanded", "false");
+  const peepWrap = el("span", "ps-peep", closed);
   const peep = document.createElement("peep-bot");
   peep.setAttribute("size", PEEP_SIZE);
-  wrap.appendChild(peep);
-  const badge = el("span", "badge", wrap);
-  const text = el("div", "text", row);
-  const name = el("div", "name", text);
-  const task = el("div", "task", text);
-  const status = el("div", "status", row);
-  el("span", "led", status);
-  const label = el("span", "label", status);
+  peep.setAttribute("aria-hidden", "true");
+  peepWrap.appendChild(peep);
+  const badge = el("span", "ps-badge", peepWrap);
+  badge.hidden = true;
+  const body = el("span", "ps-body", closed);
+  const say = bubble(body);
+  const meta = el("span", "ps-meta", body);
+  const name = el("span", "ps-name", meta);
+  const label = chip(meta);
+
+  const head = button("ps-openhead", item);
+  head.setAttribute("aria-expanded", "true");
+  head.hidden = true;
+  const openName = el("span", "ps-name", head);
+  const openLabel = chip(head);
+  const stage = el("div", "ps-stage", item);
+  stage.hidden = true;
+  const openSay = bubble(stage);
+
+  const plank = el("span", "ps-plank", item);
+  const facts = createFacts();
+
   let cards: Row["cards"];
   if (decide) {
-    const host = el("div", "cards", row);
+    const host = el("div", "cards", item);
     host.hidden = true;
     cards = createCards(host, decide);
   }
-  const ctx = createBar("ctx");
-  row.appendChild(ctx.el);
-  return { el: row, peep, badge, name, task, status, label, ctx, last: {}, session: s, details: null, trail: null, cards };
+  return {
+    el: item,
+    closed,
+    head,
+    stage,
+    peepWrap,
+    peep,
+    badge,
+    names: [name, openName],
+    labels: [label, openLabel],
+    says: [say, openSay],
+    plank,
+    facts,
+    last: {},
+    session: s,
+    cards,
+  };
 }
 
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
@@ -77,50 +156,60 @@ function updateRow(r: Row, v: RowView) {
   const l = r.last;
   if (l.state !== v.state) {
     r.peep.setAttribute("state", v.state);
+    if (l.state) r.el.classList.remove(`st-${l.state}`);
+    r.el.classList.add(`st-${v.state}`);
     r.el.dataset.state = v.state;
   }
+  if (l.attention !== v.attention) r.el.classList.toggle("is-att", v.attention);
   if (l.color !== v.color) r.peep.setAttribute("color", v.color);
   if (l.accessory !== v.accessory) r.peep.setAttribute("accessory", v.accessory);
   if (l.name !== v.name) {
-    r.name.textContent = v.name;
-    r.name.title = v.name;
+    for (const n of r.names) {
+      n.textContent = v.name;
+      n.title = v.name;
+    }
   }
-  if (l.task !== v.task) {
-    r.task.textContent = v.task;
-    r.task.title = v.task;
+  if (l.label !== v.label) for (const x of r.labels) x.textContent = v.label;
+  if (l.say !== v.say) {
+    for (const x of r.says) {
+      x.textContent = v.say;
+      x.parentElement!.title = v.say;
+    }
   }
-  if (l.label !== v.label) r.label.textContent = v.label;
-  if (l.led !== v.led) r.status.style.setProperty("--led", v.led);
+  if (l.name !== v.name || l.label !== v.label || l.say !== v.say) r.closed.setAttribute("aria-label", `${v.name}: ${v.label}. ${v.say}`);
   if (l.subagents !== v.subagents) {
     r.badge.textContent = v.subagents > 0 ? String(v.subagents) : "";
     r.badge.hidden = v.subagents <= 0;
     r.badge.title = v.subagents === 1 ? "1 subagent running" : `${v.subagents} subagents running`;
   }
-  if (l.contextPct !== v.contextPct) {
-    r.ctx.set(v.contextPct);
-    r.ctx.el.title = v.contextPct === null ? "" : `Context ${Math.round(v.contextPct)}% used`;
-  }
   if (l.alive !== v.alive) r.el.dataset.alive = String(v.alive);
   r.last = v;
 }
 
-function fillDetails(r: Row, now: number) {
-  if (!r.details) return;
-  for (const f of detailFields(r.session, now)) {
-    const v = r.details.values.get(f.key);
-    if (!v) continue;
-    if (v.textContent !== f.value) v.textContent = f.value;
-    const title = f.value === f.full ? "" : f.full;
-    if (v.title !== title) v.title = title;
-  }
+function setText(e: HTMLElement, text: string) {
+  if (e.textContent !== text) e.textContent = text;
+}
+
+function fillFacts(r: Row, now: number) {
+  const f = openFacts(r.session, now);
+  const x = r.facts;
+  setText(x.since, f.since);
+  setText(x.model, f.model);
+  x.model.hidden = !f.model;
+  setText(x.kind, f.kind);
+  x.kind.hidden = !f.kind;
+  setText(x.tool, f.tool);
+  x.tool.title = f.tool === f.toolFull ? "" : f.toolFull;
+  x.ctx.set(f.ctx ?? 0);
+  setText(x.ctxValue, f.ctx === null ? "—" : `${Math.round(f.ctx)}%`);
+  setText(x.cwd, f.cwd);
 }
 
 function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined) {
-  if (!r.trail) return;
   const key = trailKey(entries);
-  if (key === r.trail.key) return;
-  r.trail.key = key;
-  const host = r.trail.el;
+  if (key === r.facts.trailKey) return;
+  r.facts.trailKey = key;
+  const host = r.facts.trail;
   host.replaceChildren();
   host.hidden = !entries?.length;
   const now = Date.now();
@@ -135,34 +224,27 @@ function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined) {
 }
 
 function expand(r: Row, trail?: readonly TrailEntry[]) {
-  const d = el("dl", "details");
-  const values = new Map<string, HTMLElement>();
-  for (const f of detailFields(r.session, Date.now())) {
-    el("dt", "detail-label", d).textContent = f.label;
-    const dd = el("dd", `detail-value detail-${f.key}`, d);
-    values.set(f.key, dd);
-  }
-  r.details = { el: d, values };
-  r.el.insertBefore(d, r.ctx.el);
-  const t = el("div", "row-trail");
-  t.setAttribute("aria-label", "Recent approval decisions");
-  r.trail = { el: t, key: "-" };
-  r.el.insertBefore(t, r.ctx.el);
+  r.closed.hidden = true;
+  r.head.hidden = false;
+  r.stage.hidden = false;
+  r.stage.insertBefore(r.peepWrap, r.stage.firstChild);
+  r.peep.setAttribute("size", PEEP_SIZE_OPEN);
+  r.plank.after(r.facts.el);
+  r.facts.trailKey = "-";
   fillTrail(r, trail);
-  r.el.classList.add("expanded");
-  r.el.setAttribute("aria-expanded", "true");
-  r.peep.setAttribute("size", PEEP_SIZE_EXPANDED);
-  fillDetails(r, Date.now());
+  fillFacts(r, Date.now());
+  r.el.classList.add("is-open");
 }
 
-function collapse(r: Row) {
-  r.details?.el.remove();
-  r.details = null;
-  r.trail?.el.remove();
-  r.trail = null;
-  r.el.classList.remove("expanded");
-  r.el.setAttribute("aria-expanded", "false");
+function collapse(r: Row, restoreFocus: boolean) {
+  r.facts.el.remove();
+  r.closed.insertBefore(r.peepWrap, r.closed.firstChild);
   r.peep.setAttribute("size", PEEP_SIZE);
+  r.head.hidden = true;
+  r.stage.hidden = true;
+  r.closed.hidden = false;
+  r.el.classList.remove("is-open");
+  if (restoreFocus) r.closed.focus();
 }
 
 function enter(row: HTMLElement, delayMs: number) {
@@ -195,9 +277,9 @@ export function createList(
   let ticker = 0;
   let firstRender = true;
 
-  function close() {
+  function close(restoreFocus = false) {
     if (!open) return;
-    collapse(open);
+    collapse(open, restoreFocus);
     open = null;
     clearInterval(ticker);
     ticker = 0;
@@ -205,40 +287,34 @@ export function createList(
 
   function toggle(r: Row) {
     const wasOpen = open === r;
-    close();
+    close(wasOpen && r.head.contains(document.activeElement));
     if (wasOpen) return;
     expand(r, trailOf?.(r.session.id));
     open = r;
-    ticker = window.setInterval(() => open && fillDetails(open, Date.now()), TICK_MS);
+    if (r.closed.contains(document.activeElement) || document.activeElement === document.body) r.head.focus();
+    ticker = window.setInterval(() => open && fillFacts(open, Date.now()), TICK_MS);
   }
 
   const rowOf = (e: Event) => {
-    const id = (e.target as Element).closest<HTMLElement>(".row")?.dataset.id;
+    const id = (e.target as Element).closest<HTMLElement>(".ps-item")?.dataset.id;
     return id ? rows.get(id) : undefined;
   };
 
-  if (onFocus) list.classList.add("focusable");
   list.addEventListener("click", (e) => {
     const r = rowOf(e);
     if (!r || r.el.classList.contains("leaving")) return;
-    if ((e.target as Element).closest(".cards")) return;
-    if (onFocus && (e.target as Element).closest(".peep, .name")) {
+    const target = e.target as Element;
+    if (onFocus && target.closest(".ps-peep")) {
       void requestFocus(onFocus, r.session.id, () => flash(r.el));
       return;
     }
-    toggle(r);
-  });
-  list.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    const r = rowOf(e);
-    if (!r || e.target !== r.el) return;
-    e.preventDefault();
-    toggle(r);
+    if (target.closest(".ps-row, .ps-openhead")) toggle(r);
   });
 
   return function render(sessions: readonly Session[]) {
     const sorted = sortSessions(sessions);
     const seen = new Set<string>();
+    const now = Date.now();
     let prev: Element | null = null;
     for (const s of sorted) {
       seen.add(s.id);
@@ -253,10 +329,10 @@ export function createList(
         clearTimeout(Number(r.el.dataset.leaveTimer));
         r.el.classList.remove("leaving");
       }
-      updateRow(r, toRowView(s, identityOf));
-      r.el.classList.toggle("has-cards", (r.cards?.(s.alive ? s.pending : undefined) ?? 0) > 0);
+      updateRow(r, toRowView(s, identityOf, now));
+      r.cards?.(s.alive ? s.pending : undefined);
       if (r === open) {
-        fillDetails(r, Date.now());
+        fillFacts(r, now);
         fillTrail(r, trailOf?.(s.id));
       }
       // Fading rows hold their slot, so ordering skips over them.
