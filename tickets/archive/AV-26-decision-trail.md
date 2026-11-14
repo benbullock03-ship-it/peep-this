@@ -1,7 +1,7 @@
 ---
 id: AV-26
 title: Per-session decision trail
-status: in-progress
+status: done
 depends: [AV-21]
 attended: false
 ---
@@ -19,11 +19,16 @@ attended: false
 
 **Done when:** the owner saw their own allow, deny and a timed-out release for a live session listed correctly on its expanded row and in the log.
 
-## Owed before done
+## Done 2026-11-14
 
-- Owner check in `npm run tauri dev`: an allow, a deny with reason and a 60s timed-out release for a live session appear on its expanded row (tick, cross, dash; hover shows time, reason, "timed out") and in the settings log, with the session/outcome/text filters working.
-- Header button and tray entry both open settings; trail switch survives a restart.
-- Re-run **Install integration** first (owed from AV-21), or held requests release after 1s.
+Live check by Claude at the owner's request, in `npm run tauri dev` with WebView2 remote debugging (CDP clicks and keys go through the UI) and `PermissionRequest` POSTs shaped like Claude Code's to the hook port, on placeholder sessions `lc-*`:
+
+- An allow (Read), a deny with reason (Bash, typed reason + Enter) and a 61s timed-out release all returned the right hook response (`allow`, `deny` + message, empty 204). They showed on each expanded row as ✓, ✗ and – with hover "19:50:39 · allowed", "denied / Reason: …", "released to terminal (timed out)".
+- Settings log listed all of them. Session filter 1 of 5, outcome `released` 3 of 5, text and reason search 1 of 5 each.
+- The header button toggles settings, and the tray menu "Decision log and settings" opens it from closed. The trail switch was off across a dev restart, then turned back on.
+- Integration was already installed (hooks with `timeout: 75`); requests held the full 60s.
+
+Follow-up, not blocking: two sessions with the same name (an old and a current `agentview-widget-2b`) look identical in the session filter.
 
 ## Decisions taken without a ruling
 
