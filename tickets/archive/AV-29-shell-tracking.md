@@ -1,7 +1,7 @@
 ---
 id: AV-29
 title: Background shell tracking with health states
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -57,6 +57,8 @@ Sources: hooks docs (Bash/PowerShell `tool_input`, Stop `background_tasks`), too
 - `src/model.ts` not extended; the build type-checks without it and AV-30 adds the type when it renders.
 - `source/process.rs` gets its own small ToolHelp parent table instead of reusing `focus.rs::sys::process_table`, which is private to focus.rs, a file outside this ticket.
 
-## Owed for done
+## Live check (2026-11-14)
 
-Owner live check: run `npm run tauri dev`. In an interactive session, ask for a dev server in the background (for example `npx vite` or `python -m http.server 8000`) and a background build that fails (for example `sleep 2; exit 3`). Within about 5s the widget log's snapshot line should show `{shells: … =Serving :<port>; … =Failed exit=3 last="…"}`. No reinstall is needed: it uses hooks already installed (`PostToolUse`, `UserPromptSubmit`, `Stop`).
+Run from an interactive Claude Code session at the owner's request, against `npm run tauri dev`. The log went `python -m http.server 8000=Running`, then `Serving :8000` and stayed there. `sleep 2; exit 3` went `Running`, then `Failed exit=3` and never reverted. No `last=` appeared because that command prints nothing.
+
+Original instruction: run `npm run tauri dev`. In an interactive session, ask for a dev server in the background (for example `npx vite` or `python -m http.server 8000`) and a background build that fails (for example `sleep 2; exit 3`). Within about 5s the widget log's snapshot line should show `{shells: … =Serving :<port>; … =Failed exit=3 last="…"}`. No reinstall is needed: it uses hooks already installed (`PostToolUse`, `UserPromptSubmit`, `Stop`).
