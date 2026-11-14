@@ -1,7 +1,7 @@
 ---
 id: AV-44
 title: Pixel desktop shell for the open window
-status: in-progress
+status: done
 depends: [AV-26]
 attended: false
 ---
@@ -32,10 +32,19 @@ Owner rulings 2026-11-14: peep sizes 48 (rows), 96 (open stage) as designed; AV-
 - [x] Last tool on the open row: end-ellipsis (no middle cut), wraps to 2 lines, full text on hover.
 - [x] Header mini bars: AV-36's 4px blocks; drop the gap between label and bar to make room; title unchanged. If 4px still overflows, show blocks only and move the % to a tooltip.
 
-## Owed before done
+## Done 2026-11-14
 
-- Owner check in `npm run tauri dev` with live sessions: look and bubble wording, open/close a row (a snapshot neither closes it nor restarts peeps), approval card by mouse and keyboard incl. the 1s destructive hold, peep click focuses the terminal, no bottom clipping, 4px header blocks legible without the % (hover shows it), settings button toggles the log.
-- Built and checked in headless Chrome against demo data only (`npm run build`, 69 Vitest tests pass).
+Live check by Claude at the owner's request, in `npm run tauri dev` with live and placeholder sessions, screenshots in the session scratchpad:
+
+- **Look:** shell, planks, square bubbles, chips, 96px stage, facts and trail render as designed over dark and light backdrops.
+- **Open row:** survives 3 snapshots and stays open, with no peep node recreated.
+- **Approval cards:** work by mouse and by keyboard, including the 1s destructive hold. See the AV-24, AV-26 and AV-28 checks.
+- **Peep click:** with Notepad in front, clicking this session's peep focused its VS Code window.
+- **Bottom:** no clipping. The last row ends 10px above the list bottom, and the card plus shadow fit the window.
+- **Header:** blocks show without the %; hover reads "5h 7% · 7d 20% · updated just now", and `aria-label`s carry the %.
+- **Settings:** the button toggles the log.
+
+Follow-up, not blocking: the description-to-gerund rule misfires. "Screenshot …" becomes "Screenshoting…" (missing from `DOUBLED`). "White topmost backdrop …" becomes "Whiting…", because a description that opens with a non-verb gets treated as a verb. Owner rulings on header % and the success result line are still open.
 
 ## Decisions taken without a ruling
 
