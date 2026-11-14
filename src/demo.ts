@@ -50,7 +50,8 @@ export function demoSnapshot(now: number): Snapshot {
       stateSince: now - i * 60_000,
       task: taskFor(i, a.state),
       subagents: i === 0 ? 2 : 0,
-      contextPct: [62, 35, 88, 12, 47, undefined][i],
+      // Low, amber (70+) and red (90+) context for the segmented bars.
+      contextPct: [74, 35, 93, 12, 47, undefined][i],
       alive: true,
     })),
   };

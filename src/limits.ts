@@ -1,3 +1,4 @@
+import { createBar, type Bar } from "./bar";
 import type { RateLimits } from "./model";
 
 export type LimitsView = { fiveHour: number; sevenDay: number; at: number };
@@ -27,7 +28,7 @@ export function toLimitsView(rl: RateLimits | undefined): LimitsView | null {
   return { fiveHour, sevenDay, at: rl.at };
 }
 
-type Meter = { value: HTMLElement; fill: HTMLElement };
+type Meter = { value: HTMLElement; bar: Bar };
 
 function meter(root: HTMLElement, label: string): Meter {
   const item = document.createElement("span");
@@ -40,19 +41,15 @@ function meter(root: HTMLElement, label: string): Meter {
   const value = document.createElement("span");
   value.className = "limit-value";
   text.append(name, " ", value);
-  const bar = document.createElement("span");
-  bar.className = "limit-bar";
-  const fill = document.createElement("span");
-  fill.className = "limit-fill";
-  bar.appendChild(fill);
-  item.append(text, bar);
+  const bar = createBar("limit-bar");
+  item.append(text, bar.el);
   root.appendChild(item);
-  return { value, fill };
+  return { value, bar };
 }
 
 function setMeter(m: Meter, v: number) {
   m.value.textContent = `${v}%`;
-  m.fill.style.width = `${v}%`;
+  m.bar.set(v);
 }
 
 /**

@@ -1,3 +1,4 @@
+import { createBar, type Bar } from "./bar";
 import { detailFields } from "./details";
 import type { Session } from "./model";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
@@ -25,8 +26,7 @@ type Row = {
   task: HTMLElement;
   status: HTMLElement;
   label: HTMLElement;
-  ctx: HTMLElement;
-  fill: HTMLElement;
+  ctx: Bar;
   last: Partial<RowView>;
   session: Session;
   details: Details | null;
@@ -55,9 +55,9 @@ function createRow(s: Session): Row {
   const status = el("div", "status", row);
   el("span", "led", status);
   const label = el("span", "label", status);
-  const ctx = el("div", "ctx", row);
-  const fill = el("div", "ctx-fill", ctx);
-  return { el: row, peep, badge, name, task, status, label, ctx, fill, last: {}, session: s, details: null };
+  const ctx = createBar("ctx");
+  row.appendChild(ctx.el);
+  return { el: row, peep, badge, name, task, status, label, ctx, last: {}, session: s, details: null };
 }
 
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
@@ -85,9 +85,8 @@ function updateRow(r: Row, v: RowView) {
     r.badge.title = v.subagents === 1 ? "1 subagent running" : `${v.subagents} subagents running`;
   }
   if (l.contextPct !== v.contextPct) {
-    r.ctx.hidden = v.contextPct === null;
-    r.fill.style.width = v.contextPct === null ? "0" : `${v.contextPct}%`;
-    r.ctx.title = v.contextPct === null ? "" : `Context ${Math.round(v.contextPct)}% used`;
+    r.ctx.set(v.contextPct);
+    r.ctx.el.title = v.contextPct === null ? "" : `Context ${Math.round(v.contextPct)}% used`;
   }
   if (l.alive !== v.alive) r.el.dataset.alive = String(v.alive);
   r.last = v;
@@ -113,7 +112,7 @@ function expand(r: Row) {
     values.set(f.key, dd);
   }
   r.details = { el: d, values };
-  r.el.insertBefore(d, r.ctx);
+  r.el.insertBefore(d, r.ctx.el);
   r.el.classList.add("expanded");
   r.el.setAttribute("aria-expanded", "true");
   r.peep.setAttribute("size", PEEP_SIZE_EXPANDED);

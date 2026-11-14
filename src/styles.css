@@ -12,6 +12,7 @@
   --text-3: #7d7889;
   --accent: #f7d64a;
   --amber: 255, 178, 62;
+  --red: #ff5d5d;
   --radius: 12px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --display: "Fredoka", "IBM Plex Sans", system-ui, sans-serif;
@@ -92,19 +93,29 @@ body {
   color: var(--text-2);
 }
 
-.limit-bar {
-  height: 2px;
-  border-radius: 1px;
-  background: var(--track);
-  overflow: hidden;
+/* Segmented bar: 10 square blocks on the 2px grid; blocks switch in one step, no tween. */
+.bar {
+  display: flex;
+  gap: 2px;
 }
 
-.limit-fill {
-  display: block;
-  height: 100%;
-  width: 0;
+.bar-block {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  background: var(--track);
+}
+
+.bar-block.on {
   background: var(--text-3);
-  transition: width 0.4s ease;
+}
+
+.bar[data-level="amber"] .bar-block.on {
+  background: rgb(var(--amber));
+}
+
+.bar[data-level="red"] .bar-block.on {
+  background: var(--red);
 }
 
 .limit-sep {
@@ -307,21 +318,15 @@ body {
   background: var(--led);
 }
 
+/* Lines up with the text column: row padding + peep + column gap. */
 .ctx {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 3px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--track);
-  overflow: hidden;
+  left: 56px;
+  bottom: 2px;
 }
 
-.ctx-fill {
-  height: 100%;
-  background: var(--text-3);
-  transition: width 0.4s ease;
+.row.expanded .ctx {
+  left: 88px;
 }
 
 .empty {
