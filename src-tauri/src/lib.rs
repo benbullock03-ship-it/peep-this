@@ -26,8 +26,23 @@ fn get_snapshot(store: tauri::State<'_, Arc<Store>>) -> Snapshot {
 }
 
 fn log_snapshot(snap: &Snapshot) {
-    let live: Vec<String> =
-        snap.sessions.iter().filter(|s| s.alive).map(|s| format!("{}={:?}", s.name, s.state)).collect();
+    let live: Vec<String> = snap
+        .sessions
+        .iter()
+        .filter(|s| s.alive)
+        .map(|s| {
+            let agents: Vec<String> = s
+                .agents
+                .iter()
+                .map(|a| format!("{}={:?} tools={} result={:?}", a.agent_type, a.state, a.tool_count, a.result))
+                .collect();
+            if agents.is_empty() {
+                format!("{}={:?}", s.name, s.state)
+            } else {
+                format!("{}={:?} [{}]", s.name, s.state, agents.join("; "))
+            }
+        })
+        .collect();
     println!(
         "peepthis: snapshot {} sessions ({} live): {}",
         snap.sessions.len(),

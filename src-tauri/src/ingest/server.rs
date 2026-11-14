@@ -176,7 +176,7 @@ pub fn parse(route: &Route, body: &[u8]) -> Result<Routed, &'static str> {
     let routed = match route {
         Route::Hook(name) => Routed {
             label: format!("hook {name}"),
-            event: hook_event(name, &v, cwd.as_deref()),
+            event: hook_event(name, &v, cwd.as_deref()).map(|e| scope_to_agent(e, &v)),
             rate_limits: None,
             session_id,
             cwd,
@@ -204,10 +204,16 @@ fn hook_event(name: &str, v: &Value, cwd: Option<&str>) -> Option<Event> {
     Some(match name {
         "SessionStart" => Event::SessionStart,
         "UserPromptSubmit" => Event::UserPromptSubmit,
-        "PreToolUse" => Event::PreToolUse {
-            tool: str_at(v, "/tool_name")?,
-            target: v.get("tool_input").and_then(|i| tool_target(i, cwd)),
-        },
+        "PreToolUse" => {
+            let tool = str_at(v, "/tool_name")?;
+            // The hand-back report is the subagent's result line (spec §11.6).
+            let target = if tool == "SubagentHandback" {
+                str_at(v, "/tool_input/message").and_then(|m| first_line(&m))
+            } else {
+                v.get("tool_input").and_then(|i| tool_target(i, cwd))
+            };
+            Event::PreToolUse { tool, target }
+        }
         "PostToolUse" | "PostToolUseFailure" => Event::PostToolUse,
         // Fires after PreToolUse while the prompt is on screen; approval is followed by PostToolUse.
         "PermissionRequest" => {
@@ -229,10 +235,39 @@ fn hook_event(name: &str, v: &Value, cwd: Option<&str>) -> Option<Event> {
         }
         "Stop" => Event::Stop,
         "StopFailure" => Event::StopFailure { summary: failure_summary(v) },
-        "SubagentStop" => Event::SubagentStop,
+        "SubagentStart" => Event::SubagentStart {
+            agent_id: agent_id(v)?,
+            agent_type: str_at(v, "/agent_type").unwrap_or_default(),
+        },
+        "SubagentStop" => Event::SubagentStop {
+            agent_id: agent_id(v),
+            result: str_at(v, "/last_assistant_message").and_then(|m| first_line(&m)),
+        },
         "SessionEnd" => Event::Ended,
         _ => return None,
     })
+}
+
+fn agent_id(v: &Value) -> Option<String> {
+    str_at(v, "/agent_id").filter(|s| !s.trim().is_empty())
+}
+
+/// Tool and notification events from inside a subagent carry its `agent_id` under the parent's `session_id`.
+fn scope_to_agent(event: Event, v: &Value) -> Event {
+    let Some(agent_id) = agent_id(v) else { return event };
+    match event {
+        Event::PreToolUse { .. } | Event::PostToolUse | Event::Notification { .. } => Event::Subagent {
+            agent_id,
+            agent_type: str_at(v, "/agent_type").unwrap_or_default(),
+            event: Box::new(event),
+        },
+        other => other,
+    }
+}
+
+/// First non-blank line, at most `TEXT_MAX_CHARS`.
+fn first_line(s: &str) -> Option<String> {
+    s.lines().map(str::trim).find(|l| !l.is_empty()).map(clip)
 }
 
 /// First useful string of the tool input; paths under `cwd` are made relative.
@@ -418,7 +453,47 @@ mod tests {
                 "stop_failure.json",
                 Event::StopFailure { summary: "API error: model not found".into() },
             ),
-            ("SubagentStop", "subagent_stop.json", Event::SubagentStop),
+            (
+                "SubagentStop",
+                "subagent_stop.json",
+                Event::SubagentStop {
+                    agent_id: Some("a0123456789abcdef".into()),
+                    result: Some("note.txt says hello".into()),
+                },
+            ),
+            (
+                "SubagentStart",
+                "subagent_start.json",
+                Event::SubagentStart { agent_id: "a0123456789abcdef".into(), agent_type: "general-purpose".into() },
+            ),
+            (
+                "PreToolUse",
+                "subagent_pre_tool_use_read.json",
+                Event::Subagent {
+                    agent_id: "a665acd7e219f0015".into(),
+                    agent_type: "general-purpose".into(),
+                    event: Box::new(Event::PreToolUse { tool: "Read".into(), target: Some("b.txt".into()) }),
+                },
+            ),
+            (
+                "PostToolUse",
+                "subagent_post_tool_use_read.json",
+                Event::Subagent {
+                    agent_id: "a665acd7e219f0015".into(),
+                    agent_type: "general-purpose".into(),
+                    event: Box::new(Event::PostToolUse),
+                },
+            ),
+            (
+                "PermissionRequest",
+                "permission_request_subagent.json",
+                Event::Subagent {
+                    agent_id: "a0123456789abcdef".into(),
+                    agent_type: "general-purpose".into(),
+                    event: Box::new(Event::Notification { message: "Needs permission: Write f.txt".into(), idle: false }),
+                },
+            ),
+            ("PostToolUse", "post_tool_use_agent_async.json", Event::PostToolUse),
             ("SessionEnd", "session_end.json", Event::Ended),
         ];
         for (name, file, want) in cases {
@@ -433,7 +508,118 @@ mod tests {
     #[test]
     fn unknown_hook_names_parse_to_no_event() {
         assert_eq!(hook("PreCompact", "stop.json").event, None);
-        assert_eq!(hook("SubagentStart", "subagent_start.json").event, None);
+    }
+
+    #[test]
+    fn subagent_handback_message_is_the_target_and_events_without_agent_id_stay_unscoped() {
+        let body = format!(
+            r#"{{"session_id":"{SID}","agent_id":"a1","agent_type":"Explore","tool_name":"SubagentHandback","tool_input":{{"message":"\n Found 3 issues\nSECRET"}}}}"#
+        );
+        let r = parse(&Route::Hook("PreToolUse".into()), body.as_bytes()).unwrap();
+        let Some(Event::Subagent { event, .. }) = r.event else { panic!("{r:?}") };
+        assert_eq!(*event, Event::PreToolUse { tool: "SubagentHandback".into(), target: Some("Found 3 issues".into()) });
+
+        let internal = format!(r#"{{"session_id":"{SID}","agent_type":"","last_assistant_message":""}}"#);
+        let r = parse(&Route::Hook("SubagentStop".into()), internal.as_bytes()).unwrap();
+        assert_eq!(r.event, Some(Event::SubagentStop { agent_id: None, result: None }));
+        let r = parse(&Route::Hook("SubagentStart".into()), internal.as_bytes()).unwrap();
+        assert_eq!(r.event, None, "SubagentStart without agent_id is dropped");
+        let r = parse(&Route::Hook("Stop".into()), fixture("subagent_stop.json").replace("SubagentStop", "Stop").as_bytes()).unwrap();
+        assert_eq!(r.event, Some(Event::Stop), "only tool and notification events are scoped");
+    }
+
+    /// Replays a captured session through the HTTP handler; returns each request's status.
+    fn replay(store: &Store, file: &str) -> Vec<u16> {
+        fixture(file)
+            .lines()
+            .enumerate()
+            .map(|(i, line)| {
+                let v: Value = serde_json::from_str(line).unwrap();
+                let url = format!("/hook/{}", v["hook"].as_str().unwrap());
+                let body = v["body"].to_string();
+                let status = handle(store, TOKEN, &req(&url, Some(TOKEN)), body.as_bytes(), 1_000 + i as u64 * 100);
+                let s = &store.snapshot().sessions[0];
+                let agents: Vec<String> = s
+                    .agents
+                    .iter()
+                    .map(|a| format!("{}={:?} {:?} tools={} result={:?}", &a.id[..4], a.state, a.task, a.tool_count, a.result))
+                    .collect();
+                println!("{url}: parent={:?} {:?} | {}", s.state, s.task, agents.join(" | "));
+                status
+            })
+            .collect()
+    }
+
+    #[test]
+    fn replayed_three_agent_fanout_gives_three_children_with_states_tools_and_results() {
+        let store = quiet_store();
+        let statuses = replay(&store, "subagent_fanout.jsonl");
+        assert!(statuses.iter().all(|&c| c == 204), "{statuses:?}");
+        let s = store.snapshot().sessions[0].clone();
+        assert_eq!(s.state, State::Success);
+        assert_eq!(s.task, "Done");
+        assert_eq!(s.last_tool.as_ref().map(|t| t.name.as_str()), Some("Agent"), "subagent Reads never became the parent's tool");
+        let got: Vec<_> = s
+            .agents
+            .iter()
+            .map(|a| (a.description.as_str(), a.state, a.tool_count, a.result.as_deref(), a.ended_at.is_some()))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                ("Read a.txt first line", State::Success, 1, Some("apple"), true),
+                ("Read b.txt first line", State::Success, 1, Some("banana"), true),
+                ("Read c.txt first line", State::Success, 1, Some("cherry"), true),
+            ]
+        );
+        assert!(s.agents.iter().all(|a| a.agent_type == "general-purpose"));
+        assert_eq!(s.agents[1].last_tool, Some(crate::state::LastTool { name: "Read".into(), target: Some("b.txt".into()) }));
+        assert!(!format!("{s:?}").contains("SECRET"));
+    }
+
+    #[test]
+    fn replayed_fanout_midway_shows_each_child_in_its_own_state() {
+        let store = quiet_store();
+        let lines: Vec<_> = fixture("subagent_fanout.jsonl").lines().take(8).map(str::to_owned).collect();
+        for (i, line) in lines.iter().enumerate() {
+            let v: Value = serde_json::from_str(line).unwrap();
+            let url = format!("/hook/{}", v["hook"].as_str().unwrap());
+            handle(&store, TOKEN, &req(&url, Some(TOKEN)), v["body"].to_string().as_bytes(), 1_000 + i as u64);
+        }
+        let s = store.snapshot().sessions[0].clone();
+        assert_eq!(s.state, State::Working);
+        assert_eq!(s.task, "Agent Read c.txt first line");
+        let states: Vec<_> = s.agents.iter().map(|a| (a.state, a.task.as_str())).collect();
+        assert_eq!(
+            states,
+            vec![(State::Thinking, "Thinking"), (State::Working, "Read b.txt"), (State::Thinking, "Thinking")]
+        );
+    }
+
+    #[test]
+    fn replayed_background_agent_outlives_the_turn() {
+        let store = quiet_store();
+        let statuses = replay(&store, "subagent_background.jsonl");
+        assert!(statuses.iter().all(|&c| c == 204));
+        let s = store.snapshot().sessions[0].clone();
+        assert!(!s.alive);
+        assert_eq!(s.agents.len(), 1);
+        let a = &s.agents[0];
+        assert_eq!(a.description, "Nested agent test with b.txt");
+        assert_eq!((a.state, a.tool_count), (State::Success, 1));
+        assert_eq!(a.result.as_deref(), Some("The first line of b.txt is `banana`."));
+        assert!(!format!("{s:?}").contains("SECRET"));
+
+        let store = quiet_store();
+        let first: Vec<_> = fixture("subagent_background.jsonl").lines().take(6).map(str::to_owned).collect();
+        for (i, line) in first.iter().enumerate() {
+            let v: Value = serde_json::from_str(line).unwrap();
+            let url = format!("/hook/{}", v["hook"].as_str().unwrap());
+            handle(&store, TOKEN, &req(&url, Some(TOKEN)), v["body"].to_string().as_bytes(), 1_000 + i as u64);
+        }
+        let s = store.snapshot().sessions[0].clone();
+        assert_eq!(s.state, State::Success, "parent's Stop holds while the background agent works");
+        assert_eq!((s.agents[0].state, s.agents[0].task.as_str()), (State::Working, "Read b.txt"));
     }
 
     #[test]

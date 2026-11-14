@@ -10,7 +10,7 @@
   "hook_event_name": "SubagentStop",
   "stop_hook_active": false,
   "agent_transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444\\subagents\\agent-a0123456789abcdef.jsonl",
-  "last_assistant_message": "SECRET-SUBAGENT-REPORT",
+  "last_assistant_message": "\nnote.txt says hello\n\nSECRET-SUBAGENT-REPORT",
   "background_tasks": [],
   "session_crons": []
 }

@@ -5,7 +5,7 @@ use serde_json::{json, Map, Value};
 use super::server::TOKEN_HEADER;
 
 /// `SessionStart` is absent: Claude Code rejects `http` hooks on it, and the sessions directory covers it.
-pub const EVENTS: [&str; 10] = [
+pub const EVENTS: [&str; 11] = [
     "UserPromptSubmit",
     "PreToolUse",
     "PostToolUse",
@@ -14,6 +14,7 @@ pub const EVENTS: [&str; 10] = [
     "Notification",
     "Stop",
     "StopFailure",
+    "SubagentStart",
     "SubagentStop",
     "SessionEnd",
 ];

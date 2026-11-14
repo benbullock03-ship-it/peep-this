@@ -90,7 +90,8 @@ Rules:
 - `waiting` leaves on the next `PreToolUse`, `PostToolUse`, `UserPromptSubmit` or `Stop`. Order is `PreToolUse`, then `PermissionRequest` while the prompt shows, then `PostToolUse` once the tool has run after approval.
 - A `Notification` with `notification_type: "idle_prompt"` (Claude waiting for a new prompt after finishing) does not override `success`; it maps to `success` with no toast.
 - Without hooks (session predates install, or integration not installed): `busy` in the session file maps to `working`, `idle` to `idle`, with transcript tailing (§6.4) refining it when available.
-- Subagents: `PreToolUse` for the `Task`/`Agent` tool increments the count; `SubagentStop` decrements; clamp at 0; reset on `Stop`. The tool is `Agent` (`Task` is still accepted). A subagent's own tool events carry the parent's `session_id` plus `agent_id`, and drive the parent row like any other tool event.
+- Subagents: `PreToolUse` for the `Task`/`Agent` tool increments the count; `SubagentStop` decrements; clamp at 0; reset on `Stop`. The tool is `Agent` (`Task` is still accepted). The count stays until AV-28.
+- Subagent entries (AV-27): events with `agent_id` set drive that agent's own `Agent` entry by the same rules and never the parent's task or tool; they reset the parent's stuck timer. `SubagentStart` creates the entry (fallback: the first event with a new `agent_id`), taking its description from the oldest queued `PreToolUse Agent`. `SubagentStop` ends it with a result line: the first line of `last_assistant_message`, or a hand-back message. A subagent's permission request puts the parent in `waiting` until that agent's next event. `Stop` does not end agents, so background agents outlive the turn. Nested agents are listed flat. Up to 20 finished agents are kept.
 
 The derivation is a pure function `(SessionState, Event, now) -> SessionState` in Rust, fully unit-tested from fixtures. Timers call the same function with a synthetic `Tick` event.
 
@@ -155,6 +156,8 @@ type Session = {
   task: string;
   lastTool?: { name: string; target?: string };
   subagents: number;
+  agents: { id: string; agentType: string; description: string; state: string; stateSince: number; task: string;
+            lastTool?: { name: string; target?: string }; startedAt: number; endedAt?: number; toolCount: number; result?: string }[];
   contextPct?: number;   // used, 0–100
   alive: boolean;
   endedAt?: number;
@@ -171,7 +174,7 @@ type Session = {
 
 Native Claude Code HTTP hooks (`"type": "http"`), verified in AV-06; there is no forwarder binary. Each entry POSTs the hook JSON to `http://127.0.0.1:<port>/hook/<EventName>` with the token as a literal `X-PeepThis-Token` header and `"timeout": 1`. Built by `ingest/hooks.rs`. An unreachable widget is a non-blocking hook error and never fails a turn. The server answers 204 with an empty body, which Claude Code treats as no decision (this matters for `PermissionRequest`).
 
-Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStop`, `SessionEnd`. `SessionStart` does not accept `http` hooks; the sessions directory covers it.
+Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd`. `SessionStart` does not accept `http` hooks; the sessions directory covers it.
 
 The token persists in `endpoint.json` across restarts, because settings.json holds it literally. The URL holds the port, so hooks reach the widget only on the default port 47821.
 
@@ -265,7 +268,7 @@ Every allow, deny, release and auto-allow is logged locally with time, session, 
 
 ### 11.6 Subagent child rows (AV-27, AV-28)
 
-Replaces the count badge (§3.3) and the subagent rule in §4. Each running subagent is an indented child row with its own 32px peep in the parent's colour, an accessory hashed from the agent type, its own state and current tool. On finish it shows its result's first line, duration and tool count for 30s, then folds into a "done N" counter on the parent. More than 4 running collapse to "+N more". Peep art is used unchanged.
+Replaces the count badge (§3.3) and the subagent rule in §4. Each running subagent is an indented child row with its own 32px peep in the parent's colour, an accessory hashed from the agent type, its own state and current tool. On finish it shows its result's first line, duration and tool count for 30s, then folds into a "done N" counter on the parent. More than 4 running collapse to "+N more". Peep art is used unchanged. The tracking behind it is built (AV-27, §4); the rows are AV-28.
 
 ### 11.7 Background shells (AV-29, AV-30)
 

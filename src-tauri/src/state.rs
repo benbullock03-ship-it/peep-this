@@ -3,6 +3,9 @@ use serde::Serialize;
 pub const STUCK_AFTER_MS: u64 = 6 * 60 * 1000;
 pub const HOOK_FRESH_MS: u64 = 10 * 1000;
 pub const TARGET_MAX_CHARS: usize = 60;
+/// Finished agents kept per session; the oldest are dropped first.
+pub const FINISHED_AGENTS_KEPT: usize = 20;
+const PENDING_AGENTS_MAX: usize = 8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -40,6 +43,7 @@ pub struct Session {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_tool: Option<LastTool>,
     pub subagents: u32,
+    pub agents: Vec<Agent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
     pub alive: bool,
@@ -56,6 +60,38 @@ pub struct Session {
     /// Statusline display names win over transcript model ids once seen.
     #[serde(skip)]
     pub model_from_statusline: bool,
+    /// Descriptions of `Agent` calls not yet bound to an `agent_id`, oldest first.
+    #[serde(skip)]
+    pub pending_agents: Vec<String>,
+    /// Set while `waiting` came from a subagent's prompt: (agent id, state and task to return to).
+    #[serde(skip)]
+    pub waiting_on_agent: Option<(String, State, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Agent {
+    pub id: String,
+    pub agent_type: String,
+    pub description: String,
+    pub state: State,
+    pub state_since: u64,
+    pub task: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_tool: Option<LastTool>,
+    pub started_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ended_at: Option<u64>,
+    pub tool_count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<String>,
+    #[serde(skip)]
+    pub last_event_at: u64,
+    #[serde(skip)]
+    pub pre_stuck: Option<State>,
+    /// `SubagentHandback` report; wins over `last_assistant_message` as the result.
+    #[serde(skip)]
+    pub handback: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,7 +104,11 @@ pub enum Event {
     Notification { message: String, idle: bool },
     Stop,
     StopFailure { summary: String },
-    SubagentStop,
+    SubagentStart { agent_id: String, agent_type: String },
+    /// `agent_id` is unknown for Claude Code's internal agents; `result` is the first line of the final message.
+    SubagentStop { agent_id: Option<String>, result: Option<String> },
+    /// A tool or notification event fired inside a subagent (payload had `agent_id`).
+    Subagent { agent_id: String, agent_type: String, event: Box<Event> },
     /// `status` field of the session file: `busy` = true, `idle` = false.
     SessionFile { busy: bool },
     TranscriptToolUse { tool: String, target: Option<String> },
@@ -104,6 +144,7 @@ impl Session {
             task: "Idle".into(),
             last_tool: None,
             subagents: 0,
+            agents: Vec::new(),
             context_pct: None,
             alive: true,
             ended_at: None,
@@ -111,7 +152,72 @@ impl Session {
             last_hook_at: None,
             pre_stuck: None,
             model_from_statusline: false,
+            pending_agents: Vec::new(),
+            waiting_on_agent: None,
         }
+    }
+
+    /// The agent with this id, created if unknown; a new one takes the oldest pending `Agent` description.
+    fn agent_mut(&mut self, id: &str, agent_type: &str, now: u64) -> &mut Agent {
+        let i = match self.agents.iter().position(|a| a.id == id) {
+            Some(i) => i,
+            None => {
+                let description = if self.pending_agents.is_empty() {
+                    String::new()
+                } else {
+                    self.pending_agents.remove(0)
+                };
+                self.agents.push(Agent::new(id, agent_type, description, now));
+                self.agents.len() - 1
+            }
+        };
+        &mut self.agents[i]
+    }
+
+    fn running_agent_mut(&mut self, id: &str) -> Option<&mut Agent> {
+        self.agents.iter_mut().find(|a| a.id == id && a.ended_at.is_none())
+    }
+
+    fn drop_old_finished_agents(&mut self) {
+        let finished = self.agents.iter().filter(|a| a.ended_at.is_some()).count();
+        let mut excess = finished.saturating_sub(FINISHED_AGENTS_KEPT);
+        self.agents.retain(|a| {
+            if excess > 0 && a.ended_at.is_some() {
+                excess -= 1;
+                return false;
+            }
+            true
+        });
+    }
+
+    fn push_pending_agent(&mut self, description: Option<String>) {
+        if self.pending_agents.len() >= PENDING_AGENTS_MAX {
+            self.pending_agents.remove(0);
+        }
+        self.pending_agents.push(description.unwrap_or_default());
+    }
+
+    /// Leaves a `waiting` that this agent's prompt caused once the agent moves on.
+    fn release_agent_wait(&mut self, agent_id: &str, now: u64) -> bool {
+        if self.state != State::Waiting || self.waiting_on_agent.as_ref().is_none_or(|w| w.0 != agent_id) {
+            return false;
+        }
+        let (_, back, task) = self.waiting_on_agent.take().expect("checked above");
+        let (back, task) = match back {
+            State::Stuck | State::Waiting => (State::Working, self.working_task()),
+            _ => (back, task),
+        };
+        self.enter(back, task, now);
+        true
+    }
+
+    fn notify(&mut self, message: String, now: u64) {
+        if self.state == State::Waiting && !self.task.trim().is_empty() {
+            // The permission_prompt Notification ("Claude needs your permission") trails PermissionRequest; keep its tool text.
+            return;
+        }
+        self.waiting_on_agent = None;
+        self.enter(State::Waiting, waiting_task(message), now);
     }
 
     fn hooks_fresh(&self, now: u64) -> bool {
@@ -125,6 +231,9 @@ impl Session {
         }
         if state != State::Stuck {
             self.pre_stuck = None;
+        }
+        if state != State::Waiting {
+            self.waiting_on_agent = None;
         }
         self.state = state;
         self.task = task;
@@ -144,6 +253,115 @@ impl Session {
             Some(LastTool { name, target: None }) => name.clone(),
             None => "Working".into(),
         }
+    }
+}
+
+impl Agent {
+    pub fn new(id: impl Into<String>, agent_type: impl Into<String>, description: String, now: u64) -> Self {
+        Agent {
+            id: id.into(),
+            agent_type: agent_type.into(),
+            description,
+            state: State::Thinking,
+            state_since: now,
+            task: "Thinking".into(),
+            last_tool: None,
+            started_at: now,
+            ended_at: None,
+            tool_count: 0,
+            result: None,
+            last_event_at: now,
+            pre_stuck: None,
+            handback: None,
+        }
+    }
+
+    fn enter(&mut self, state: State, task: String, now: u64) {
+        if state != self.state {
+            self.state_since = now;
+        }
+        if state != State::Stuck {
+            self.pre_stuck = None;
+        }
+        self.state = state;
+        self.task = task;
+    }
+
+    fn working_task(&self) -> String {
+        match &self.last_tool {
+            Some(LastTool { name, target: Some(t) }) => format!("{name} {t}"),
+            Some(LastTool { name, target: None }) => name.clone(),
+            None => "Working".into(),
+        }
+    }
+
+    fn unstick(&mut self, now: u64) {
+        if self.state == State::Stuck {
+            let back = self.pre_stuck.unwrap_or(State::Thinking);
+            let task = if back == State::Working { self.working_task() } else { "Thinking".into() };
+            self.enter(back, task, now);
+        }
+    }
+
+    /// The agent's own transitions: the parent's rules for tool and notification events.
+    fn apply(&mut self, event: &Event, now: u64) {
+        self.last_event_at = now;
+        match event {
+            Event::PreToolUse { tool, target } => {
+                self.tool_count += 1;
+                if tool == "SubagentHandback" {
+                    self.handback = target.clone();
+                }
+                let target = target.as_ref().map(|t| truncate(t, TARGET_MAX_CHARS));
+                self.last_tool = Some(LastTool { name: tool.clone(), target });
+                let task = self.working_task();
+                self.enter(State::Working, task, now);
+            }
+            Event::PostToolUse => self.enter(State::Thinking, "Thinking".into(), now),
+            Event::Notification { idle: true, .. } => self.unstick(now),
+            Event::Notification { message, idle: false } => {
+                if !(self.state == State::Waiting && !self.task.trim().is_empty()) {
+                    self.enter(State::Waiting, waiting_task(message.clone()), now);
+                }
+            }
+            _ => self.unstick(now),
+        }
+    }
+
+    fn finish(&mut self, result: Option<String>, now: u64) {
+        self.last_event_at = now;
+        self.result = self.handback.take().or(result).filter(|r| !r.trim().is_empty());
+        self.enter(State::Success, "Done".into(), now);
+        self.ended_at = Some(now);
+    }
+
+    fn tick(&mut self, now: u64) {
+        if self.ended_at.is_some() {
+            return;
+        }
+        let quiet = now.saturating_sub(self.last_event_at);
+        match self.state {
+            State::Thinking | State::Working if quiet >= STUCK_AFTER_MS => {
+                self.pre_stuck = Some(self.state);
+                self.state = State::Stuck;
+                self.state_since = now;
+                self.task = stuck_task(quiet);
+            }
+            State::Stuck => self.task = stuck_task(quiet),
+            _ => {}
+        }
+    }
+
+    pub fn is_busy(&self) -> bool {
+        self.ended_at.is_none() && matches!(self.state, State::Thinking | State::Working | State::Stuck)
+    }
+}
+
+fn waiting_task(message: String) -> String {
+    if message.trim().is_empty() {
+        "Waiting for input".to_string()
+    } else {
+        message
     }
 }
 
@@ -188,6 +406,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
 
     match event {
         Event::Tick => {
+            s.agents.iter_mut().for_each(|a| a.tick(now));
             let quiet = now.saturating_sub(s.last_event_at);
             match s.state {
                 State::Thinking | State::Working if quiet >= STUCK_AFTER_MS => {
@@ -223,6 +442,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             s.enter(st, task.into(), now);
             s.alive = false;
             s.ended_at = Some(now);
+            for a in s.agents.iter_mut().filter(|a| a.ended_at.is_none()) {
+                a.enter(State::Idle, "Idle".into(), now);
+                a.ended_at = Some(now);
+            }
             return s;
         }
         Event::SessionFile { busy } => {
@@ -260,7 +483,9 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             | Event::Notification { .. }
             | Event::Stop
             | Event::StopFailure { .. }
-            | Event::SubagentStop
+            | Event::SubagentStart { .. }
+            | Event::SubagentStop { .. }
+            | Event::Subagent { .. }
     );
     if is_hook {
         s.last_hook_at = Some(now);
@@ -271,6 +496,9 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::SessionStart => s.enter(State::Idle, "Idle".into(), now),
         Event::UserPromptSubmit => s.enter(State::Thinking, "Thinking".into(), now),
         Event::PreToolUse { tool, target } | Event::TranscriptToolUse { tool, target } => {
+            if is_hook && is_subagent_tool(&tool) {
+                s.push_pending_agent(target.clone());
+            }
             // Only hooks count subagents: SubagentStop is hook-only, and a transcript line racing its PreToolUse would count twice.
             s.set_tool(tool, target, is_hook);
             if s.state != State::Success {
@@ -286,27 +514,65 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::Notification { message, idle } => {
             if idle {
                 unstick(&mut s);
-            } else if s.state == State::Waiting && !s.task.trim().is_empty() {
-                // The permission_prompt Notification ("Claude needs your permission") trails PermissionRequest; keep its tool text.
             } else {
-                let task = if message.trim().is_empty() {
-                    "Waiting for input".to_string()
-                } else {
-                    message
-                };
-                s.enter(State::Waiting, task, now);
+                s.notify(message, now);
             }
         }
         Event::Stop => {
+            // Background agents outlive the turn, so `agents` is left alone.
             s.subagents = 0;
+            s.pending_agents.clear();
             s.enter(State::Success, "Done".into(), now);
         }
         Event::StopFailure { summary } | Event::TranscriptApiError { summary } => {
             let task = if summary.trim().is_empty() { "Error".to_string() } else { summary };
             s.enter(State::Error, task, now);
         }
-        Event::SubagentStop => {
+        Event::SubagentStart { agent_id, agent_type } => {
+            let a = s.agent_mut(&agent_id, &agent_type, now);
+            if a.ended_at.is_some() {
+                // Resumed subagent or agent-team teammate taking a new message.
+                *a = Agent { description: a.description.clone(), ..Agent::new(&agent_id, agent_type, String::new(), now) };
+            }
+            unstick(&mut s);
+        }
+        Event::Subagent { agent_id, agent_type, event } => {
+            let parent_was_waiting = s.state == State::Waiting;
+            let prior = (s.state, s.task.clone());
+            let a = s.agent_mut(&agent_id, &agent_type, now);
+            if a.ended_at.is_none() {
+                a.apply(&event, now);
+            }
+            match *event {
+                Event::Notification { message, idle: false } => {
+                    // The parent row carries the alert; its own task stays put underneath.
+                    s.notify(message, now);
+                    if !parent_was_waiting {
+                        s.waiting_on_agent = Some((agent_id, prior.0, prior.1));
+                    }
+                }
+                Event::PreToolUse { tool, target } if is_subagent_tool(&tool) => {
+                    s.push_pending_agent(target);
+                    if !s.release_agent_wait(&agent_id, now) {
+                        unstick(&mut s);
+                    }
+                }
+                _ => {
+                    if !s.release_agent_wait(&agent_id, now) {
+                        unstick(&mut s);
+                    }
+                }
+            }
+        }
+        Event::SubagentStop { agent_id, result } => {
             s.subagents = s.subagents.saturating_sub(1);
+            if let Some(id) = agent_id {
+                if let Some(a) = s.running_agent_mut(&id) {
+                    a.finish(result, now);
+                    s.drop_old_finished_agents();
+                }
+                s.release_agent_wait(&id, now);
+            }
             unstick(&mut s);
         }
         Event::SessionFile { .. }
@@ -325,6 +591,7 @@ mod tests {
 
     const T0: u64 = 1_000_000;
     const MIN: u64 = 60_000;
+    const SUB_STOP: Event = Event::SubagentStop { agent_id: None, result: None };
 
     fn fresh() -> Session {
         Session::new("s1", 42, "agentview", "F:/p", "interactive", "cli", T0)
@@ -532,7 +799,7 @@ mod tests {
     fn any_event_resets_stuck_timer() {
         let s = run(vec![
             (Event::UserPromptSubmit, T0),
-            (Event::SubagentStop, T0 + 5 * MIN),
+            (SUB_STOP, T0 + 5 * MIN),
             (Event::Tick, T0 + 7 * MIN),
         ]);
         assert_eq!(s.state, State::Thinking);
@@ -563,7 +830,7 @@ mod tests {
     #[test]
     fn stuck_returns_to_previous_state_on_non_transition_event() {
         let stuck = run(vec![(pre("Bash", Some("make")), T0), (Event::Tick, T0 + 7 * MIN)]);
-        let s = apply(stuck.clone(), Event::SubagentStop, T0 + 8 * MIN);
+        let s = apply(stuck.clone(), SUB_STOP, T0 + 8 * MIN);
         assert_eq!(s.state, State::Working);
         assert_eq!(s.task, "Bash make");
         assert_eq!(s.state_since, T0 + 8 * MIN);
@@ -585,7 +852,7 @@ mod tests {
     #[test]
     fn waiting_holds_on_other_events() {
         let waiting = run(vec![(notif("perm", false), T0 + 1)]);
-        for e in [Event::SubagentStop, Event::Tick, notif("idle", true), Event::SessionFile { busy: true }] {
+        for e in [SUB_STOP, Event::Tick, notif("idle", true), Event::SessionFile { busy: true }] {
             assert_eq!(apply(waiting.clone(), e, T0 + 60 * MIN).state, State::Waiting);
         }
     }
@@ -598,7 +865,7 @@ mod tests {
         for e in [
             pre("Read", Some("a")),
             Event::PostToolUse,
-            Event::SubagentStop,
+            SUB_STOP,
             Event::Tick,
             Event::SessionFile { busy: false },
         ] {
@@ -642,14 +909,228 @@ mod tests {
             (pre("Bash", Some("ls")), T0 + 3),
         ]);
         assert_eq!(s.subagents, 2);
-        let s = apply(s, Event::SubagentStop, T0 + 4);
+        let s = apply(s, SUB_STOP, T0 + 4);
         assert_eq!(s.subagents, 1);
-        let s = apply(apply(s, Event::SubagentStop, T0 + 5), Event::SubagentStop, T0 + 6);
+        let s = apply(apply(s, SUB_STOP, T0 + 5), SUB_STOP, T0 + 6);
         assert_eq!(s.subagents, 0);
         let s = apply(apply(s, pre("Task", None), T0 + 7), pre("Task", None), T0 + 8);
         assert_eq!(s.subagents, 2);
         let s = apply(s, Event::Stop, T0 + 9);
         assert_eq!(s.subagents, 0);
+    }
+
+    // --- per-agent tracking (§11.6) ---
+
+    fn start(id: &str) -> Event {
+        Event::SubagentStart { agent_id: id.into(), agent_type: "Explore".into() }
+    }
+
+    fn sub(id: &str, e: Event) -> Event {
+        Event::Subagent { agent_id: id.into(), agent_type: "Explore".into(), event: Box::new(e) }
+    }
+
+    fn sub_stop(id: &str, result: &str) -> Event {
+        Event::SubagentStop { agent_id: Some(id.into()), result: Some(result.into()) }
+    }
+
+    #[test]
+    fn agent_lifecycle_tracks_state_tools_and_result() {
+        let s = run(vec![
+            (Event::UserPromptSubmit, T0),
+            (pre("Agent", Some("find endpoints")), T0 + 1),
+            (start("a1"), T0 + 2),
+        ]);
+        let a = &s.agents[0];
+        assert_eq!((a.id.as_str(), a.agent_type.as_str(), a.description.as_str()), ("a1", "Explore", "find endpoints"));
+        assert_eq!((a.state, a.task.as_str(), a.started_at, a.tool_count), (State::Thinking, "Thinking", T0 + 2, 0));
+        assert!(s.pending_agents.is_empty());
+
+        let s = apply(s, sub("a1", pre("Grep", Some("route"))), T0 + 3);
+        assert_eq!((s.agents[0].state, s.agents[0].task.as_str()), (State::Working, "Grep route"));
+        let s = apply(s, sub("a1", Event::PostToolUse), T0 + 4);
+        assert_eq!(s.agents[0].state, State::Thinking);
+        let s = apply(s, sub_stop("a1", "Found 12 endpoints"), T0 + 5);
+        let a = &s.agents[0];
+        assert_eq!((a.state, a.task.as_str(), a.ended_at, a.tool_count), (State::Success, "Done", Some(T0 + 5), 1));
+        assert_eq!(a.result.as_deref(), Some("Found 12 endpoints"));
+        assert_eq!(s.subagents, 0);
+    }
+
+    #[test]
+    fn subagent_tool_events_do_not_touch_parent_task_or_tool() {
+        let s = run(vec![
+            (pre("Agent", Some("explore")), T0),
+            (start("a1"), T0 + 1),
+            (sub("a1", pre("Read", Some("x.rs"))), T0 + 2),
+            (sub("a1", Event::PostToolUse), T0 + 3),
+        ]);
+        assert_eq!(s.state, State::Working);
+        assert_eq!(s.task, "Agent explore");
+        assert_eq!(s.last_tool.as_ref().unwrap().name, "Agent");
+        assert_eq!(s.state_since, T0);
+    }
+
+    #[test]
+    fn subagent_events_keep_parent_from_going_stuck() {
+        let s = run(vec![
+            (pre("Agent", Some("long")), T0),
+            (start("a1"), T0 + 1),
+            (sub("a1", pre("Bash", Some("make"))), T0 + 5 * MIN),
+            (Event::Tick, T0 + 7 * MIN),
+        ]);
+        assert_eq!(s.state, State::Working);
+        let s = apply(s, Event::Tick, T0 + 11 * MIN);
+        assert_eq!(s.state, State::Stuck);
+        assert_eq!(s.agents[0].state, State::Stuck);
+        assert_eq!(s.agents[0].task, "No response for 6 min");
+        let s = apply(s, sub("a1", Event::PostToolUse), T0 + 12 * MIN);
+        assert_eq!(s.agents[0].state, State::Thinking);
+        assert_eq!(s.state, State::Working, "parent returns to its pre-stuck state");
+    }
+
+    #[test]
+    fn subagent_permission_puts_parent_in_waiting_until_that_agent_moves_on() {
+        let s = run(vec![
+            (pre("Agent", Some("write it")), T0),
+            (start("a1"), T0 + 1),
+            (start("a2"), T0 + 1),
+            (sub("a1", pre("Write", Some("f.txt"))), T0 + 2),
+            (sub("a1", notif("Needs permission: Write f.txt", false)), T0 + 3),
+        ]);
+        assert_eq!((s.state, s.task.as_str()), (State::Waiting, "Needs permission: Write f.txt"));
+        assert_eq!(s.agents[0].state, State::Waiting);
+        let s = apply(s, notif("Claude needs your permission", false), T0 + 4);
+        assert_eq!(s.task, "Needs permission: Write f.txt");
+        let s = apply(s, sub("a2", pre("Read", Some("y"))), T0 + 5);
+        assert_eq!(s.state, State::Waiting, "another agent's tool does not release it");
+        let s = apply(s, sub("a1", Event::PostToolUse), T0 + 6);
+        assert_eq!((s.state, s.task.as_str(), s.state_since), (State::Working, "Agent write it", T0 + 6));
+        assert_eq!(s.agents[0].state, State::Thinking);
+    }
+
+    #[test]
+    fn background_agent_permission_after_stop_returns_parent_to_success() {
+        let s = run(vec![
+            (pre("Agent", Some("bg")), T0),
+            (start("a1"), T0 + 1),
+            (Event::PostToolUse, T0 + 2),
+            (Event::Stop, T0 + 3),
+            (sub("a1", notif("Needs permission: Bash rm", false)), T0 + 4),
+        ]);
+        assert_eq!(s.state, State::Waiting);
+        let s = apply(s, sub_stop("a1", "done"), T0 + 5);
+        assert_eq!((s.state, s.task.as_str()), (State::Success, "Done"));
+    }
+
+    #[test]
+    fn background_agent_outlives_stop() {
+        let s = run(vec![
+            (pre("Agent", Some("bg")), T0),
+            (start("a1"), T0 + 1),
+            (Event::PostToolUse, T0 + 2),
+            (Event::Stop, T0 + 3),
+            (sub("a1", pre("Read", Some("b.txt"))), T0 + 4),
+        ]);
+        assert_eq!(s.state, State::Success);
+        assert_eq!((s.agents[0].state, s.agents[0].task.as_str()), (State::Working, "Read b.txt"));
+        assert!(s.agents[0].is_busy());
+        let s = apply(s, sub_stop("a1", "banana"), T0 + 5);
+        assert_eq!(s.agents[0].result.as_deref(), Some("banana"));
+        assert_eq!(s.state, State::Success);
+    }
+
+    #[test]
+    fn agent_without_subagent_start_is_created_by_its_first_event() {
+        let s = run(vec![
+            (pre("Agent", Some("first")), T0),
+            (pre("Agent", Some("second")), T0 + 1),
+            (sub("a2", pre("Read", Some("x"))), T0 + 2),
+        ]);
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!((s.agents[0].id.as_str(), s.agents[0].description.as_str()), ("a2", "first"));
+        assert_eq!(s.agents[0].started_at, T0 + 2);
+        assert_eq!(s.pending_agents, vec!["second".to_string()]);
+        assert!(run(vec![(pre("Agent", None), T0), (Event::Stop, T0 + 1)]).pending_agents.is_empty());
+    }
+
+    #[test]
+    fn unknown_or_internal_subagent_stop_creates_no_agent() {
+        let s = run(vec![(Event::Stop, T0), (SUB_STOP, T0 + 1), (sub_stop("zz", "x"), T0 + 2)]);
+        assert!(s.agents.is_empty());
+        assert_eq!(s.state, State::Success);
+    }
+
+    #[test]
+    fn handback_report_wins_over_closing_text() {
+        let s = run(vec![
+            (start("a1"), T0),
+            (sub("a1", pre("SubagentHandback", Some("Found 3 issues"))), T0 + 1),
+            (sub_stop("a1", "Handed back."), T0 + 2),
+        ]);
+        assert_eq!(s.agents[0].result.as_deref(), Some("Found 3 issues"));
+        assert_eq!(s.agents[0].tool_count, 1);
+    }
+
+    #[test]
+    fn resumed_agent_restarts_keeping_its_description() {
+        let s = run(vec![
+            (pre("Agent", Some("review")), T0),
+            (start("a1"), T0 + 1),
+            (sub_stop("a1", "ok"), T0 + 2),
+            (start("a1"), T0 + 3),
+        ]);
+        let a = &s.agents[0];
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!((a.state, a.ended_at, a.result.as_deref(), a.description.as_str()), (State::Thinking, None, None, "review"));
+        assert_eq!(a.started_at, T0 + 3);
+    }
+
+    #[test]
+    fn events_for_finished_agents_are_ignored() {
+        let s = run(vec![(start("a1"), T0), (sub_stop("a1", "ok"), T0 + 1), (sub("a1", pre("Read", None)), T0 + 2)]);
+        assert_eq!((s.agents[0].state, s.agents[0].tool_count), (State::Success, 0));
+    }
+
+    #[test]
+    fn finished_agents_are_capped_oldest_first() {
+        let mut s = fresh();
+        for i in 0..FINISHED_AGENTS_KEPT + 3 {
+            let id = format!("a{i}");
+            s = apply(apply(s, start(&id), T0 + i as u64), sub_stop(&id, "ok"), T0 + i as u64);
+        }
+        s = apply(s, start("live"), T0 + 100);
+        assert_eq!(s.agents.len(), FINISHED_AGENTS_KEPT + 1);
+        assert_eq!(s.agents[0].id, "a3");
+        assert_eq!(s.agents.last().unwrap().id, "live");
+    }
+
+    #[test]
+    fn session_end_ends_running_agents() {
+        let s = run(vec![(start("a1"), T0), (start("a2"), T0), (sub_stop("a2", "ok"), T0 + 1), (Event::Ended, T0 + 2)]);
+        assert_eq!((s.agents[0].state, s.agents[0].ended_at), (State::Idle, Some(T0 + 2)));
+        assert_eq!((s.agents[1].state, s.agents[1].ended_at), (State::Success, Some(T0 + 1)));
+    }
+
+    #[test]
+    fn agents_serialise_in_snapshot_shape() {
+        let s = run(vec![(pre("Agent", Some("explore")), T0), (start("a1"), T0 + 1), (sub("a1", pre("Read", Some("a"))), T0 + 2)]);
+        let v = serde_json::to_value(&s).unwrap();
+        let a = &v["agents"][0];
+        assert_eq!(a["id"], "a1");
+        assert_eq!(a["agentType"], "Explore");
+        assert_eq!(a["description"], "explore");
+        assert_eq!(a["state"], "working");
+        assert_eq!(a["stateSince"], T0 + 2);
+        assert_eq!(a["task"], "Read a");
+        assert_eq!(a["lastTool"]["name"], "Read");
+        assert_eq!(a["startedAt"], T0 + 1);
+        assert_eq!(a["toolCount"], 1);
+        for absent in ["endedAt", "result", "handback", "lastEventAt", "preStuck"] {
+            assert!(a.get(absent).is_none(), "unexpected {absent}");
+        }
+        for absent in ["pendingAgents", "waitingOnAgent"] {
+            assert!(v.get(absent).is_none(), "unexpected {absent}");
+        }
     }
 
     // --- hook-less fallback ---

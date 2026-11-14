@@ -1,0 +1,19 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "default",
+  "agent_id": "a665acd7e219f0015",
+  "agent_type": "general-purpose",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": { "file_path": "C:\\work\\demo\\b.txt" },
+  "tool_response": {
+    "type": "text",
+    "file": { "filePath": "C:\\work\\demo\\b.txt", "content": "SECRET-OUTPUT\n", "numLines": 2, "startLine": 1, "totalLines": 2 }
+  },
+  "tool_use_id": "toolu_016o2gwckC9xDHj5Hs6VKxQ5",
+  "duration_ms": 21
+}

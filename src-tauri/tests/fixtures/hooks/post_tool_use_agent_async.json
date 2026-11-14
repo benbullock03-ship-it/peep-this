@@ -1,0 +1,25 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "default",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Nested agent test with b.txt",
+    "prompt": "SECRET-SUBAGENT-PROMPT",
+    "subagent_type": "general-purpose",
+    "run_in_background": true
+  },
+  "tool_response": {
+    "isAsync": true,
+    "status": "async_launched",
+    "agentId": "a127fc11f21b703bc",
+    "description": "Nested agent test with b.txt",
+    "outputFile": "C:\\Users\\user\\AppData\\Local\\Temp\\claude\\0000000000000000\\aaaaaaaa-1111-4222-8333-444444444444\\tasks\\a127fc11f21b703bc.output"
+  },
+  "tool_use_id": "toolu_015MzvfBqT99FU8LEYt2z4Sp",
+  "duration_ms": 8
+}
