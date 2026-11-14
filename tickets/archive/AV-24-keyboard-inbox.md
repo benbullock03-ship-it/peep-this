@@ -1,7 +1,7 @@
 ---
 id: AV-24
 title: Keyboard approval inbox on a global hotkey
-status: in-progress
+status: done
 depends: [AV-23]
 attended: false
 ---
@@ -20,10 +20,21 @@ attended: false
 
 **Done when:** the owner cleared three pending approvals from three sessions using only the keyboard and ended up back in the window they started in.
 
-## Owed before done
+## Done 2026-11-14
 
-- Live check in `npm run tauri dev` (restart: new crate): `Ctrl+Alt+I` from another app focuses the oldest card; clear three from three sessions with Y/N/R incl. a destructive 1s hold; end back in the starting window. Also Esc partway, Enter to a terminal, Tab/Shift+Tab, nothing-pending blink, badge, and a clashing hotkey showing the amber notice.
-- Unverified without a desktop: real registration and clash, focus past the Windows foreground lock, focus return. Keys and ordering were checked in headless Chrome against demo data.
+Live check by Claude at the owner's request, in `npm run tauri dev`, with real keystrokes (`keybd_event`) and three held requests from three sessions:
+
+- Badge "3", title "3 pending approvals · Ctrl+Alt+I to review".
+- `Ctrl+Alt+I` from Notepad raised the widget past the foreground lock and focused the oldest card. Tab / Shift+Tab moved focus.
+- Y allowed the safe card. A 300ms Y on the destructive card did nothing, and a 1.3s hold allowed it. R, typed reason and Enter denied with that reason. Hook responses matched.
+- Esc partway returned focus to Notepad.
+- Enter on a card for this session focused its VS Code window, and the broker released that request at once (terminal focused).
+- Emptying the inbox from a VS Code start returned focus to VS Code.
+- A press with nothing pending flashed the title (`is-flash` for about 1s) and left the foreground alone.
+- Clash on rebind (Ctrl+Alt+K held by another process): settings shows the error and Ctrl+Alt+I stays live.
+- Clash at startup (Ctrl+Alt+I held): the amber list notice shows, Change opens settings, and saving Ctrl+Alt+I once free clears it. `inboxHotkey` is now stored in settings.json.
+
+Follow-up, not blocking: the clash message ends with raw Rust debug text ("HotKey already registered: HotKey { mods: Modifiers(ALT | CONTROL), key: KeyK, id: 589853 }"). Trim it to "Another app is probably using it."
 
 Decide: default hotkey (recommended: `Ctrl+Alt+I`; `Ctrl+Alt+P` is the panel/strip toggle since the surface grill, AV-40). Decide: a separate centred overlay window vs focusing the docked widget (recommended: focus the docked widget; one surface).
 
