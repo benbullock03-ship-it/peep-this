@@ -1,7 +1,7 @@
 ---
 id: AV-36
 title: Segmented pixel bars for context and rate limits
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -29,6 +29,6 @@ Decide: thresholds 70/90 (recommended) vs matching Claude Code's own context war
 - The row bar no longer spans the row; it sits at the row's bottom under the text column (left 56px, 88px when expanded), since square blocks cannot stretch to the full width.
 - `?demo` context values are now 74 (amber), 35, 93 (red), 12, 47 and none; demo rate limits stay 42/18 (a test pins them).
 
-## Owed before done
+## Owner check
 
-- Owner check in `npm run tauri dev` with `?demo`: ingest-01 7 amber, triage-03 9 red, research-02 / digest-04 / sync-05 4 / 1 / 5 neutral, scrape-06 no bar; row bar sits under the name and follows expand; header 5h/7d show % over blocks and still drags; blocks switch in one step.
+- Confirmed by the owner in `npm run tauri dev` on 2026-11-14: in `npm run tauri dev` with `?demo`: ingest-01 7 amber, triage-03 9 red, research-02 / digest-04 / sync-05 4 / 1 / 5 neutral, scrape-06 no bar; row bar sits under the name and follows expand; header 5h/7d show % over blocks and still drags; blocks switch in one step.
