@@ -261,6 +261,8 @@ Built in `risk.rs` (AV-22): `classify(tool, input, cwd) -> Verdict { tier, field
 
 A session with a pending request opens a card under its row: a compact coloured diff of the real change for `Edit`/`Write`, the full command with the risky token highlighted and the cwd for shells, key arguments for other tools. Allow, Deny, Deny with reason, and a countdown to release. The waiting toast gains Allow and Deny for the `safe` tier only.
 
+Built: the card in `src/approvalCard.ts` with pure helpers in `src/approval.ts` (AV-23); destructive Allow is a 1s hold, the last 3 deny reasons are kept locally. Toast buttons in `notify.rs` (AV-25): `safe` gets Allow/Deny, other tiers a line naming the inbox hotkey; the toast is built 200ms after the alert so the held request is visible, and a resolved toast is inert (no Action Center removal: the toast crate has no tag API).
+
 ### 11.4 Keyboard inbox (AV-24)
 
 A global hotkey brings the oldest pending request across all sessions into focus. `Y` allow, `N` deny, `R` deny with reason, `Tab` next, `Enter` focus the terminal, `Esc` dismiss. Focus returns to the window the user came from.

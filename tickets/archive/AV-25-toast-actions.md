@@ -1,7 +1,7 @@
 ---
 id: AV-25
 title: Allow and Deny buttons on the waiting toast
-status: in-progress
+status: done
 depends: [AV-21, AV-22]
 attended: false
 ---
@@ -41,7 +41,7 @@ During the AV-23 harness runs the widget raised real toasts, read back from `Toa
 - `safe` Write `x.txt`: `<actions><action content="Allow" arguments="allow:ap-…-1"/><action content="Deny" arguments="deny:ap-…-1"/></actions>`, so the 200ms delay found the held request.
 - `shell` `mkdir …`: no actions, third line "Review it in Peep This (Ctrl+Alt+I)".
 
-## Owed before done
+## Done 2026-11-14
 
-- Owner, with the widget unfocused and another app in front: click Allow on a `safe` toast and see it go through. This is the one thing the harness cannot do: whether Windows delivers the button activation to the running process. If the buttons do nothing, they come out.
+Owner: "i saw the toast confirm" after being asked to click Allow on a `safe` toast with another app in front, taken as the button activation reaching the widget in-process. Toast contents per tier proven from the toast history above. Tree: `notify.rs` (`toast_content`, `click_action`, 4 tests), `lib.rs` toast wiring. Checks: `npm run build` clean, 56 Vitest, 233 + 15 cargo tests.
 - Checks: `npm run build` clean, 56 Vitest, 233 + 15 cargo tests.
