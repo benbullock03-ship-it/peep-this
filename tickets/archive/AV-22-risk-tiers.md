@@ -1,7 +1,7 @@
 ---
 id: AV-22
 title: Risk tier classifier for permission requests
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -67,6 +67,6 @@ Not covered: aliases and functions defined earlier in the same command, symlinks
 - Gaps pass (2026-11-14): `kill <pid>` and `taskkill /pid` are `shell` (agents stop their own dev servers); by-name and all-process kills are destructive. `git config core.hooksPath .githooks` is destructive even though husky-style setups do it legitimately, since it makes every later commit run that folder. Only deploy/publish in script names count; "release" is too often a local build.
 - Inside cwd: separators and case are normalised, `..` is resolved lexically, NTFS `::$DATA` suffixes and trailing dots are stripped, Git Bash `/f/…` maps to `f:/…`, and `~`, `$VAR` or drive-relative `c:foo` paths count as outside.
 
-## Owed before done
+## Done 2026-11-14
 
-- Owner reads the destructive pattern list under `## Built` and adds what is missing. The earlier candidates (shutdown, chmod -R, kill, core.hooksPath, deploy scripts, `$'\x..'`) are now covered, 50 more rows in the table.
+Owner read the destructive pattern list under `## Built` and had nothing to add. The test table passes (`cargo test risk`), with the gaps pass adding power, recursive permissions, process kills, git exec settings, deploy scripts and ANSI-C strings.
