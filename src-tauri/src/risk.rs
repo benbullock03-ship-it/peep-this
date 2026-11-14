@@ -360,6 +360,46 @@ impl Lexer<'_> {
         let inner = (self.pos(paren + 1), if closed { self.pos(end - 1) } else { self.src.len() });
         self.attach(i, inner, end)
     }
+    /// ANSI-C escape whose letter is at `k`: the char and how many source chars it used; `None` keeps `\` literal.
+    fn ansi_c(&self, k: usize) -> Option<(char, usize)> {
+        let c = self.at(k);
+        let simple = match c {
+            'n' => '\n',
+            't' => '\t',
+            'r' => '\r',
+            'a' => '\u{7}',
+            'b' => '\u{8}',
+            'e' | 'E' => '\u{1b}',
+            'f' => '\u{c}',
+            'v' => '\u{b}',
+            '\\' | '\'' | '"' | '?' => c,
+            'c' if k + 1 < self.cs.len() => return char::from_u32(self.at(k + 1) as u32 & 0x1f).map(|ch| (ch, 2)),
+            _ => '\0',
+        };
+        if simple != '\0' {
+            return Some((simple, 1));
+        }
+        let digits = |start: usize, max: usize, radix: u32| {
+            let (mut v, mut used) = (0u32, 0usize);
+            while used < max {
+                let Some(d) = self.at(start + used).to_digit(radix) else { break };
+                v = v.saturating_mul(radix).saturating_add(d);
+                used += 1;
+            }
+            (v, used)
+        };
+        let ((v, used), lead) = match c {
+            'x' => (digits(k + 1, 2, 16), 1),
+            'u' => (digits(k + 1, 4, 16), 1),
+            'U' => (digits(k + 1, 8, 16), 1),
+            '0'..='7' => (digits(k, 3, 8), 0),
+            _ => return None,
+        };
+        if used == 0 {
+            return None;
+        }
+        char::from_u32(v).map(|ch| (ch, lead + used))
+    }
     fn backtick(&mut self, i: usize) -> usize {
         let n = self.cs.len();
         let mut k = i + 1;
@@ -472,8 +512,26 @@ fn lex(src: &str, kind: Kind) -> (Vec<Tok>, Vec<(usize, usize)>) {
             }
             '$' if kind != Kind::Cmd && nx == '(' => i = lx.subst(i, 2),
             '$' if kind == Kind::Posix && nx == '\'' => {
-                lx.word(i);
-                i += 1;
+                lx.word(i).quoted = true;
+                let mut k = i + 2;
+                while k < n {
+                    let ch = lx.at(k);
+                    if ch == '\'' {
+                        k += 1;
+                        break;
+                    }
+                    if ch == '\\' && k + 1 < n {
+                        if let Some((dec, used)) = lx.ansi_c(k + 1) {
+                            lx.push(dec);
+                            k += 1 + used;
+                            continue;
+                        }
+                    }
+                    lx.push(ch);
+                    k += 1;
+                }
+                i = k;
+                lx.end_at(i);
             }
             '$' if kind != Kind::Cmd && nx == '{' => {
                 lx.word(i);
@@ -826,13 +884,114 @@ fn eval_words(src: &str, kind: Kind, words: &[Word], piped_in: bool, ctx: &Ctx, 
         sql_rule(args, ctx, out);
     }
     disk_rule(n, cmd, args, &pos, ctx, out);
+    system_rule(kind, n, cmd, args, &pos, piped_in, ctx, out);
+    script_rule(n, cmd, &pos, ctx, out);
     interp_rule(src, kind, n, cmd, args, &pos, piped_in, ctx, out);
     write_rule(n, args, &pos, ctx, out);
+}
+
+const POWER: &[&str] = &["shutdown", "reboot", "halt", "poweroff", "stop-computer", "restart-computer", "logoff"];
+const PERM_TOOLS: &[&str] = &["chmod", "chown", "chgrp", "setfacl"];
+const ICACLS_CHANGES: &[&str] = &["grant", "deny", "remove", "reset", "setowner", "inheritance", "setintegritylevel"];
+
+/// Windows-style option (`/im`, Git Bash `//im`, `-im`) as its lowercase name.
+fn win_opt(w: &Word) -> Option<String> {
+    w.text
+        .starts_with(['/', '-'])
+        .then(|| w.text.trim_start_matches(['/', '-']).to_ascii_lowercase())
+        .filter(|s| !s.is_empty() && !s.contains('/'))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn system_rule(kind: Kind, n: &str, cmd: &Word, args: &[Word], pos: &[&Word], piped_in: bool, ctx: &Ctx, out: &mut Out) {
+    let opt = |names: &[&str]| args.iter().find(|a| win_opt(a).is_some_and(|o| names.contains(&o.as_str())));
+    if POWER.contains(&n) && opt(&["a", "c", "?", "help"]).is_none() {
+        out.hit(ctx, D, cmd.span(), "shuts down or restarts the machine");
+    }
+    let p0 = pos.first().map(|w| w.lower()).unwrap_or_default();
+    if (n == "systemctl" && matches!(p0.as_str(), "poweroff" | "reboot" | "halt" | "kexec"))
+        || (matches!(n, "init" | "telinit") && matches!(p0.as_str(), "0" | "6"))
+    {
+        out.hit(ctx, D, pos[0].span(), "shuts down or restarts the machine");
+    }
+    if PERM_TOOLS.contains(&n) {
+        if let Some(f) = find_flag(args, &["--recursive"]).or_else(|| find_short(args, 'R')) {
+            out.hit(ctx, D, f.span(), "recursive permission or owner change");
+        }
+    }
+    if n == "icacls" && opt(ICACLS_CHANGES).is_some() {
+        if let Some(f) = opt(&["t"]) {
+            out.hit(ctx, D, f.span(), "recursive permission or owner change");
+        }
+    }
+    if n == "takeown" {
+        if let Some(f) = opt(&["r"]) {
+            out.hit(ctx, D, f.span(), "recursive permission or owner change");
+        }
+    }
+    if matches!(n, "pkill" | "killall" | "killall5") {
+        out.hit(ctx, D, cmd.span(), "kills processes by name");
+    }
+    if n == "kill" && kind != Kind::Ps {
+        if let Some(l) = args.last().filter(|l| matches!(l.text.as_str(), "-1" | "0")) {
+            out.hit(ctx, D, l.span(), "kills every process");
+        }
+    }
+    if n == "taskkill" {
+        if let Some(f) = opt(&["im", "fi"]) {
+            out.hit(ctx, D, f.span(), "kills processes by name");
+        }
+    }
+    if matches!(n, "stop-process" | "spps") || (n == "kill" && kind == Kind::Ps) {
+        let by_name = args.iter().find(|a| {
+            a.text.strip_prefix('-').is_some_and(|p| {
+                let p = p.split(':').next().unwrap_or("").to_ascii_lowercase();
+                !p.is_empty() && ("name".starts_with(&p) || (p.len() > 1 && "processname".starts_with(&p)))
+            })
+        });
+        if let Some(f) = by_name {
+            out.hit(ctx, D, f.span(), "kills processes by name");
+        } else if piped_in {
+            out.hit(ctx, D, cmd.span(), "kills piped processes");
+        }
+    }
+}
+
+const SCRIPT_EXT: &[&str] =
+    &[".sh", ".bash", ".ps1", ".py", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl", ".bat", ".cmd"];
+
+/// A script path such as `scripts/deploy.js` or `./publish.sh`.
+fn deploy_script(t: &str) -> bool {
+    let l = t.to_ascii_lowercase();
+    let file = l.rsplit(['/', '\\']).next().unwrap_or(&l);
+    let script = SCRIPT_EXT.iter().any(|e| file.ends_with(e)) || file.len() < l.len();
+    script && !l.contains(char::is_whitespace) && (file.contains("deploy") || file.contains("publish"))
+}
+
+fn script_rule(n: &str, cmd: &Word, pos: &[&Word], ctx: &Ctx, out: &mut Out) {
+    const REASON: &str = "runs a deploy or publish script";
+    if deploy_script(&cmd.text) {
+        out.hit(ctx, D, cmd.span(), REASON);
+    }
+    let host = POSIX_SHELLS.contains(&n)
+        || SCRIPTERS.contains(&n)
+        || n.starts_with("python3.")
+        || matches!(n, "powershell" | "pwsh" | "source" | ".");
+    if host {
+        if let Some(p) = pos.iter().find(|p| deploy_script(&p.text)) {
+            out.hit(ctx, D, p.span(), REASON);
+        }
+    }
 }
 
 fn git_rule(args: &[Word], ctx: &Ctx, out: &mut Out) {
     let mut i = 0;
     while let Some(a) = args.get(i).filter(|a| a.is_flag()) {
+        if a.text == "-c" {
+            if let Some(v) = args.get(i + 1).filter(|v| EXEC_KEYS.iter().any(|k| v.lower().starts_with(k))) {
+                out.hit(ctx, D, v.span(), EXEC_REASON);
+            }
+        }
         let valued = matches!(a.text.as_str(), "-C" | "-c" | "--git-dir" | "--work-tree" | "--namespace" | "--config-env");
         i += if valued { 2 } else { 1 };
     }
@@ -875,12 +1034,22 @@ fn git_rule(args: &[Word], ctx: &Ctx, out: &mut Out) {
         "filter-branch" | "filter-repo" => Some((sub, "rewrites history")),
         "reflog" if matches!(first.as_str(), "expire" | "delete") => Some((pos[0], "expires the reflog")),
         "update-ref" => find_short(rest, 'd').map(|w| (w, "deletes a ref")),
+        "config" if find_flag(rest, &["--get", "--get-all", "--get-regexp", "--unset", "--unset-all", "--list", "-l"])
+            .is_none() =>
+        {
+            let k = pos.iter().position(|w| EXEC_KEYS.contains(&w.lower().as_str()));
+            k.filter(|&k| k + 1 < pos.len()).map(|k| (pos[k], EXEC_REASON))
+        }
         _ => None,
     };
     if let Some((w, r)) = found {
         out.hit(ctx, D, w.span(), r);
     }
 }
+
+/// Git settings that make later git commands run a program.
+const EXEC_KEYS: &[&str] = &["core.hookspath", "core.fsmonitor", "core.sshcommand"];
+const EXEC_REASON: &str = "points git at a program it will run";
 
 /// Commands whose arguments are paths or text, not subcommands.
 const NO_SUBCOMMAND: &[&str] = &[
@@ -1446,6 +1615,59 @@ mod tests {
             ("PowerShell", "git push --force; Write-Host done", Dx),
             ("PowerShell", r#"cmd /c "rd /s /q build""#, Dx),
             ("PowerShell", "powershell -NoProfile -ExecutionPolicy Bypass -Command \"rm -r -fo x\"", Dx),
+            // power, permissions, processes
+            ("Bash", "shutdown /a", Shell),
+            ("Bash", "shutdown -c", Shell),
+            ("Bash", "kill 1234", Shell),
+            ("Bash", "kill -9 1234", Shell),
+            ("Bash", "taskkill /pid 1234 /f", Shell),
+            ("Bash", "chmod +x run.sh", Shell),
+            ("Bash", "chown me file", Shell),
+            ("PowerShell", "Stop-Process -Id 1234", Shell),
+            ("PowerShell", "kill 1234", Shell),
+            ("Bash", "shutdown /s /t 0", Dx),
+            ("Bash", "sudo shutdown -h now", Dx),
+            ("Bash", "reboot", Dx),
+            ("Bash", "systemctl reboot", Dx),
+            ("Bash", "init 0", Dx),
+            ("PowerShell", "Stop-Computer -Force", Dx),
+            ("PowerShell", "Restart-Computer", Dx),
+            ("Bash", "chmod -R 777 .", Dx),
+            ("Bash", "sudo chown -R me:me /", Dx),
+            ("Bash", "chmod --recursive a+w src", Dx),
+            ("PowerShell", r"icacls C:\ /grant Everyone:F /t", Dx),
+            ("Bash", r"takeown /f C:\x /r", Dx),
+            ("Bash", "pkill node", Dx),
+            ("Bash", "killall node", Dx),
+            ("Bash", "kill -9 -1", Dx),
+            ("Bash", "taskkill /im node.exe /f", Dx),
+            ("Bash", "taskkill //F //IM node.exe", Dx),
+            ("PowerShell", "Stop-Process -Name node", Dx),
+            ("PowerShell", "Get-Process node | Stop-Process", Dx),
+            ("PowerShell", "kill -Name node", Dx),
+            // git settings that run programs
+            ("Bash", "git config core.hooksPath", Shell),
+            ("Bash", "git config --unset core.hooksPath", Shell),
+            ("Bash", "git config user.name Me", Shell),
+            ("Bash", "git config core.hooksPath .githooks", Dx),
+            ("Bash", "git config --global core.fsmonitor ./x", Dx),
+            ("Bash", "git config set core.sshCommand 'ssh -i k'", Dx),
+            ("Bash", "git -c core.hooksPath=/tmp/h commit -m x", Dx),
+            // deploy scripts run by file name
+            ("Bash", "python -m http.server 8000", Shell),
+            ("Bash", "cat scripts/deploy.sh", Shell),
+            ("Bash", r#"python -c "print('deploy')""#, Shell),
+            ("Bash", "node scripts/deploy.js", Dx),
+            ("Bash", "./deploy.sh prod", Dx),
+            ("Bash", "bash scripts/publish.sh", Dx),
+            ("Bash", r#"cmd /c "deploy.bat""#, Dx),
+            ("PowerShell", r"powershell -ExecutionPolicy Bypass -File .\deploy.ps1", Dx),
+            ("PowerShell", r".\scripts\deploy.ps1", Dx),
+            // ANSI-C quoting
+            ("Bash", r"echo $'a\tb'", Shell),
+            ("Bash", r"$'\x72m' -rf x", Dx),
+            ("Bash", r"$'\162\155' -rf x", Dx),
+            ("Bash", r"$'r\u006d' -rf x", Dx),
         ];
         assert!(rows.len() >= 60);
         let mut bad = Vec::new();

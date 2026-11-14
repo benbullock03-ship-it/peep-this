@@ -42,8 +42,14 @@ Destructive patterns, for the owner to review:
 - **Protected files** (an edit, a redirect, tee, `-o`/`-OutFile`, cp/mv destination, `sed -i`, Set-Content/Out-File, rm): `.env`, `.env.*`, `.envrc`; `.claude/settings*.json`, `.claude/hooks/`, `.claude.json`, `managed-settings.json`; `.git/hooks/`, `.git/config`, `.husky/`; `.ssh/`, `.aws/`, `.gnupg/`, `.kube/`, `.azure/`, `gcloud/`, `.docker/config.json`, `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `.pgpass`, `credentials(.json)`, `.htpasswd`, `id_rsa*`/`id_ed25519*`/`id_ecdsa*`, `*.pem|key|pfx|p12|jks|keystore|ppk`; shell startup files (`.bashrc`, `.zshrc`, `.profile`, PowerShell profiles).
 - **Inline code:** `python -c`/`node -e` and similar containing rmtree, os.remove, unlink, rmSync, rimraf, Remove-Item or `rm -rf`.
 - Nesting deeper than 6 levels: a command too deeply nested to inspect counts as destructive.
+- **Power:** shutdown, reboot, halt, poweroff, logoff, Stop-Computer, Restart-Computer (not `shutdown /a` or `-c`); `systemctl poweroff|reboot|halt|kexec`; `init`/`telinit 0|6`.
+- **Permissions:** chmod/chown/chgrp/setfacl with `-R`/`--recursive`; `icacls … /t` with grant/deny/remove/reset/setowner/inheritance; `takeown /r`.
+- **Processes:** pkill, killall; `kill … -1` or `kill … 0`; `taskkill /im|/fi`; Stop-Process/spps/PowerShell `kill` with `-Name`, or fed by a pipe. Kill by PID stays `shell`.
+- **Git exec settings:** `git config` setting `core.hooksPath`, `core.fsmonitor` or `core.sshCommand` (reading or `--unset` is `shell`); `git -c` with one of those keys.
+- **Deploy scripts by file name:** a command or a script argument to a shell, interpreter or PowerShell whose file name contains deploy or publish (`node scripts/deploy.js`, `./deploy.sh`, `-File .\deploy.ps1`).
+- ANSI-C `$'…'` strings are decoded (`\xHH`, octal, `\u`, `\U`, `\cX`, letter escapes) before matching.
 
-Not covered: `shutdown`/`Stop-Computer`, `chmod -R`/`chown -R`, `kill`, `git config core.hooksPath`, deploy scripts run by file name (`node scripts/deploy.js`), `$'\x72m'` ANSI-C escapes, aliases and functions defined earlier in the same command, symlinks inside the cwd that point outside it (no I/O).
+Not covered: aliases and functions defined earlier in the same command, symlinks inside the cwd that point outside it (no I/O).
 
 ## Decisions taken without a ruling
 
@@ -58,8 +64,9 @@ Not covered: `shutdown`/`Stop-Computer`, `chmod -R`/`chown -R`, `kill`, `git con
 - PowerShell `-EncodedCommand` and nesting deeper than 6 levels are destructive, because the classifier cannot see what runs. This goes beyond "unparsed is shell" on purpose: hiding the command is treated as an evasion.
 - A dynamic command name (`$x -rf`, `& ('r'+'m') -r`) is checked against the delete-flag rule.
 - Plain `rm file` and `Remove-Item file`, with no recursive or force flag, are `shell`.
+- Gaps pass (2026-11-14): `kill <pid>` and `taskkill /pid` are `shell` (agents stop their own dev servers); by-name and all-process kills are destructive. `git config core.hooksPath .githooks` is destructive even though husky-style setups do it legitimately, since it makes every later commit run that folder. Only deploy/publish in script names count; "release" is too often a local build.
 - Inside cwd: separators and case are normalised, `..` is resolved lexically, NTFS `::$DATA` suffixes and trailing dots are stripped, Git Bash `/f/…` maps to `f:/…`, and `~`, `$VAR` or drive-relative `c:foo` paths count as outside.
 
 ## Owed before done
 
-- Owner reads the destructive pattern list under `## Built` and adds what is missing (candidates: shutdown/Stop-Computer, `chmod -R`, kill, `git config core.hooksPath`, deploy scripts run by file name, `$'\x..'` escapes).
+- Owner reads the destructive pattern list under `## Built` and adds what is missing. The earlier candidates (shutdown, chmod -R, kill, core.hooksPath, deploy scripts, `$'\x..'`) are now covered, 50 more rows in the table.
