@@ -3,6 +3,7 @@ import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
 import { createKids, type KidsRender } from "./kidRows";
 import type { Session, TrailEntry } from "./model";
+import { MOTION_MS, motionMs } from "./motion";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { sortSessions } from "./sort";
 import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
@@ -12,12 +13,9 @@ export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
 export const EMPTY_TEXT = "No Claude Code sessions running";
 const PEEP_SIZE = "48";
 const PEEP_SIZE_OPEN = "96";
-export const FLASH_MS = 1000;
-/** Matches the `row-leave` animation in styles.css. */
-export const LEAVE_MS = 600;
+/** `row-flash` runs three motion units; the timer also ends the static reduced-motion flash. */
+export const FLASH_MS = 3 * MOTION_MS;
 const TICK_MS = 1000;
-/** Matches the `row-enter` animation in styles.css. */
-const ENTER_MS = 320;
 const STAGGER_MS = 40;
 const MAX_STAGGER = 8;
 
@@ -240,6 +238,8 @@ function collapse(r: Row, restoreFocus: boolean) {
   r.stage.hidden = true;
   r.closed.hidden = false;
   r.el.classList.remove("is-open");
+  r.el.classList.add("closing");
+  setTimeout(() => r.el.classList.remove("closing"), MOTION_MS);
   if (restoreFocus) r.closed.focus();
 }
 
@@ -247,7 +247,7 @@ function enter(row: HTMLElement, delayMs: number) {
   row.style.setProperty("--enter-delay", `${delayMs}ms`);
   row.classList.add("entering");
   // A timer, not animationend: the waiting pulse overrides row-enter, which would then never end.
-  setTimeout(() => row.classList.remove("entering"), delayMs + ENTER_MS);
+  setTimeout(() => row.classList.remove("entering"), delayMs + MOTION_MS);
 }
 
 function flash(row: HTMLElement) {
@@ -350,7 +350,7 @@ export function createList(
         setTimeout(() => {
           r.el.remove();
           rows.delete(id);
-        }, LEAVE_MS),
+        }, motionMs()),
       );
     }
     empty.hidden = sorted.length > 0;

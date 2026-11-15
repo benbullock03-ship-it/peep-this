@@ -312,6 +312,8 @@ The context bar and the 5h/7d limit bars are rows of 10 square blocks that fill 
 
 Every transition runs in 4 to 6 discrete frames over about 160ms, matching the peeps' 8 to 12 fps, including window resizes. With `prefers-reduced-motion` everything is instant.
 
+Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-steps` in `styles.css`, mirrored by `motion.ts` and by `motion.rs` (`animate` steps the window, one `SetWindowPos` per frame). Exceptions: the approval countdown and the destructive hold fill stay linear, because they show time passing.
+
 ### 12.4 Docking and snap (AV-34, AV-38)
 
 - Live magnet: dragged within 16px of a work-area edge or corner, on any monitor, the widget jumps there with the 12px margin while still held; dragging more than 16px further breaks it free. Dropped elsewhere it floats.

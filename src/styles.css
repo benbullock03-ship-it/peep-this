@@ -31,7 +31,9 @@
   --diff-add-mark: #5ed68c;
   --diff-del-bg: rgba(255, 93, 93, 0.12);
   --diff-del-text: #ffc2c2;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Every transition steps (spec §12.3); motion.ts and motion.rs mirror these. */
+  --motion-ms: 160ms;
+  --motion-steps: steps(5, end);
   --sans: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
 }
@@ -706,7 +708,7 @@ body {
 }
 
 .ps-item.entering {
-  animation: row-enter 320ms var(--ease-out) both;
+  animation: row-enter var(--motion-ms) var(--motion-steps) both;
   animation-delay: var(--enter-delay, 0ms);
 }
 
@@ -719,17 +721,19 @@ body {
 
 .ps-item.leaving {
   pointer-events: none;
-  animation: row-leave 600ms ease-in forwards;
+  animation: row-leave var(--motion-ms) var(--motion-steps) forwards;
 }
 
 @keyframes row-leave {
   to {
     opacity: 0;
+    transform: translateY(-4px);
   }
 }
 
+/* The one slow loop: 1.5s, but it jumps between four levels instead of gliding. */
 .ps-item[data-state="waiting"][data-alive="true"]:not(.flash):not(.leaving) {
-  animation: row-pulse 1.5s ease-in-out infinite;
+  animation: row-pulse 1.5s steps(1, end) infinite;
 }
 
 @keyframes row-pulse {
@@ -737,22 +741,48 @@ body {
   100% {
     box-shadow: inset 0 0 0 2px rgba(var(--amber), 0.12);
   }
+  25%,
+  75% {
+    box-shadow: inset 0 0 0 2px rgba(var(--amber), 0.3);
+  }
   50% {
     box-shadow: inset 0 0 0 2px rgba(var(--amber), 0.5);
   }
 }
 
+/* rows.ts FLASH_MS is three motion units. */
 .ps-item.flash {
-  animation: row-flash 1s ease-out;
+  animation: row-flash calc(var(--motion-ms) * 3) steps(1, end);
 }
 
 @keyframes row-flash {
   0%,
-  40% {
+  66% {
     background: color-mix(in srgb, var(--ps-accent) 18%, transparent);
+  }
+  33% {
+    background: transparent;
   }
   100% {
     background: transparent;
+  }
+}
+
+.ps-item.is-open .ps-stage,
+.ps-item.is-open .ps-facts {
+  animation: row-open var(--motion-ms) var(--motion-steps) both;
+}
+
+.ps-item.closing > .ps-row {
+  animation: row-open var(--motion-ms) var(--motion-steps) both;
+}
+
+@keyframes row-open {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
   }
 }
 
@@ -761,8 +791,16 @@ body {
     animation: none;
     box-shadow: inset 0 0 0 2px rgba(var(--amber), 0.4);
   }
-  .ps-item.entering {
+  .ps-item.entering,
+  .ps-item.leaving,
+  .ps-item.is-open .ps-stage,
+  .ps-item.is-open .ps-facts,
+  .ps-item.closing > .ps-row {
     animation: none;
+  }
+  .ps-item.flash {
+    animation: none;
+    background: color-mix(in srgb, var(--ps-accent) 18%, transparent);
   }
 }
 

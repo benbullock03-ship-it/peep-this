@@ -3,6 +3,8 @@ mod focus;
 mod hotkey;
 mod ingest;
 mod install;
+#[allow(dead_code)] // AV-38/39/41 call `animate`.
+mod motion;
 mod notify;
 mod risk;
 mod source;
