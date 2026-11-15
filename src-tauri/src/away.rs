@@ -287,11 +287,11 @@ pub fn step(p: Presence, probe: Probe, now: u64, after_ms: u64) -> (Presence, Op
     }
 }
 
-fn settings_path() -> PathBuf {
+pub(crate) fn settings_path() -> PathBuf {
     crate::ingest::server::default_dir().join("settings.json")
 }
 
-fn read_settings(path: &Path) -> Value {
+pub(crate) fn read_settings(path: &Path) -> Value {
     std::fs::read_to_string(path).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null)
 }
 
@@ -308,7 +308,7 @@ fn saved_summary(path: &Path) -> bool {
 }
 
 /// Read-modify-write of one key, keeping the others.
-fn save_setting(path: &Path, key: &str, value: Value) -> std::io::Result<()> {
+pub(crate) fn save_setting(path: &Path, key: &str, value: Value) -> std::io::Result<()> {
     let mut v = read_settings(path);
     if !v.is_object() {
         v = Value::Object(Default::default());

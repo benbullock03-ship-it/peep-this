@@ -1,13 +1,20 @@
 //! Moods (spec §13.5): at most one per session, derived from the session, its neighbours and its repo. Never changes state.
 
-use serde::Serialize;
+use std::path::Path;
+use std::sync::Arc;
 
+use serde::Serialize;
+use serde_json::Value;
+
+use crate::away::{read_settings, save_setting, settings_path};
 use crate::state::{Session, State};
+use crate::store::Store;
 use crate::tickets::Repo;
 
 pub const SWEAT_FROM_PCT: f64 = 70.0;
-/// The context nudge until AV-70's setting (50 to 95, default 80) exists.
+/// The context nudge setting (AV-70): 50 to 95 in steps of 5.
 pub const NUDGE_PCT_DEFAULT: f64 = 80.0;
+const NUDGE_KEY: &str = "nudgePct";
 pub const WORRY_MS: u64 = 5 * 60 * 1000;
 pub const CHEER_MS: u64 = 8 * 1000;
 pub const GREET_MS: u64 = 5 * 1000;
@@ -53,6 +60,37 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
     ]
     .into_iter()
     .find_map(|(on, m)| on.then_some(m))
+}
+
+pub fn valid_nudge(pct: u64) -> bool {
+    (50..=95).contains(&pct) && pct % 5 == 0
+}
+
+fn saved_nudge(path: &Path) -> f64 {
+    read_settings(path)
+        .get(NUDGE_KEY)
+        .and_then(Value::as_u64)
+        .filter(|p| valid_nudge(*p))
+        .map_or(NUDGE_PCT_DEFAULT, |p| p as f64)
+}
+
+pub fn load_nudge(store: &Store, now: u64) {
+    store.set_nudge_pct(saved_nudge(&settings_path()), now);
+}
+
+#[tauri::command]
+pub fn nudge_pct(store: tauri::State<'_, Arc<Store>>) -> u64 {
+    store.nudge_pct() as u64
+}
+
+#[tauri::command]
+pub fn set_nudge_pct(pct: u64, store: tauri::State<'_, Arc<Store>>) -> Result<u64, String> {
+    if !valid_nudge(pct) {
+        return Err(format!("{pct}% is not a nudge choice (50 to 95 in steps of 5)"));
+    }
+    save_setting(&settings_path(), NUDGE_KEY, Value::from(pct)).map_err(|e| e.to_string())?;
+    store.set_nudge_pct(pct as f64, crate::store::now_ms());
+    Ok(pct)
 }
 
 /// Whether `command` runs any step of the repo setup's `test` line (`cd` steps don't count).
@@ -174,6 +212,22 @@ mod tests {
     fn ended_sessions_have_no_mood() {
         let s = apply(with_pct(90.0), Event::Ended, T0 + 1);
         assert_eq!(mood(&s, T0 + 2), None);
+    }
+
+    #[test]
+    fn nudge_setting_is_50_to_95_in_fives_and_round_trips() {
+        assert!(valid_nudge(50) && valid_nudge(80) && valid_nudge(95));
+        assert!(!valid_nudge(45) && !valid_nudge(82) && !valid_nudge(100));
+        let dir = std::env::temp_dir().join(format!("peepthis-nudge-{}", std::process::id()));
+        let path = dir.join("settings.json");
+        assert_eq!(saved_nudge(&path), NUDGE_PCT_DEFAULT);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&path, r#"{"awayAfterMin":5,"nudgePct":83}"#).unwrap();
+        assert_eq!(saved_nudge(&path), NUDGE_PCT_DEFAULT, "an odd saved value falls back");
+        save_setting(&path, NUDGE_KEY, Value::from(60)).unwrap();
+        assert_eq!(saved_nudge(&path), 60.0);
+        assert_eq!(read_settings(&path)["awayAfterMin"], Value::from(5));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

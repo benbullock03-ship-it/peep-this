@@ -1,7 +1,8 @@
 import { createCards, type Decide } from "./approvalCard";
-import { fillBubble } from "./bubble";
+import { fillBubble, FLOPPIES } from "./bubble";
 import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
+import { EMOTES, type Emote } from "./emote";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
 import type { Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
@@ -12,7 +13,7 @@ import { createShelf } from "./shelf";
 import { createShells, type ShellsRender } from "./shellRows";
 import { sortSessions } from "./sort";
 import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
-import { createTray, type Jump } from "./tray";
+import { createTray, jumpCommand, type Jump } from "./tray";
 
 export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
 
@@ -32,6 +33,9 @@ export const FLASH_MS = 3 * MOTION_MS;
 const EJECT_MS = 400;
 const INSERT_MS = 320;
 const TICK_MS = 1000;
+/** The tray's "Copied" and hint timings (FLOPPY-SPEC §08). */
+const COPIED_MS = 1200;
+const HINT_MS = 6000;
 const STAGGER_MS = 40;
 const MAX_STAGGER = 8;
 
@@ -73,6 +77,9 @@ type Row = {
   fail: HTMLElement;
   floppy?: HTMLElement;
   tickets?: readonly RepoTicket[];
+  /** FLOPPY-SPEC §09 buttons; under the plank, since the closed row is itself a button. */
+  nudge: HTMLElement;
+  nudgeLater: HTMLButtonElement;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
@@ -149,6 +156,16 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): R
   const openSay = bubble(stage);
 
   const plank = el("span", "ps-plank", item);
+  const nudge = el("div", "ps-nudge", item);
+  nudge.hidden = true;
+  const pack = button("nudge-pack", nudge);
+  const disk = el("span", "fl", pack);
+  disk.style.setProperty("--col", String(FLOPPIES.packup.col));
+  disk.setAttribute("aria-hidden", "true");
+  el("span", "nudge-pack-label", pack).textContent = "Pack up";
+  pack.setAttribute("aria-label", `Pack up: copy ${jumpCommand("packup")}`);
+  const nudgeLater = button("nudge-later", nudge);
+  nudgeLater.textContent = "Not yet";
   const facts = createFacts(jump);
 
   let cards: Row["cards"];
@@ -188,7 +205,23 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): R
     kids: createKids(kidsHost, decide),
     shells: createShells(shellsHost),
     fail,
+    nudge,
+    nudgeLater,
   };
+}
+
+/** Re-created on each change so the stepped frames start over. */
+function setEmote(r: Row, emote: Emote | null) {
+  for (const say of r.says) {
+    const host = say.parentElement!;
+    host.querySelector(":scope > .em")?.remove();
+    if (!emote) continue;
+    const e = el("span", "em", host);
+    e.dataset.emote = emote;
+    e.dataset.play = EMOTES[emote].play;
+    e.style.setProperty("--row", String(EMOTES[emote].row));
+    e.setAttribute("aria-hidden", "true");
+  }
 }
 
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
@@ -212,6 +245,12 @@ function updateRow(r: Row, v: RowView) {
   }
   if (l.label !== v.label) for (const x of r.labels) x.textContent = v.label;
   if (l.say !== v.say || l.bubble?.tab !== v.bubble.tab) for (const x of r.says) fillBubble(x, v.bubble);
+  if (l.emote !== v.emote) setEmote(r, v.emote);
+  if (l.nudge !== v.nudge) {
+    r.el.classList.toggle("is-nudge", !!v.nudge);
+    r.nudge.hidden = !v.nudge;
+    r.nudgeLater.hidden = v.nudge !== "first";
+  }
   if (l.floppy !== v.floppy) seat(r, v.floppy);
   if (l.shellNote !== v.shellNote) {
     r.fail.hidden = !v.shellNote;
@@ -305,7 +344,7 @@ function expand(r: Row, trail?: readonly TrailEntry[], rules?: RowRules) {
   r.stage.hidden = false;
   r.stage.insertBefore(r.peepWrap, r.stage.firstChild);
   r.peep.setAttribute("size", PEEP_SIZE_OPEN);
-  r.plank.after(r.facts.el);
+  r.nudge.after(r.facts.el);
   r.facts.trailKey = "-";
   fillTrail(r, trail, rules);
   fillFacts(r, Date.now());
@@ -393,6 +432,20 @@ export function createList(
       return ok;
     };
 
+  const snoozed = new Set<string>();
+
+  async function packUp(id: string, b: HTMLButtonElement) {
+    const cmd = jumpCommand("packup");
+    const ok = await jumpFor(id)(cmd);
+    const label = b.querySelector(".nudge-pack-label")!;
+    label.textContent = ok ? "Copied" : `Type ${cmd}`;
+    b.classList.toggle("is-copied", ok);
+    setTimeout(() => {
+      label.textContent = "Pack up";
+      b.classList.remove("is-copied");
+    }, ok ? COPIED_MS : HINT_MS);
+  }
+
   const rowOf = (e: Event) => {
     const id = (e.target as Element).closest<HTMLElement>(".ps-item")?.dataset.id;
     return id ? rows.get(id) : undefined;
@@ -406,12 +459,22 @@ export function createList(
       void requestFocus(onFocus, r.session.id, () => flash(r.el));
       return;
     }
+    if (target.closest(".nudge-later")) {
+      snoozed.add(r.session.id);
+      render(current);
+      return;
+    }
+    const pack = target.closest<HTMLButtonElement>(".nudge-pack");
+    if (pack) {
+      void packUp(r.session.id, pack);
+      return;
+    }
     if (target.closest(".ps-row, .ps-openhead")) toggle(r);
   });
 
   let repos: readonly Repo[] = [];
   /** `nextRepos` omitted keeps the last ones, for re-renders that only carry sessions. */
-  return function render(sessions: readonly Session[], nextRepos?: readonly Repo[]) {
+  function render(sessions: readonly Session[], nextRepos?: readonly Repo[]) {
     if (nextRepos) repos = nextRepos;
     const sorted = sortSessions(sessions);
     const seen = new Set<string>();
@@ -432,7 +495,8 @@ export function createList(
         clearTimeout(Number(r.el.dataset.leaveTimer));
         r.el.classList.remove("leaving");
       }
-      const view = toRowView(s, identityOf, now);
+      if (s.mood !== "yawn") snoozed.delete(s.id);
+      const view = toRowView(s, identityOf, now, snoozed.has(s.id));
       updateRow(r, view);
       const kids = r.kids(s, view.color, now);
       const shellFold = r.shells(s, now).foldAt;
@@ -467,5 +531,6 @@ export function createList(
     // Finished children fold on time even when no snapshot arrives.
     clearTimeout(foldTimer);
     if (foldAt !== null) foldTimer = window.setTimeout(() => render(sessions), Math.max(0, foldAt - Date.now()) + 50);
-  };
+  }
+  return render;
 }

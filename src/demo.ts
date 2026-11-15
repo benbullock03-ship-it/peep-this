@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { Agent, Digest, LastTool, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State } from "./model";
+import type { Agent, Digest, LastTool, Mood, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
@@ -172,6 +172,39 @@ const REPOS: Repo[] = [
   { root: "C:/demo/research-02", sessions: ["demo-2"], tickets: [] },
 ];
 
+// AV-70: one row per mood, both nudges, plus sync-05 (error) holding a worry the bubble must hide. They sit out demoStep.
+const MOODY: { name: string; identity: Identity; state: State; mood: Mood; task: string; contextPct?: number; agoS?: number; ticket?: Session["ticket"] }[] = [
+  { name: "docs-07", identity: { color: "blue", accessory: "glasses" }, state: "working", mood: "sweat", task: "Write docs/api.md", contextPct: 76 },
+  { name: "billing-08", identity: { color: "pink", accessory: "beanie" }, state: "thinking", mood: "yawn", task: "Checking the invoice totals", contextPct: 82 },
+  { name: "ledger-09", identity: { color: "lavender", accessory: "wizard" }, state: "working", mood: "yawn", task: "Edit src/ledger.ts", contextPct: 96 },
+  { name: "api-10", identity: { color: "green", accessory: "party" }, state: "idle", mood: "cheer", task: "Idle", ticket: { id: "AV-12", title: "rate limit headers" } },
+  { name: "infra-11", identity: { color: "yellow", accessory: "crown" }, state: "thinking", mood: "greet", task: "Reading the deploy script" },
+  { name: "tests-12", identity: { color: "blue", accessory: "headphones" }, state: "thinking", mood: "worry", task: "Reading the failing test" },
+  { name: "notes-13", identity: { color: "green", accessory: "flowers" }, state: "idle", mood: "nap", task: "Idle", agoS: 900 },
+];
+const MOOD_FROM = AGENTS.length;
+const ATTENTION_MOOD: Record<number, Mood> = { 4: "worry" };
+
+function moodySessions(now: number): Session[] {
+  return MOODY.map((m, k) => ({
+    id: demoId(MOOD_FROM + k),
+    pid: 1000 + MOOD_FROM + k,
+    name: m.name,
+    cwd: `C:/demo/${m.name}`,
+    kind: "interactive",
+    entrypoint: "cli",
+    model: "Opus 5.5",
+    state: m.state,
+    stateSince: now - (m.agoS ?? 30) * 1000,
+    task: m.task,
+    subagents: 0,
+    contextPct: m.contextPct ?? 20 + k * 3,
+    mood: m.mood,
+    ticket: m.ticket,
+    alive: true,
+  }));
+}
+
 const skillIn = (i: number, state: State) => (state === "success" || state === "idle" ? undefined : LINKS[i]?.skill);
 
 function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number): PendingApproval {
@@ -179,7 +212,7 @@ function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number):
 }
 
 const demoId = (i: number) => `demo-${i + 1}`;
-const identities = new Map(AGENTS.map((a, i) => [demoId(i), a.identity]));
+const identities = new Map([...AGENTS, ...MOODY].map((a, i) => [demoId(i), a.identity]));
 
 export function demoIdentity(s: Session): Identity {
   return identities.get(s.id) ?? { color: "yellow", accessory: "none" };
@@ -216,7 +249,8 @@ export function demoSnapshot(now: number): Snapshot {
       alive: true,
       ticket: LINKS[i]?.ticket,
       skill: skillIn(i, a.state),
-    }, i, now)),
+      mood: ATTENTION_MOOD[i],
+    }, i, now)).concat(moodySessions(now)),
   };
 }
 
@@ -275,7 +309,7 @@ export function demoStep(snap: Snapshot, now: number, rand: () => number = Math.
   const sessions = snap.sessions.map((s) =>
     s.pending?.length ? { ...s, pending: s.pending.map((p) => (p.releaseAt <= now ? { ...p, receivedAt: now, releaseAt: now + HOLD_MS } : p)) } : s,
   );
-  const free = sessions.flatMap((s, k) => (s.pending?.length ? [] : [k]));
+  const free = sessions.flatMap((s, k) => (s.pending?.length || k >= MOOD_FROM ? [] : [k]));
   if (!free.length) return { ...snap, sessions, rateLimits: snap.rateLimits && { ...snap.rateLimits, at: now } };
   const i = free[Math.floor(rand() * free.length)];
   let next: State;

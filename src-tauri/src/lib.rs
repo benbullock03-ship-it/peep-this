@@ -248,6 +248,8 @@ pub fn run() {
             away::set_away_after,
             away::digest_summary,
             away::set_digest_summary,
+            mood::nudge_pct,
+            mood::set_nudge_pct,
             hotkey::inbox_hotkey,
             hotkey::set_inbox_hotkey,
             hotkey::toggle_hotkey,
@@ -265,6 +267,7 @@ pub fn run() {
                 }
             }));
             app.manage(Arc::clone(&store));
+            mood::load_nudge(&store, store::now_ms());
             wire_alerts(app, &store);
             ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
             let broker = approve::Broker::new(Arc::clone(&store), Box::new(WidgetEnv), approve::HOLD_MS);

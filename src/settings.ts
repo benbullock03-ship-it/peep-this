@@ -1,4 +1,5 @@
 import { AWAY_CHOICES } from "./digest";
+import { NUDGE_RANGE } from "./emote";
 import { comboFromKey } from "./inbox";
 import type { RulesView, TrailEntry, TrailOutcome } from "./model";
 import { usesText } from "./rules";
@@ -20,6 +21,7 @@ export type SettingsApi = {
   rules?: { view: () => Promise<RulesView>; revoke: (ruleId: string) => Promise<RulesView> };
   away?: { get: () => Promise<number>; set: (minutes: number) => Promise<number> };
   summary?: { get: () => Promise<boolean>; set: (on: boolean) => Promise<boolean> };
+  nudge?: { get: () => Promise<number>; set: (pct: number) => Promise<number> };
 };
 
 const INBOX_FIELD = {
@@ -63,6 +65,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
   const away = api.away ? createAwayField(host, api.away) : null;
   const summary = api.summary ? createSummaryField(host, api.summary) : null;
+  const nudge = api.nudge ? createNudgeField(host, api.nudge) : null;
   const rules = api.rules ? createRulesField(host, api.rules) : null;
 
   el("h3", "settings-sub", host, "Decision log");
@@ -148,7 +151,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh()]);
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh(), nudge?.refresh()]);
   }
 
   return {
@@ -244,6 +247,50 @@ function createAwayField(host: HTMLElement, api: NonNullable<SettingsApi["away"]
     async refresh() {
       try {
         select.value = String(await api.get());
+      } catch (e) {
+        msg.textContent = `Could not read the setting: ${e}`;
+        msg.hidden = false;
+      }
+    },
+  };
+}
+
+/** AV-70: the context % at which a tired peep suggests Pack Up (FLOPPY-SPEC §09, §15). */
+function createNudgeField(host: HTMLElement, api: NonNullable<SettingsApi["nudge"]>) {
+  el("h3", "settings-sub", host, "Context nudge");
+  const row = el("label", "nudge-row", host);
+  el("span", "", row, "Nudge at");
+  const range = el("input", "nudge-range", row);
+  range.type = "range";
+  range.min = String(NUDGE_RANGE.min);
+  range.max = String(NUDGE_RANGE.max);
+  range.step = String(NUDGE_RANGE.step);
+  range.value = String(NUDGE_RANGE.initial);
+  const value = el("output", "nudge-value", row);
+  const show = () => (value.textContent = `${range.value}%`);
+  show();
+  el("p", "settings-note", host, "The peep yawns and offers Pack Up at this much context, then once more at 95%.");
+  const msg = el("p", "settings-error", host);
+  msg.hidden = true;
+  range.addEventListener("input", show);
+  range.addEventListener("change", async () => {
+    range.disabled = true;
+    try {
+      range.value = String(await api.set(Number(range.value)));
+      msg.hidden = true;
+    } catch (e) {
+      msg.textContent = `Could not save: ${e}`;
+      msg.hidden = false;
+    } finally {
+      range.disabled = false;
+      show();
+    }
+  });
+  return {
+    async refresh() {
+      try {
+        range.value = String(await api.get());
+        show();
       } catch (e) {
         msg.textContent = `Could not read the setting: ${e}`;
         msg.hidden = false;

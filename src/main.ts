@@ -2,6 +2,7 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoDigest, demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { NUDGE_RANGE } from "./emote";
 import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createDigestCard } from "./digestCard";
@@ -239,7 +240,9 @@ function runDemo() {
   let trailOn = true;
   let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
   let toggleHotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+P", registered: true };
+  let nudgePct: number = NUDGE_RANGE.initial;
   const settings = mountSettings({
+    nudge: { get: async () => nudgePct, set: async (pct) => (nudgePct = pct) },
     log: async () => [],
     enabled: async () => trailOn,
     setEnabled: async (on) => (trailOn = on),
@@ -342,6 +345,10 @@ async function runLive() {
     summary: {
       get: () => invoke<boolean>("digest_summary"),
       set: (on) => invoke<boolean>("set_digest_summary", { on }),
+    },
+    nudge: {
+      get: () => invoke<number>("nudge_pct"),
+      set: (pct) => invoke<number>("set_nudge_pct", { pct }),
     },
   });
   await listen("open-settings", () => settings.show(true));

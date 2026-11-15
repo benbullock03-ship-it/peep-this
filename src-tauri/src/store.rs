@@ -52,6 +52,7 @@ struct Inner {
     activity: away::Activity,
     /// The widget's own headless sessions (digest summaries): never a row, never a hook.
     ignored: HashSet<String>,
+    nudge_pct: f64,
 }
 
 impl Inner {
@@ -84,6 +85,7 @@ impl Store {
                 entered: Vec::new(),
                 activity: away::Activity::default(),
                 ignored: HashSet::new(),
+                nudge_pct: mood::NUDGE_PCT_DEFAULT,
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
@@ -285,6 +287,17 @@ impl Store {
         });
     }
 
+    pub fn nudge_pct(&self) -> f64 {
+        self.inner.lock().unwrap().nudge_pct
+    }
+
+    pub fn set_nudge_pct(&self, pct: f64, now: u64) {
+        self.mutate(|inner| {
+            inner.nudge_pct = pct;
+            refresh_moods(inner, now)
+        });
+    }
+
     /// (id, cwd) of live sessions, by id.
     pub fn live_cwds(&self) -> Vec<(String, String)> {
         let inner = self.inner.lock().unwrap();
@@ -325,7 +338,7 @@ fn refresh_moods(inner: &mut Inner, now: u64) -> bool {
     let all: Vec<&Session> = inner.sessions.values().collect();
     let moods: Vec<(String, Option<Mood>)> = all
         .iter()
-        .map(|s| (s.id.clone(), mood::derive(s, &all, &inner.repos, mood::NUDGE_PCT_DEFAULT, now)))
+        .map(|s| (s.id.clone(), mood::derive(s, &all, &inner.repos, inner.nudge_pct, now)))
         .collect();
     let mut changed = false;
     for (id, m) in moods {
@@ -397,6 +410,20 @@ mod tests {
         let repo = Repo { root: "C:/work/demo".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: closed };
         store.set_repos(vec![repo], 70_000);
         assert_eq!(mood_of("a"), Some(Mood::Cheer));
+    }
+
+    #[test]
+    fn nudge_setting_moves_the_yawn_live() {
+        let (store, _) = recording_store();
+        let mood_of = || store.snapshot().sessions[0].mood;
+        store.ingest(upsert("a", None), 1_000);
+        store.apply("a", Event::Statusline { model: None, context_pct: Some(72.0) }, 2_000);
+        assert_eq!(mood_of(), Some(Mood::Sweat));
+        store.set_nudge_pct(70.0, 3_000);
+        assert_eq!(mood_of(), Some(Mood::Yawn));
+        store.set_nudge_pct(95.0, 4_000);
+        assert_eq!(mood_of(), Some(Mood::Sweat));
+        assert_eq!(store.nudge_pct(), 95.0);
     }
 
     #[test]

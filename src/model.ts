@@ -27,10 +27,14 @@ export type Session = {
   /** Linked ticket; `title` is absent when the ticket file was not found. */
   ticket?: { id: string; title?: string };
   contextPct?: number;
+  /** mood.rs: at most one, still set during attention states (the bubble hides it there). */
+  mood?: Mood;
   alive: boolean;
   endedAt?: number;
   pending?: PendingApproval[];
 };
+
+export type Mood = "cheer" | "greet" | "worry" | "yawn" | "sweat" | "nap";
 
 /** A subagent of a session (state.rs `Agent`); finished once `endedAt` is set. */
 export type Agent = {
