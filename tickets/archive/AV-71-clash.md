@@ -1,7 +1,7 @@
 ---
 id: AV-71
 title: Clash when two sessions edit the same file
-status: done
+status: closed
 depends: [AV-54, AV-63, AV-69, AV-70]
 attended: true
 ---

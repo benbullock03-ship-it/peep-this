@@ -10,6 +10,7 @@
 - Shelf sort: blocked, doing, done (shown as review), open, deferred (parked); file order within a status. `closed` never reaches the shelf.
 - A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/`.
 - The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`).
+- Clash: sessions with `mood: startled` and the same `Session.clash` path get a lettered bolt tag (`Bubble.bolt` in `src/bubble.ts`), "Both in <file>" bubble text (`clashTags`, `clashText` in `src/emote.ts`) and, when adjacent, a dotted plank-to-plank bracket in `--st-waiting` (`clash-down`/`clash-up`, `--plank-y` in `src/rows.ts`).
 
 ## Watch out
 
@@ -17,7 +18,8 @@
 - `?demo` (`npm run dev`) is where Shoot runs; real clipboard and terminal focus only work in `npm run tauri dev`. Demo repos live in `src/demo.ts`.
 - Parked tickets dim by colour (`--ps-muted`), not opacity: 62% opacity fell under AA. Ticket chip tokens are `--tk-*`.
 - A session with no repo hides the shelf; a repo with zero tickets shows the empty shelf.
-- Attention rows hide the emote; the mood is still in the snapshot.
+- Attention rows hide the emote; the mood is still in the snapshot. An attention row also drops out of a clash: no tag, no bracket; its partner keeps the clash bubble.
+- Clash letters are assigned per render in list order, so a letter can change when an earlier pair expires. The strip shows no clash.
 - Emotes loop at 8 fps per `emotes.json`, not the 160ms transition rule; sparkle and wave play twice then hide while the mood holds.
 - Not yet snoozes in memory per session until 95% or the yawn clears; it does not survive a restart.
 
@@ -27,5 +29,6 @@
 - Tray contents are the six spec floppies, fixed, until a seventh floppy or a settings ticket exists.
 - Ticket chips (2px hollow stub, notch, glyph, lowercase) differ in shape from session chips so the two never read as the same thing.
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
+- The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-70, 2026-11-15
+last touched: AV-71, 2026-11-15
