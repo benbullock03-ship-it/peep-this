@@ -226,6 +226,15 @@ function createHotkeyNotice(openSettings: () => void, name: string) {
   };
 }
 
+/** Until hotkey setup has run the backend answers "not registered, no error"; ask again. */
+async function fetchHotkey(get: () => Promise<HotkeyStatus>): Promise<HotkeyStatus> {
+  for (;;) {
+    const s = await get();
+    if (s.registered || s.error) return s;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
 function runDemo() {
   let snap = demoSnapshot(Date.now());
   let inbox: ReturnType<typeof mountInbox> | null = null;
@@ -359,16 +368,24 @@ async function runLive() {
     inbox.setHotkey(s.registered ? s.hotkey : null);
     settings.hotkeyStatus(s);
   };
-  await listen<HotkeyStatus>("hotkey-status", (e) => applyHotkey(e.payload));
-  invoke<HotkeyStatus>("inbox_hotkey").then(applyHotkey, (err) => console.error("peepthis: inbox_hotkey failed", err));
+  let hotkeyEvent = false;
+  await listen<HotkeyStatus>("hotkey-status", (e) => {
+    hotkeyEvent = true;
+    applyHotkey(e.payload);
+  });
+  fetchHotkey(() => invoke<HotkeyStatus>("inbox_hotkey")).then((s) => hotkeyEvent || applyHotkey(s), (err) => console.error("peepthis: inbox_hotkey failed", err));
   const toggleNotice = createHotkeyNotice(() => settings.show(true), "panel/strip");
   const applyToggleHotkey = (s: HotkeyStatus) => {
     toggleNotice(s);
     settings.toggleHotkeyStatus(s);
     collapseBtn.title = s.registered ? `Collapse to strip (${s.hotkey})` : "Collapse to strip";
   };
-  await listen<HotkeyStatus>("toggle-hotkey-status", (e) => applyToggleHotkey(e.payload));
-  invoke<HotkeyStatus>("toggle_hotkey").then(applyToggleHotkey, (err) => console.error("peepthis: toggle_hotkey failed", err));
+  let toggleEvent = false;
+  await listen<HotkeyStatus>("toggle-hotkey-status", (e) => {
+    toggleEvent = true;
+    applyToggleHotkey(e.payload);
+  });
+  fetchHotkey(() => invoke<HotkeyStatus>("toggle_hotkey")).then((s) => toggleEvent || applyToggleHotkey(s), (err) => console.error("peepthis: toggle_hotkey failed", err));
   await listen("inbox-open", () => inbox.open());
   await listen("inbox-empty", () => inbox.flash());
   const dismissDigest = () => void invoke("dismiss_digest").catch((err) => console.error("peepthis: dismiss_digest failed", err));
