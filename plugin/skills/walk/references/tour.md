@@ -16,6 +16,7 @@ Extras: reach for these when the moment comes.
 /peep:goose    use when you need to know what calls what before changing it
 /peep:shoot    use after a web UI change, before calling it done
 /peep:coderot  use between tickets, to check the tests can actually fail
+/peep:bigpeep  use when several tickets are ready and you want them worked in order, one commit each
 When you need it: /peep:hello (install check)
 ```
 

@@ -28,6 +28,7 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). 
 | `walk` | `/peep:walk` | none yet (AV-84) | none yet | AV-77 |
 | `sneak` | `/peep:sneak` | none yet (AV-89) | none yet | AV-85 |
 | `goose` | `/peep:goose` | none yet (AV-94) | none yet | AV-92 |
+| `bigpeep` | `/peep:bigpeep` | none yet (AV-94) | none yet | AV-90 |
 | `hello` | `/peep:hello` | none (install check, AV-55) | none | AV-55 |
 
 ## Why line (AV-74)
