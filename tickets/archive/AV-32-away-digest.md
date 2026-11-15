@@ -1,7 +1,7 @@
 ---
 id: AV-32
 title: While-you-were-away digest
-status: in-progress
+status: done
 depends: [AV-26]
 attended: false
 ---
@@ -10,10 +10,10 @@ attended: false
 
 **What to build:** Stub. On return from being away, one card that says what happened, ordered by what needs the user first (spec §11.9). Built from events only; no model call.
 
-- [ ] Away: screen locked, or no input for 5 min (setting). Return: unlock or first input
+- [x] Away: screen locked, or no input for 5 min (setting). Return: unlock or first input
 - [x] Card groups sessions: blocked on you, failed, finished, still running. Per session: time taken, files changed (count and names), commands run (count), last assistant line, approvals released to the terminal while away
-- [ ] Each entry focuses its session; blocked entries open the inbox
-- [ ] No card when nothing changed. Dismissed by Esc or any decision
+- [x] Each entry focuses its session; blocked entries open the inbox
+- [x] No card when nothing changed. Dismissed by Esc or any decision
 - [x] The per-session activity log behind it is in memory, capped, and holds paths and counts only
 - [x] Tests: grouping, ordering, empty case
 
@@ -43,7 +43,11 @@ attended: false
 - Click: a blocked entry with a held approval opens the inbox (oldest first, as the inbox does); blocked on a question, failed, finished or running entries focus the terminal; ended sessions are not clickable.
 - A new absence keeps an undismissed card until the next return builds a new one, which replaces it; a return with nothing new leaves it.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner ran the live check in `npm run tauri dev`: locked the screen during real work, unlocked, and the card matched; dismiss, entry clicks, both themes and the Away after select passed ("looks good"). "No card when nothing changed" is proven by unit tests in `away.rs` only. Code and tests as under Built.
+
+## Live check by Claude (before the owner's look)
 
 Live check by Claude in `npm run tauri dev` with `PEEPTHIS_AWAY_SECS=20`, no screen lock (owner away), synthetic hook POSTs for three fake sessions (`0a320a32-aaaa/bbbb/cccc-…`, cwd `C:/peeptest/av32`) and a `mouse_event` nudge as the return. Screenshots in `C:\Users\benbu\AppData\Local\Temp\claude\30a9097ea8fcfb1f\4987ae0e-47a2-463f-9c4f-ed2e98c06b1a\scratchpad\AV-32\`.
 
