@@ -18,6 +18,7 @@
    Walk ends with no hit: `next: none unblocked; nearest wake <dep> <wake>`, from the parked deps in the tree: the earliest `date:`, else the first `ticket:` in walk order, else the first free text. No parked dep, only `doing`: `next: none unblocked; <dep> is doing`.
 3. `git status --short` and `git log --oneline -1`. Uncommitted files that are not yours belong to another session. If the ticket must change one, park it `blocked` (reason names the file, wake is free text) and stop.
 4. Area note: from the paths the ticket names, or the files you expect to touch, pick the one area (SKILL.md §2) and read `kb/<area>.md`. No match or no note: go on without one.
+5. Tweet board: read `.peep/tweets.md` (F§7) if there is one. For each tweet touching the files you expect to touch, read it before building: an open `clash` with your plan gets a reply or a tweet of your own (`/peep:tweet`); never wait on one.
 
 ## 2. Start
 

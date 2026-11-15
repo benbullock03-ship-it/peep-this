@@ -7,7 +7,7 @@ label: Ticket
 
 # /peep:ticket
 
-One ticket per run. "F§1" to "F§3" below cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their sub-command runs.
+One ticket per run. "F§1" to "F§7" below cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their sub-command runs.
 
 ## 0. Repo setup
 
@@ -30,7 +30,7 @@ Read the detail file before acting, then follow it.
 
 - File changes by Edit or Write only. Frontmatter stays flat; keys not yours (e.g. `attended`) are kept.
 - Never set `closed` without the owner's yes (see `close.md`). Never park without a reason and a wake-up condition.
-- The area note: at most one, `kb/<area>.md`, the first `area.<name>` whose prefix matches the paths in play (F§1). Read it before building; rewrite it only on close (F§3).
+- The area note: at most one, `kb/<area>.md`, the first `area.<name>` whose prefix matches the paths in play (F§1). Read it before building; rewrite it only on close (F§3). A tweet fold on close may edit a second one.
 - After any status change, run the setup's `index` command if it has one.
 - Stage files by name, never `git add -A` or `.`. Leave other sessions' uncommitted files alone. Commit as `<id>: <summary>`. Never push.
 - Decisions without a ruling: take the ticket's recommendation or the obvious default and add one line under `## Decisions taken without a ruling` in the ticket. Ask only about something that cannot be undone, in one batch, each with a recommended answer.

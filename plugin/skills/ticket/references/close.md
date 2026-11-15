@@ -19,7 +19,8 @@
    - Rewrite the note so it is true now: change or delete bullets that this ticket made wrong, add what a newcomer must know. Present tense, a few bullets per section. Never append a log line or a dated entry.
    - Set the last line to `last touched: <id>, <YYYY-MM-DD>`.
    - Note missing: create it with the F§3 skeleton, and add its line to `kb/INDEX.md` in setup order (create the index with `# Areas` if missing).
-4. Run the setup's `index` command, if any.
-5. Stage the moved ticket, the area note, `kb/INDEX.md` if changed and the index file, by name. Commit `<id>: close`.
+4. Tweets: each `answered` tweet on `.peep/tweets.md` whose ticket is `<id>`: fold it per `${CLAUDE_PLUGIN_ROOT}/skills/tweet/references/fold.md`, which may edit a second area note. An `open` one stays; name it in `owed`.
+5. Run the setup's `index` command, if any.
+6. Stage the moved ticket, the area notes, `kb/INDEX.md` if changed and the index file, by name; never `.peep/tweets.md`. Commit `<id>: close`.
 
 Waking tickets parked on this one (`wake: ticket:<id>`) is Ducks' job; do not do it here.

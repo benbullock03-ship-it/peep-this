@@ -1,6 +1,6 @@
 # Pack formats
 
-The six formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
+The seven formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
 
 All frontmatter is flat: one `key: value` per line, no nesting, no multi-line values. Lists are `[a, b]` or comma-separated. A missing key takes its default.
 
@@ -125,3 +125,25 @@ What Scrubadubdub must not flag. IDs are entries in `references/ai-tells.md`. Th
 - Inline: `scrub-ignore: <ID> <reason>` in a comment on the line or the line above waives that one hit. A missing reason waives nothing.
 - Anything the repo's `DESIGN.md` declares is never flagged, with or without a line here.
 - No file: nothing is excepted beyond `DESIGN.md` and inline ignores.
+
+## 7. Tweet board: `.peep/tweets.md`
+
+The repo's open tweets. Tweet Tweet (`/peep:tweet`) writes it; Ticket and Big Peep read it at start. Shared through the working tree, never committed.
+
+```
+# Tweets
+
+## 3 · AV-26 · open
+from: AV-26
+kind: clash
+files: src-tauri/src/state.rs, src/rows.ts
+ask: I am changing how `stuck` is timed in state.rs. Is anyone else in there?
+reply: AV-28: yes, I add the subagent states at the bottom; I will rebase on yours.
+```
+
+- Heading: `## <n> · <ticket> · <open|answered>`. `n` is one more than the highest number on the board (1 when empty). `ticket` is the poster's ticket id, or `-` when none.
+- `from`: the poster's handle: its ticket id, else a short name for its task. `kind`: `stuck` (needs an answer to go on) or `clash` (may collide with another session's work).
+- `files`: comma-separated repo-relative paths; a folder prefix ends in `/`. A tweet touches a file when a path is equal or is its prefix.
+- `ask`: one line. `reply`: zero or more lines, each `<handle>: <text>`, oldest first. The first reply sets `answered`.
+- Re-read the board just before every write; an Edit refused because the file changed is re-read and retried once.
+- An `answered` tweet is folded into its area note and removed when its ticket closes (`ticket` `-`: when its poster reads the reply). Fold rule: `skills/tweet/references/fold.md`. No tweets left: delete the file.

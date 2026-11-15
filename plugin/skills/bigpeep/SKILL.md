@@ -7,7 +7,7 @@ label: Big Peep
 
 # /peep:bigpeep
 
-Big Peep reads, orders, briefs, watches, reviews and commits. Little peeps build. "F§1" and "F§2" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`; "work.md" and "park.md" are `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/`. Files in `references/` beside this file are read when their step runs.
+Big Peep reads, orders, briefs, watches, reviews and commits. Little peeps build. "F§1", "F§2" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`; "work.md" and "park.md" are `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/`. Files in `references/` beside this file are read when their step runs.
 
 ## 0. Repo setup
 
@@ -18,7 +18,7 @@ Big Peep reads, orders, briefs, watches, reviews and commits. Little peeps build
 ## 1. Plan
 
 1. Read every named ticket and each of its `depends` (live, then the archive by that id only). Order from the `depends` edges, not the ids.
-2. `git status --short` and `git log --oneline -1`. Uncommitted files that are not this run's belong to another session.
+2. `git status --short` and `git log --oneline -1`. Uncommitted files that are not this run's belong to another session. Read `.peep/tweets.md` (F§7) if there is one: open tweets touching a ticket's files go in its brief.
 3. Mark each ticket:
    - **go**: every dep is `closed`, or is in this batch and reaches `done` earlier in this run.
    - **parked**: a dep outside the batch is not `closed`, or the ticket must change another session's file. Park it per park.md (`blocked`, a reason, a wake) and move on.

@@ -17,6 +17,7 @@ Extras: reach for these when the moment comes.
 /peep:shoot    use after a web UI change, before calling it done
 /peep:coderot  use between tickets, to check the tests can actually fail
 /peep:bigpeep  use when several tickets are ready and you want them worked in order, one commit each
+/peep:tweet    use when stuck on something another session may know, or about to change a file another session is in
 When you need it: /peep:hello (install check)
 ```
 

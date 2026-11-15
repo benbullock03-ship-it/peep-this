@@ -13,6 +13,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/work.md steps 1, 3, 4 and 5.1, wi
 - Decisions without a ruling go in the ticket under `## Decisions taken without a ruling`, one line each. Never ask a question.
 Files you may touch: <paths> and the ticket file.
 Must not touch: <other little peeps' files, other sessions' uncommitted files, shared files Big Peep owns>.
+Open tweets on your files (.peep/tweets.md): <numbers, or none>. Read them first.
 Build: <setup build>. Test: <setup test>.
 If Big Peep asks for a status, answer in one line and keep working.
 Report: files changed, checklist status, build and test result, what is owed, decisions taken.
