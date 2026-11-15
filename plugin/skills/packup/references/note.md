@@ -12,7 +12,7 @@ Uncommitted, mine: <files, or "none">
 Uncommitted, not mine (do not touch): <files, or "none">
 Checks: build <pass|fail|not run>, test <pass|fail|not run>. Failing: <what, or "none">
 Owner rulings wanted: <one line each, max 3, with the recommended answer, or "none">
-First command: <the exact command>
+First command: /peep:unpack   (when the next step is clear; else the exact command)
 Then: /peep:ticket <next id>   (or /peep:ducks if no ticket is next)
 ```
 

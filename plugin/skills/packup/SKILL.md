@@ -21,7 +21,7 @@ If the next ticket or command is obvious from the tickets and this session, writ
 
 ## 3. Write the note
 
-Format and rules: `references/note.md`. Under 25 lines, directive, no background. Every path, id, hash and command copied from the tree, never recalled.
+Format and rules: `references/note.md`. Under 25 lines, directive, no background. Every path, id, hash and command copied from the tree, never recalled. When the next step is clear, the `First command` line reads exactly `First command: /peep:unpack` and the real next step goes in `Left to do` and `Then`; Unpack runs it after checking the repo. If the next step is unclear, keep the exact command there instead.
 
 ## 4. Save, copy, tell
 
