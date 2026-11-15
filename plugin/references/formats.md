@@ -1,6 +1,6 @@
 # Pack formats
 
-The five formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
+The six formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
 
 All frontmatter is flat: one `key: value` per line, no nesting, no multi-line values. Lists are `[a, b]` or comma-separated. A missing key takes its default.
 
@@ -104,3 +104,24 @@ non_goals: [no thing one, no thing two]
 - All keys are single lines; `non_goals` is a `[a, b]` list or comma-separated.
 - Body: comparables when researched (`- <name> (<link>): how it differs`), else empty.
 - Drift: a planned ticket (Question Time) or loose ticket (Ducks) that does not serve `north_star` or hits a `non_goals` entry gets one line naming the ticket and why. Never a block, never a question. No file: no drift line.
+
+## 6. Scrub exceptions: `.peep/scrub.md`
+
+What Scrubadubdub must not flag. IDs are entries in `references/ai-tells.md`. The owner adds `earned` lines; Scrubadubdub writes `debt` lines only on the owner's yes.
+
+```
+# Scrub exceptions
+
+## Earned
+- hard-shadow · src/styles.css · The 6px hard black shadow is the AV-44 shell's depth (owner design, 2026-11-14).
+
+## Debt
+- tracked-caps · src/legacy.css · 4
+```
+
+- One line per exception: `- <ID> · <path> · <reason or count>`. `path` is a file, or a folder prefix ending in `/`, relative to the repo root.
+- `earned`: permanent. The reason is one full sentence saying what meaning the device carries (the earned test in `ai-tells.md`). Covers every hit of that ID under that path.
+- `debt`: today's hits of that ID under that path, to fix later. It may only shrink: more hits than the count is a finding; fewer means lower the count in the same change; zero means delete the line.
+- Inline: `scrub-ignore: <ID> <reason>` in a comment on the line or the line above waives that one hit. A missing reason waives nothing.
+- Anything the repo's `DESIGN.md` declares is never flagged, with or without a line here.
+- No file: nothing is excepted beyond `DESIGN.md` and inline ignores.
