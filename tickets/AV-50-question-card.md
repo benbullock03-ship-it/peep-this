@@ -64,6 +64,10 @@ Real interactive `claude` TUI through the AV-20 PTY driver and capture server (`
 - **Task text:** the `PermissionRequest` event for a question sets the session task to the question's first line instead of "Needs permission: AskUserQuestion".
 - A demo question sits on `research-02` in `?demo`.
 
+## Ruled by the owner 2026-11-15
+
+Four of the decisions above, confirmed as built: Esc leaves the card until the session's next event (no silent hold, no dismiss button); the badge and hotkey count include questions; the flyout shows the question in its bubble only, no card; card tests stay on `questionOf`, no DOM environment.
+
 ## Owed before done
 
 - Owner check in `npm run tauri dev` with a live `AskUserQuestion`: the card reads well, the terminal prompt is there with no delay, `Answer in terminal` and inbox `Enter` focus the session, the toast shows the question with no buttons, the card goes on answering.
