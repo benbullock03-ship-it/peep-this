@@ -76,6 +76,16 @@ function wirePress(host: HTMLElement, actions: StripActions) {
   });
 }
 
+/** Centre of cell `slot`, or of the `+N` tile past the last cell, along the plate: CSS px from its outer edge (AV-42). */
+export function slotCenter(host: HTMLElement, slot: number): number | null {
+  const cells = host.querySelectorAll<HTMLElement>(".ps-strip-btn");
+  const el = slot < cells.length ? cells[slot] : host.querySelector<HTMLElement>(".ps-strip-more:not([hidden])");
+  if (!el) return null;
+  const p = host.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  return host.dataset.layout === "row" ? r.left + r.width / 2 - p.left : r.top + r.height / 2 - p.top;
+}
+
 export function createStrip(host: HTMLElement, actions: StripActions, identityOf?: IdentityOf) {
   const open = document.createElement("button");
   open.type = "button";

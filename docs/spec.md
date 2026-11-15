@@ -343,6 +343,8 @@ Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-s
 
 When a session enters `waiting` in `strip` mode, only that session's row slides out beside its peep, amber-lit. It leaves when the state leaves `waiting` or when clicked through to the terminal. The approval card (§11.3) mounts here when the widget is collapsed. Toast rules (§3.6) are unchanged.
 
+Built (AV-42): the flyouts are a second transparent window (`flyout`, page `flyout.html` / `src/flyoutPage.ts`) over the zone beside the strip, clipped by its region to the cards, so hovering one is never hovering the strip and the strip's window never resizes. `src-tauri/src/flyout.rs` picks the side (away from the snapped edge; floating opens right unless only the left has room) and places the window; it is hidden unless the strip is up and still (`window::still_strip`). The main page sends which sessions fly out and where their peeps sit (`src/flyout.ts` `flyWants`, `stripPlate.ts` `slotCenter`); the flyout page lays them out (`layOut`): level with the peep beside a column, pushed down past the one before; under each peep, stacked away from a row. A click focuses the terminal and dismisses the flyout until that session next enters `waiting`. The `.cards` host in each flyout is AV-23's mount point.
+
 ### 12.8 Empty state (AV-43)
 
 With no sessions, one house peep: `idle`, yellow, no accessory. 32px in the strip, 64px in the panel above "No sessions running". Art unchanged.

@@ -10,6 +10,12 @@ export default defineConfig(() => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+  // The waiting flyouts (AV-42) are a second window with their own page.
+  build: {
+    rollupOptions: {
+      input: { main: "index.html", flyout: "flyout.html" },
+    },
+  },
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,

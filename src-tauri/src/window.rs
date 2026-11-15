@@ -219,7 +219,7 @@ pub fn hit_region(w: i32, h: i32, scale: f64) -> [Rect; 2] {
 }
 
 #[cfg(windows)]
-fn set_region(hwnd: isize, rects: &[Rect]) {
+pub(crate) fn set_region(hwnd: isize, rects: &[Rect]) {
     use windows_sys::Win32::Graphics::Gdi::{CombineRgn, CreateRectRgn, DeleteObject, SetWindowRgn, RGN_OR};
     unsafe {
         let rgn = CreateRectRgn(0, 0, 0, 0);
@@ -395,6 +395,11 @@ mod sys {
     }
 }
 
+#[cfg(windows)]
+pub(crate) fn place_rect(hwnd: isize, r: Rect) {
+    sys::set_rect(hwnd, r);
+}
+
 fn info(m: &Monitor) -> MonitorInfo {
     let wa = m.work_area();
     MonitorInfo {
@@ -503,6 +508,31 @@ pub fn mode_view() -> ModeView {
 
 fn emit_mode<R: Runtime>(app: &AppHandle<R>) {
     let _ = app.emit("mode", mode_view());
+    crate::flyout::refresh(app);
+}
+
+/// The strip's card on screen, with its monitor's work area and scale, while the strip alone is up
+/// and still (AV-42): not hidden, peeking, switching or being dragged, and strip-shaped.
+pub fn still_strip<R: Runtime>(app: &AppHandle<R>) -> Option<(Rect, Rect, f64)> {
+    let busy = DRAGGING.load(Ordering::SeqCst) || FOLD.lock().unwrap().is_some();
+    if busy || is_hidden() || is_peeking() || !STRIP_SHAPE.load(Ordering::SeqCst) {
+        return None;
+    }
+    let w = app.get_webview_window(LABEL)?;
+    if !w.is_visible().ok()? {
+        return None;
+    }
+    let (p, size) = (w.outer_position().ok()?, w.outer_size().ok()?);
+    let m = info(&w.current_monitor().ok()??);
+    let (thick, s) = (to_phys(STRIP + SHADOW, m.scale), to_phys(SHADOW, m.scale));
+    let (ww, wh) = (size.width as i32, size.height as i32);
+    // Just switched to the strip, the window may still be the panel's shape.
+    let shaped = match layout() {
+        Layout::Column => ww == thick,
+        Layout::Row => wh == thick,
+        Layout::Panel => false,
+    };
+    shaped.then_some((Rect { x: p.x, y: p.y, w: ww - s, h: wh - s }, m.work, m.scale))
 }
 
 fn request_save() {
@@ -700,7 +730,7 @@ fn apply_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool, activate: bool) {
 }
 
 /// Shows the window without taking the keyboard from the app in front (AV-40).
-fn show_inactive<R: Runtime>(w: &tauri::WebviewWindow<R>) -> tauri::Result<()> {
+pub(crate) fn show_inactive<R: Runtime>(w: &tauri::WebviewWindow<R>) -> tauri::Result<()> {
     #[cfg(windows)]
     {
         use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
@@ -903,7 +933,11 @@ pub fn on_event<R: Runtime>(w: &tauri::Window<R>, event: &WindowEvent) {
     }
     match event {
         WindowEvent::Focused(f) => FOCUSED.store(*f, Ordering::SeqCst),
-        WindowEvent::Moved(_) => request_save(),
+        WindowEvent::Moved(_) => {
+            request_save();
+            crate::flyout::refresh(w.app_handle());
+        }
+        WindowEvent::Resized(_) => crate::flyout::refresh(w.app_handle()),
         WindowEvent::ScaleFactorChanged { .. } => {
             *TARGET.lock().unwrap() = None;
             let last = *LAST_CONTENT.lock().unwrap();

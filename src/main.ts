@@ -2,6 +2,7 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
@@ -10,7 +11,7 @@ import { reducedMotion } from "./motion";
 import { pinsPeek } from "./peek";
 import { createList } from "./rows";
 import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
-import { createStrip, type StripActions } from "./stripPlate";
+import { createStrip, slotCenter, type StripActions } from "./stripPlate";
 import { initTheme } from "./theme";
 import { ROW_TRAIL } from "./trail";
 import { watchContent } from "./windowFit";
@@ -39,6 +40,30 @@ function setShape(v: ModeView) {
   // styles.css pins the card to the anchored side, so an unfold grows away from it.
   document.body.dataset.anchor = v.anchor;
   remeasure();
+  syncFlyouts();
+}
+
+/** AV-42: tells the backend which waiting rows fly out of the strip, and where their peeps sit on it. */
+let flySessions: readonly Session[] = [];
+const dismissed: Dismissed = new Map();
+let sendFlyouts: ((items: { id: string; at: number }[]) => void) | null = null;
+let flyFrame = 0;
+let lastFly = "";
+function syncFlyouts() {
+  if (!sendFlyouts || flyFrame) return;
+  flyFrame = requestAnimationFrame(() => {
+    flyFrame = 0;
+    pruneDismissed(dismissed, flySessions);
+    const show = view.mode === "strip" && !view.peek && view.layout !== "panel" && !folding;
+    const items = flyWants(flySessions, show, dismissed).flatMap(({ id, slot }) => {
+      const at = slotCenter(stripEl, slot);
+      return at === null ? [] : [{ id, at: Math.round(at) }];
+    });
+    const key = JSON.stringify(items);
+    if (key === lastFly) return;
+    lastFly = key;
+    sendFlyouts?.(items);
+  });
 }
 
 const SHADOW_PX = 6;
@@ -320,6 +345,8 @@ async function runLive() {
     sessions = snap.sessions;
     renderList(snap.sessions);
     renderStrip(snap.sessions);
+    flySessions = snap.sessions;
+    syncFlyouts();
     inbox.sync(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);
@@ -373,6 +400,12 @@ async function startSurface() {
   );
   let uncovered: (() => void) | null = null;
   await listen("uncovered", () => uncovered?.());
+  await listen<{ id: string; since: number }>("flyout-dismiss", (e) => {
+    dismissed.set(e.payload.id, e.payload.since);
+    syncFlyouts();
+  });
+  sendFlyouts = (items) => void invoke("set_flyouts", { items }).catch((err) => console.error("peepthis: set_flyouts failed", err));
+  syncFlyouts();
   await listen<ModeView>("mode", (e) => applyMode(e.payload));
   applyMode(await invoke<ModeView>("get_mode"));
 

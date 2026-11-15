@@ -1,5 +1,6 @@
 mod approve;
 mod cover;
+mod flyout;
 mod focus;
 mod hotkey;
 mod ingest;
@@ -199,6 +200,9 @@ pub fn run() {
             window::begin_switch,
             window::play_region,
             window::end_switch,
+            flyout::set_flyouts,
+            flyout::get_flyouts,
+            flyout::flyout_region,
             focus::focus_session,
             install::install_integration,
             install::uninstall_integration,
@@ -216,6 +220,7 @@ pub fn run() {
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
             window::setup(app)?;
+            flyout::setup(app)?;
             let handle = app.handle().clone();
             let store = Store::new(Box::new(move |snap: &Snapshot| {
                 log_snapshot(snap);

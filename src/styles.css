@@ -281,6 +281,82 @@ body[data-fold] > .ps-strip {
   letter-spacing: 0.04em;
 }
 
+/* ---------- waiting flyout (AV-42, flyoutPage.ts) ---------- */
+/* 300px plus the shadow and flyout.ts GAP is flyout.rs ZONE_W. */
+#flyouts {
+  position: relative;
+  flex: 1;
+}
+
+.ps-fly {
+  position: absolute;
+  width: 300px;
+  margin: 0;
+}
+
+.ps-fly .ps-item {
+  padding-bottom: 6px;
+}
+
+.ps-fly[data-side="left"] { --fly-from: translateX(16px); }
+.ps-fly[data-side="right"] { --fly-from: translateX(-16px); }
+.ps-fly[data-side="down"] { --fly-from: translateY(-16px); }
+.ps-fly[data-side="up"] { --fly-from: translateY(16px); }
+
+.ps-fly.entering {
+  animation: fly-in var(--motion-ms) var(--motion-steps) both;
+}
+
+@keyframes fly-in {
+  from {
+    opacity: 0;
+    transform: var(--fly-from, none);
+  }
+}
+
+/* An 8px stepped pointer at the peep; offsets skip the card's 2px border. flyoutPage.ts TAIL matches. */
+.ps-fly-tail,
+.ps-fly-tail::after {
+  position: absolute;
+  background: var(--st-waiting);
+}
+
+.ps-fly-tail::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+}
+
+.ps-fly[data-side="left"] .ps-fly-tail,
+.ps-fly[data-side="right"] .ps-fly-tail {
+  top: calc(var(--tail, 0px) - 6px);
+  width: 4px;
+  height: 8px;
+}
+
+.ps-fly[data-side="left"] .ps-fly-tail { left: calc(100% + 2px); }
+.ps-fly[data-side="left"] .ps-fly-tail::after { left: 4px; top: 2px; }
+.ps-fly[data-side="right"] .ps-fly-tail { right: calc(100% + 2px); }
+.ps-fly[data-side="right"] .ps-fly-tail::after { left: -4px; top: 2px; }
+
+.ps-fly[data-side="down"] .ps-fly-tail,
+.ps-fly[data-side="up"] .ps-fly-tail {
+  left: calc(var(--tail, 0px) - 6px);
+  width: 8px;
+  height: 4px;
+}
+
+.ps-fly[data-side="down"] .ps-fly-tail { bottom: calc(100% + 2px); }
+.ps-fly[data-side="down"] .ps-fly-tail::after { left: 2px; top: -4px; }
+.ps-fly[data-side="up"] .ps-fly-tail { top: calc(100% + 2px); }
+.ps-fly[data-side="up"] .ps-fly-tail::after { left: 2px; top: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-fly.entering {
+    animation: none;
+  }
+}
+
 .ps-row,
 .ps-openhead,
 .ps-icon {
