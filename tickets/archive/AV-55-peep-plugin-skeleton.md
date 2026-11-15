@@ -1,7 +1,7 @@
 ---
 id: AV-55
 title: Peep plugin skeleton with a local marketplace
-status: done
+status: closed
 depends: []
 attended: false
 ---

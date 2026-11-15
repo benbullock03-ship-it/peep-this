@@ -1,7 +1,7 @@
 ---
 id: AV-64
 title: Backend links each session to its running skill and ticket
-status: done
+status: closed
 depends: [AV-54]
 attended: false
 ---

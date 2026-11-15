@@ -1,7 +1,7 @@
 ---
 id: AV-62
 title: Integration install adds and removes the peep plugin
-status: done
+status: closed
 depends: [AV-55]
 attended: true
 ---

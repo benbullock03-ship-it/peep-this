@@ -1,7 +1,7 @@
 ---
 id: AV-59
 title: Question Time skill - batched grill, read-back, then tickets
-status: done
+status: closed
 depends: [AV-56]
 attended: false
 ---

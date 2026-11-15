@@ -1,7 +1,7 @@
 ---
 id: AV-58
 title: Ducks skill - repo check, first-run setup, batch close, wake parked tickets
-status: done
+status: closed
 depends: [AV-56, AV-57]
 attended: false
 ---

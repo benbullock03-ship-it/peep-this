@@ -1,7 +1,7 @@
 ---
 id: AV-56
 title: Repo setup and area note formats for the skill pack
-status: done
+status: closed
 depends: [AV-55]
 attended: false
 ---

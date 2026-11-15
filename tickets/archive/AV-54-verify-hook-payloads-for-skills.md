@@ -1,7 +1,7 @@
 ---
 id: AV-54
 title: Verify hook payloads carry skill commands, file paths and exit codes
-status: done
+status: closed
 depends: []
 attended: false
 ---

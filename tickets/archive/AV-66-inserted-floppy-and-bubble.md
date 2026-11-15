@@ -1,7 +1,7 @@
 ---
 id: AV-66
 title: Inserted floppy on the plank and ticket-aware bubble
-status: done
+status: closed
 depends: [AV-63, AV-64]
 attended: true
 ---

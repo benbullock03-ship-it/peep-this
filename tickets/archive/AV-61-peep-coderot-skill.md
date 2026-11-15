@@ -1,7 +1,7 @@
 ---
 id: AV-61
 title: Coderot skill - tiered rot in a throwaway worktree plus test-honesty checks
-status: done
+status: closed
 depends: [AV-56]
 attended: false
 ---

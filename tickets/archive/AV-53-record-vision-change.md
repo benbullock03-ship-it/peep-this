@@ -1,7 +1,7 @@
 ---
 id: AV-53
 title: Record the companion + skill pack vision in ADRs, CLAUDE.md and spec
-status: done
+status: closed
 depends: []
 attended: false
 ---

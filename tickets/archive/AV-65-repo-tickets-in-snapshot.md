@@ -1,7 +1,7 @@
 ---
 id: AV-65
 title: Backend reads each project's open and parked tickets
-status: done
+status: closed
 depends: [AV-56]
 attended: false
 ---

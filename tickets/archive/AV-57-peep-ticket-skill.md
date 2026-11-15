@@ -1,7 +1,7 @@
 ---
 id: AV-57
 title: Ticket skill with the six-status lifecycle and area notes
-status: done
+status: closed
 depends: [AV-56]
 attended: false
 ---

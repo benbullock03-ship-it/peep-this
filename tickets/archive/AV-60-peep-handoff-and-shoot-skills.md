@@ -1,7 +1,7 @@
 ---
 id: AV-60
 title: Pack Up (from handoff) and Shoot in the pack
-status: done
+status: closed
 depends: [AV-56]
 attended: false
 ---
