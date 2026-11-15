@@ -255,7 +255,6 @@ pub fn run() {
         .on_window_event(|w, e| window::on_event(w, e))
         .setup(|app| {
             window::setup(app)?;
-            flyout::setup(app)?;
             let handle = app.handle().clone();
             let store = Store::new(Box::new(move |snap: &Snapshot| {
                 log_snapshot(snap);
@@ -286,6 +285,9 @@ pub fn run() {
                 let store = Arc::clone(&store);
                 Box::new(move |ev| store.ingest(ev, store::now_ms()))
             });
+            // Last: creating a webview pumps messages, so the main page runs from here on, and
+            // an emit made on this thread before `setup` returns never reaches it (AV-47).
+            flyout::setup(app)?;
             Ok(())
         })
         .build(tauri::generate_context!())

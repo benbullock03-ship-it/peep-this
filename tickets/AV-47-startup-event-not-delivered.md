@@ -1,7 +1,7 @@
 ---
 id: AV-47
 title: Startup status event never reaches the page
-status: todo
+status: in-progress
 depends: []
 attended: false
 ---
@@ -14,8 +14,8 @@ Found 2026-11-15 on the installed release build (3 launches of 3). The page aske
 
 - [ ] Reproduce with a trace: when the page's `listen` and first `invoke` land relative to each step of `setup` in `lib.rs`. Suspect: `flyout::setup` creating the second webview pumps messages, so the main page runs during `setup`
 - [x] Say why the emit is lost (emitted before the listener exists after all, or dropped)
-- [ ] Check every other event emitted during `setup` for the same loss: `sessions`, `mode`, `rules`, integration status, digest
-- [ ] Fix at the source (order of `setup`, or commands that never answer with a placeholder), then remove `fetchHotkey`'s retry in `src/main.ts` if it is no longer needed
+- [x] Check every other event emitted during `setup` for the same loss: `sessions`, `mode`, `rules`, integration status, digest
+- [x] Fix at the source (order of `setup`, or commands that never answer with a placeholder), then remove `fetchHotkey`'s retry in `src/main.ts` if it is no longer needed
 - [ ] A test or a recorded live check that fails before the fix
 
 **Done when:** a cold launch of the release build shows correct hotkey, mode and session state with the retry removed, and the cause is written here.
@@ -38,15 +38,15 @@ Other events, same test:
 - `digest`: lost the same way if `away::wire` emits during `setup`; `get_digest` after `listen` covers it.
 - `mode`, `rules`, `trail`, `integration-result`, `open-settings`, `widget-hidden`: not emitted during `setup`.
 
-## Fix, written and reverted
+## Fix 2026-11-15
 
-Move `flyout::setup(app)?` to the last line of `setup` in `src-tauri/src/lib.rs`, with a one-line comment saying why. Nothing then emits on the main thread after the pump, and every command the page can reach already has its real state. Then delete `fetchHotkey` in `src/main.ts` and call `invoke` directly at its two call sites.
+`flyout::setup(app)?` is now the last line of `setup` in `src-tauri/src/lib.rs`. Nothing emits on the main thread after the pump, and every command the page can reach already has its real state. `fetchHotkey` is gone from `src/main.ts`; both call sites call `invoke` directly. Unblocked by AV-33 landing first (`b2f3558`).
 
-## Blocked 2026-11-15
+## Decisions taken without a ruling
 
-Both files the fix changes (`src-tauri/src/lib.rs`, `src/main.ts`) hold the orphaned AV-33 hunks marked do-not-touch. Unblocks when the owner rules on AV-33 (adopt and commit it, or allow AV-47's hunks beside it).
+- No automated test. The loss needs two real webviews and the Windows message pump; a unit test would only check line order in `setup`. The live check below is the proof.
 
 ## Owed before done
 
-- The fix above, once unblocked
-- A live trace or a cold launch of a release build with the retry removed. The installed widget was running, and the single-instance lock means a test build cannot start beside it
+- Owner: on a cold launch of the reinstalled build, no "hotkey is not active" notice shows, both hotkeys work, and mode and sessions are right. With the retry removed, the notices would stay up if the cause were wrong.
+- No live trace was taken; the cause is from reading the source.

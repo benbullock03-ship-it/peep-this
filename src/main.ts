@@ -226,15 +226,6 @@ function createHotkeyNotice(openSettings: () => void, name: string) {
   };
 }
 
-/** Until hotkey setup has run the backend answers "not registered, no error"; ask again. */
-async function fetchHotkey(get: () => Promise<HotkeyStatus>): Promise<HotkeyStatus> {
-  for (;;) {
-    const s = await get();
-    if (s.registered || s.error) return s;
-    await new Promise((r) => setTimeout(r, 250));
-  }
-}
-
 function runDemo() {
   let snap = demoSnapshot(Date.now());
   let inbox: ReturnType<typeof mountInbox> | null = null;
@@ -377,7 +368,7 @@ async function runLive() {
     hotkeyEvent = true;
     applyHotkey(e.payload);
   });
-  fetchHotkey(() => invoke<HotkeyStatus>("inbox_hotkey")).then((s) => hotkeyEvent || applyHotkey(s), (err) => console.error("peepthis: inbox_hotkey failed", err));
+  invoke<HotkeyStatus>("inbox_hotkey").then((s) => hotkeyEvent || applyHotkey(s), (err) => console.error("peepthis: inbox_hotkey failed", err));
   const toggleNotice = createHotkeyNotice(() => settings.show(true), "panel/strip");
   const applyToggleHotkey = (s: HotkeyStatus) => {
     toggleNotice(s);
@@ -389,7 +380,7 @@ async function runLive() {
     toggleEvent = true;
     applyToggleHotkey(e.payload);
   });
-  fetchHotkey(() => invoke<HotkeyStatus>("toggle_hotkey")).then((s) => toggleEvent || applyToggleHotkey(s), (err) => console.error("peepthis: toggle_hotkey failed", err));
+  invoke<HotkeyStatus>("toggle_hotkey").then((s) => toggleEvent || applyToggleHotkey(s), (err) => console.error("peepthis: toggle_hotkey failed", err));
   await listen("inbox-open", () => inbox.open());
   await listen("inbox-empty", () => inbox.flash());
   const dismissDigest = () => void invoke("dismiss_digest").catch((err) => console.error("peepthis: dismiss_digest failed", err));
