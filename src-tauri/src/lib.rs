@@ -19,6 +19,7 @@ mod window;
 #[allow(dead_code)]
 mod state;
 mod store;
+mod summary;
 mod ticker;
 mod trail;
 
@@ -243,6 +244,8 @@ pub fn run() {
             away::dismiss_digest,
             away::away_after,
             away::set_away_after,
+            away::digest_summary,
+            away::set_digest_summary,
             hotkey::inbox_hotkey,
             hotkey::set_inbox_hotkey,
             hotkey::toggle_hotkey,

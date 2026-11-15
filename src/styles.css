@@ -1324,6 +1324,13 @@ button.digest-entry:focus-visible {
   font-style: italic;
 }
 
+.digest-summary {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ps-text);
+  overflow-wrap: anywhere;
+}
+
 /* ---------- integration banner ---------- */
 .banner {
   display: flex;

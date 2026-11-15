@@ -26,6 +26,7 @@ pub const GONE_KEEP_MS: u64 = 24 * 60 * 60 * 1000;
 const POLL: Duration = Duration::from_secs(1);
 const STARTUP_GRACE_MS: u64 = 10_000;
 const SETTINGS_KEY: &str = "awayAfterMin";
+const SUMMARY_KEY: &str = "digestSummary";
 /// Dev and live checks: overrides the setting with a threshold in seconds.
 const ENV_SECS: &str = "PEEPTHIS_AWAY_SECS";
 
@@ -86,7 +87,8 @@ impl Activity {
     }
 }
 
-fn clip(s: &str, max: usize) -> String {
+/// First non-blank line, trimmed, at most `max` characters with an ellipsis.
+pub(crate) fn clip(s: &str, max: usize) -> String {
     let line = s.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("");
     let mut out: String = line.chars().take(max).collect();
     if line.chars().count() > max {
@@ -125,6 +127,9 @@ pub struct Entry {
     pub last_line: Option<String>,
     /// The log's cap dropped notes inside the window: counts are a floor.
     pub partial: bool,
+    /// One model-written sentence (AV-33), filled in after the card is shown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
     #[serde(skip)]
     last_at: u64,
 }
@@ -240,6 +245,7 @@ fn entry(id: &str, log: Option<&Log>, s: Option<&Session>, since: u64, until: u6
         released,
         last_line,
         partial: log.and_then(|l| l.dropped_at).is_some_and(|t| t >= since),
+        summary: None,
         last_at,
     }
 }
@@ -297,12 +303,17 @@ fn saved_minutes(path: &Path) -> u64 {
         .unwrap_or(AWAY_AFTER_MIN_DEFAULT)
 }
 
-fn save_minutes(path: &Path, minutes: u64) -> std::io::Result<()> {
+fn saved_summary(path: &Path) -> bool {
+    read_settings(path).get(SUMMARY_KEY).and_then(Value::as_bool).unwrap_or(false)
+}
+
+/// Read-modify-write of one key, keeping the others.
+fn save_setting(path: &Path, key: &str, value: Value) -> std::io::Result<()> {
     let mut v = read_settings(path);
     if !v.is_object() {
         v = Value::Object(Default::default());
     }
-    v[SETTINGS_KEY] = Value::from(minutes);
+    v[key] = value;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -318,6 +329,7 @@ fn env_override_ms() -> Option<u64> {
 struct Inner {
     presence: Presence,
     minutes: u64,
+    summary: bool,
     digest: Option<Digest>,
 }
 
@@ -330,11 +342,38 @@ pub struct Away {
 
 impl Away {
     pub fn new(emit: Box<dyn Fn(Option<&Digest>) + Send + Sync>) -> Arc<Away> {
-        Away::with(saved_minutes(&settings_path()), store::now_ms(), emit)
+        let path = settings_path();
+        let away = Away::with(saved_minutes(&path), store::now_ms(), emit);
+        away.inner.lock().unwrap().summary = saved_summary(&path);
+        away
     }
 
     fn with(minutes: u64, started: u64, emit: Box<dyn Fn(Option<&Digest>) + Send + Sync>) -> Arc<Away> {
-        Arc::new(Away { started, inner: Mutex::new(Inner { presence: Presence::Here, minutes, digest: None }), emit })
+        let inner = Inner { presence: Presence::Here, minutes, summary: false, digest: None };
+        Arc::new(Away { started, inner: Mutex::new(inner), emit })
+    }
+
+    pub fn summary_on(&self) -> bool {
+        self.inner.lock().unwrap().summary
+    }
+
+    /// Puts model sentences on the card, if the card they were written for is still the one shown.
+    pub fn fill(&self, since: u64, until: u64, sentences: &HashMap<String, String>) {
+        let filled = {
+            let mut inner = self.inner.lock().unwrap();
+            let Some(d) = inner.digest.as_mut().filter(|d| d.since == since && d.until == until) else { return };
+            let mut any = false;
+            for e in &mut d.entries {
+                if let Some(s) = sentences.get(&e.session_id) {
+                    e.summary = Some(s.clone());
+                    any = true;
+                }
+            }
+            any.then(|| d.clone())
+        };
+        if let Some(d) = filled {
+            (self.emit)(Some(&d));
+        }
     }
 
     fn after_ms(&self) -> u64 {
@@ -352,7 +391,8 @@ impl Away {
         }
     }
 
-    pub fn poll(&self, store: &Store, probe: Probe, now: u64) {
+    /// Returns the card when this poll built a new one.
+    pub fn poll(&self, store: &Store, probe: Probe, now: u64) -> Option<Digest> {
         let after = self.after_ms();
         let turn = {
             let mut inner = self.inner.lock().unwrap();
@@ -361,18 +401,22 @@ impl Away {
             turn
         };
         match turn {
-            Some(Turn::Left { since }) => println!("peepthis: away since {since}"),
             Some(Turn::Back { since }) => {
                 // Sessions found by the startup scan look new; the window opens once that has settled.
                 let from = since.max(self.started + STARTUP_GRACE_MS);
                 let d = store.digest(from, now).map(|d| Digest { since, ..d });
                 println!("peepthis: back after {}s, digest {} entries", now.saturating_sub(since) / 1000, d.as_ref().map_or(0, |d| d.entries.len()));
-                if let Some(d) = d {
+                if let Some(d) = &d {
                     self.inner.lock().unwrap().digest = Some(d.clone());
-                    (self.emit)(Some(&d));
+                    (self.emit)(Some(d));
                 }
+                d
             }
-            None => {}
+            Some(Turn::Left { since }) => {
+                println!("peepthis: away since {since}");
+                None
+            }
+            None => None,
         }
     }
 
@@ -380,8 +424,11 @@ impl Away {
         let me = Arc::clone(self);
         let spawned = std::thread::Builder::new().name("away".into()).spawn(move || loop {
             std::thread::sleep(POLL);
-            if let Some(p) = probe() {
-                me.poll(&store, p, store::now_ms());
+            let Some(p) = probe() else { continue };
+            if let Some(d) = me.poll(&store, p, store::now_ms()) {
+                if me.summary_on() {
+                    crate::summary::start(Arc::clone(&me), Arc::clone(&store), d);
+                }
             }
         });
         if let Err(e) = spawned {
@@ -447,9 +494,21 @@ pub fn set_away_after(minutes: u64, away: tauri::State<'_, Arc<Away>>) -> Result
     if !AWAY_AFTER_CHOICES.contains(&minutes) {
         return Err(format!("{minutes} min is not one of the choices"));
     }
-    save_minutes(&settings_path(), minutes).map_err(|e| e.to_string())?;
+    save_setting(&settings_path(), SETTINGS_KEY, Value::from(minutes)).map_err(|e| e.to_string())?;
     away.inner.lock().unwrap().minutes = minutes;
     Ok(minutes)
+}
+
+#[tauri::command]
+pub fn digest_summary(away: tauri::State<'_, Arc<Away>>) -> bool {
+    away.summary_on()
+}
+
+#[tauri::command]
+pub fn set_digest_summary(on: bool, away: tauri::State<'_, Arc<Away>>) -> Result<bool, String> {
+    save_setting(&settings_path(), SUMMARY_KEY, Value::from(on)).map_err(|e| e.to_string())?;
+    away.inner.lock().unwrap().summary = on;
+    Ok(on)
 }
 
 #[cfg(test)]
@@ -675,6 +734,26 @@ mod tests {
     }
 
     #[test]
+    fn fill_reaches_only_the_card_it_was_written_for() {
+        let mut a = Activity::default();
+        a.note("s", "demo", Note::Command, T0 + MIN);
+        let card = digest(&a, &[session("s", State::Success, T0 + MIN)], T0, T0 + 5 * MIN).unwrap();
+        let emits = Arc::new(Mutex::new(0));
+        let sink = Arc::clone(&emits);
+        let away = Away::with(5, T0, Box::new(move |_| *sink.lock().unwrap() += 1));
+        let sentences = HashMap::from([("s".to_string(), "Ran the tests.".to_string()), ("x".to_string(), "Stray.".to_string())]);
+
+        away.fill(T0, T0 + 5 * MIN, &sentences);
+        assert_eq!(*emits.lock().unwrap(), 0, "no card yet");
+        away.inner.lock().unwrap().digest = Some(card);
+        away.fill(T0, T0 + 9 * MIN, &sentences);
+        assert_eq!(*emits.lock().unwrap(), 0, "a newer card replaced it");
+        away.fill(T0, T0 + 5 * MIN, &sentences);
+        assert_eq!(*emits.lock().unwrap(), 1);
+        assert_eq!(away.current().unwrap().entries[0].summary.as_deref(), Some("Ran the tests."));
+    }
+
+    #[test]
     fn the_startup_scan_is_not_news() {
         let store = Store::new(Box::new(|_| {}));
         store.apply_or_placeholder("s", Some("C:/p"), Event::UserPromptSubmit, T0 + 1_000);
@@ -692,8 +771,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(&path, r#"{"trail":false,"awayAfterMin":7}"#).unwrap();
         assert_eq!(saved_minutes(&path), AWAY_AFTER_MIN_DEFAULT);
-        save_minutes(&path, 10).unwrap();
+        save_setting(&path, SETTINGS_KEY, Value::from(10)).unwrap();
         assert_eq!(saved_minutes(&path), 10);
+        assert!(!saved_summary(&path), "summary is off by default");
+        save_setting(&path, SUMMARY_KEY, Value::Bool(true)).unwrap();
+        assert!(saved_summary(&path));
         assert_eq!(read_settings(&path)["trail"], Value::Bool(false));
         let _ = std::fs::remove_dir_all(&dir);
     }

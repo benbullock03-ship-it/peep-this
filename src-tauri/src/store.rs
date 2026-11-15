@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -46,6 +46,8 @@ struct Inner {
     entered: Vec<Session>,
     /// Behind the away digest; never in the snapshot.
     activity: away::Activity,
+    /// The widget's own headless sessions (digest summaries): never a row, never a hook.
+    ignored: HashSet<String>,
 }
 
 impl Inner {
@@ -76,6 +78,7 @@ impl Store {
                 dirty: false,
                 entered: Vec::new(),
                 activity: away::Activity::default(),
+                ignored: HashSet::new(),
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
@@ -129,7 +132,26 @@ impl Store {
         self.inner.lock().unwrap().snapshot()
     }
 
+    /// Drops every later event for `id`, and the session if it is already in.
+    pub fn ignore(&self, id: &str) {
+        self.mutate(|inner| {
+            inner.ignored.insert(id.to_string());
+            inner.sessions.remove(id).is_some()
+        });
+    }
+
+    pub fn is_ignored(&self, id: &str) -> bool {
+        self.inner.lock().unwrap().ignored.contains(id)
+    }
+
     pub fn ingest(&self, ev: SourceEvent, now: u64) {
+        let id = match &ev {
+            SourceEvent::Upsert { info, .. } => &info.id,
+            SourceEvent::Ended { id } | SourceEvent::Apply { id, .. } => id,
+        };
+        if self.is_ignored(id) {
+            return;
+        }
         match ev {
             SourceEvent::Upsert { info, busy } => self.upsert(info, busy, now),
             SourceEvent::Ended { id } => self.apply(&id, Event::Ended, now),
@@ -153,6 +175,9 @@ impl Store {
     /// Like `apply`, but an unknown id gets a placeholder (pid 0, named after `cwd`) that a later session-file upsert fills in.
     pub fn apply_or_placeholder(&self, id: &str, cwd: Option<&str>, ev: Event, now: u64) {
         self.mutate(|inner| {
+            if inner.ignored.contains(id) {
+                return false;
+            }
             let before = inner.sessions.get(id).cloned();
             let base = match before.clone() {
                 // A resumed session reports SessionStart before its session file reappears.

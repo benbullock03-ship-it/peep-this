@@ -27,6 +27,7 @@ function entryEl(e: DigestEntry, deps: DigestDeps): HTMLElement {
   const head = el("div", "digest-head", item);
   el("span", "digest-name", head, e.name);
   if (!e.alive) el("span", "digest-ended", head, "ended");
+  if (e.summary) el("div", "digest-summary", item, e.summary);
   el("div", "digest-facts", item, factsOf(e).join(" · "));
   const files = filesLine(e);
   if (files) el("div", "digest-files", item, files).title = e.files.join("\n");

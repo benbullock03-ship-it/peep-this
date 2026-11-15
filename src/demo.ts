@@ -188,6 +188,7 @@ export function demoDigest(snap: Snapshot, now: number): Digest {
         fileCount: 3,
         commands: 12,
         lastLine: "All 175 tests pass and the build is clean.",
+        summary: "Restyled the session rows and the digest, then confirmed tests and build pass.",
       },
       { ...base, sessionId: d.id, name: d.name, group: "running", state: "working", tookMs: 31 * 60_000, files: ["src-tauri/src/away.rs"], fileCount: 1, commands: 4 },
     ],

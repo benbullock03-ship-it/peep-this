@@ -19,6 +19,7 @@ export type SettingsApi = {
   theme?: { get: () => ThemePref; set: (pref: ThemePref) => void };
   rules?: { view: () => Promise<RulesView>; revoke: (ruleId: string) => Promise<RulesView> };
   away?: { get: () => Promise<number>; set: (minutes: number) => Promise<number> };
+  summary?: { get: () => Promise<boolean>; set: (on: boolean) => Promise<boolean> };
 };
 
 const INBOX_FIELD = {
@@ -61,6 +62,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const toggleHotkey = api.toggleHotkey ? createHotkeyField(host, api.toggleHotkey, TOGGLE_FIELD) : null;
   const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
   const away = api.away ? createAwayField(host, api.away) : null;
+  const summary = api.summary ? createSummaryField(host, api.summary) : null;
   const rules = api.rules ? createRulesField(host, api.rules) : null;
 
   el("h3", "settings-sub", host, "Decision log");
@@ -146,7 +148,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh()]);
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh()]);
   }
 
   return {
@@ -242,6 +244,45 @@ function createAwayField(host: HTMLElement, api: NonNullable<SettingsApi["away"]
     async refresh() {
       try {
         select.value = String(await api.get());
+      } catch (e) {
+        msg.textContent = `Could not read the setting: ${e}`;
+        msg.hidden = false;
+      }
+    },
+  };
+}
+
+/** AV-33: opt-in model sentence per digest entry. */
+function createSummaryField(host: HTMLElement, api: NonNullable<SettingsApi["summary"]>) {
+  const row = el("label", "settings-toggle", host);
+  const box = el("input", "", row);
+  box.type = "checkbox";
+  el("span", "", row, "Summarise the away card with Haiku");
+  el(
+    "p",
+    "settings-note",
+    host,
+    "Off by default. Each return runs one claude -p call: it spends your rate limit, needs the network, and sends each session's name, changed file names, counts and last line to the model. The facts card shows first either way.",
+  );
+  const msg = el("p", "settings-error", host);
+  msg.hidden = true;
+  box.addEventListener("change", async () => {
+    box.disabled = true;
+    try {
+      box.checked = await api.set(box.checked);
+      msg.hidden = true;
+    } catch (e) {
+      box.checked = !box.checked;
+      msg.textContent = `Could not save: ${e}`;
+      msg.hidden = false;
+    } finally {
+      box.disabled = false;
+    }
+  });
+  return {
+    async refresh() {
+      try {
+        box.checked = await api.get();
       } catch (e) {
         msg.textContent = `Could not read the setting: ${e}`;
         msg.hidden = false;

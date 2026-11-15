@@ -159,6 +159,7 @@ pub fn handle_full(store: &Store, expected: &str, req: &Request, body: impl Read
     }
     let parsed = serde_json::from_slice::<Value>(&buf).map_err(|_| "malformed JSON");
     match parsed.and_then(|v| parse_value(&route, &v).map(|r| (v, r))) {
+        Ok((_, routed)) if store.is_ignored(&routed.session_id) => Outcome::Status(204),
         Ok((v, routed)) => {
             let (id, cwd) = (routed.session_id.clone(), routed.cwd.clone());
             dispatch(store, routed, now);
@@ -1046,6 +1047,22 @@ mod tests {
         assert_eq!(send(&store, &get, "{}"), 405);
         assert_eq!(send(&store, &req("/hook/Stop", ok), "{nope"), 400);
         assert_eq!(send(&store, &req("/hook/PreCompact", ok), &fixture("stop.json")), 204);
+        assert!(store.snapshot().sessions.is_empty());
+    }
+
+    #[test]
+    fn ignored_session_never_becomes_a_row_or_a_held_request() {
+        use crate::source::{SessionInfo, SourceEvent};
+        let store = quiet_store();
+        store.ignore(SID);
+        let ok = Some(TOKEN);
+        let prompt = format!(r#"{{"session_id":"{SID}","cwd":"C:/p","prompt":"hi"}}"#);
+        assert_eq!(send(&store, &req("/hook/UserPromptSubmit", ok), &prompt), 204);
+        let perm = format!(r#"{{"session_id":"{SID}","tool_name":"Bash","tool_input":{{"command":"ls"}}}}"#);
+        let out = handle_full(&store, TOKEN, &req("/hook/PermissionRequest", ok), perm.as_bytes(), 1_000);
+        assert!(matches!(out, Outcome::Status(204)));
+        let info = SessionInfo { id: SID.into(), pid: 7, name: "summary".into(), cwd: "C:/p".into(), kind: "interactive".into(), entrypoint: "sdk-cli".into() };
+        store.ingest(SourceEvent::Upsert { info, busy: Some(true) }, 1_000);
         assert!(store.snapshot().sessions.is_empty());
     }
 

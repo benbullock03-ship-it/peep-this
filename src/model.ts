@@ -113,6 +113,8 @@ export type DigestEntry = {
   released: number;
   lastLine?: string;
   partial: boolean;
+  /** AV-33: one model sentence, arrives after the card when the setting is on. */
+  summary?: string;
 };
 export type Digest = { since: number; until: number; entries: DigestEntry[] };
 

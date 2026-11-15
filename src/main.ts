@@ -348,6 +348,10 @@ async function runLive() {
       get: () => invoke<number>("away_after"),
       set: (minutes) => invoke<number>("set_away_after", { minutes }),
     },
+    summary: {
+      get: () => invoke<boolean>("digest_summary"),
+      set: (on) => invoke<boolean>("set_digest_summary", { on }),
+    },
   });
   await listen("open-settings", () => settings.show(true));
   const applyRules = (v: RulesView) => {
