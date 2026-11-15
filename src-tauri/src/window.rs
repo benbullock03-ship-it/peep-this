@@ -613,8 +613,10 @@ fn start_fold<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) ->
         if view.covered {
             crate::cover::show_until_painted(p.now, painted_signal(w.app_handle()));
         }
-        sys::set_rect(hwnd, u);
+        // Region first. Set after the resize, the old strip-shaped region would sit at the union's
+        // top-left for a moment and show the strip there, at the panel's corner.
         set_region(hwnd, &hit_region(p.now.w, p.now.h, p.scale).map(|r| Rect { x: r.x + dx, y: r.y + dy, ..r }));
+        sys::set_rect(hwnd, u);
         let id = FOLD_ID.fetch_add(1, Ordering::SeqCst) + 1;
         *FOLD.lock().unwrap() = Some(Fold { id, hwnd, on: u, to: p.to, scale: p.scale });
         std::thread::spawn(move || {
