@@ -43,7 +43,8 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
     if !s.alive {
         return None;
     }
-    let cheer = repos.iter().filter(|r| r.sessions.contains(&s.id)).filter_map(|r| r.last_closed.as_ref()).any(|c| {
+    let own = || repos.iter().filter(|r| r.sessions.contains(&s.id));
+    let cheer = own().filter_map(|r| r.last_closed.as_ref()).any(|c| {
         now.saturating_sub(c.at) < CHEER_MS && s.ticket.as_ref().is_none_or(|t| t.id != c.id)
     });
     let greet = sessions.iter().any(|o| {
@@ -52,7 +53,7 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
             && o.born_at >= s.born_at + GREET_GAP_MS
             && now.saturating_sub(o.born_at) < GREET_MS
     });
-    let worry = s.worried_at.is_some_and(|t| now.saturating_sub(t) < WORRY_MS);
+    let worry = s.worried_at.is_some_and(|t| now.saturating_sub(t) < WORRY_MS) || own().any(|r| !r.stale.is_empty());
     let pct = s.context_pct.unwrap_or(0.0);
     let nap = matches!(s.state, State::Idle | State::Success) && now.saturating_sub(s.state_since) >= NAP_AFTER_MS;
     [
@@ -193,6 +194,7 @@ mod tests {
             sessions: vec!["a".into(), "b".into()],
             tickets: vec![],
             last_closed: Some(Closed { id: "AV-7".into(), at: T0 + 10 }),
+            stale: vec![],
         };
         let repos = [repo];
         let all = [&a, &closer, &elsewhere];
@@ -200,6 +202,17 @@ mod tests {
         assert_eq!(derive(&closer, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), None, "the closer doesn't cheer itself");
         assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), None);
         assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 10 + CHEER_MS), None);
+    }
+
+    #[test]
+    fn a_stale_doing_ticket_worries_every_session_in_its_repo() {
+        let a = session("a", T0);
+        let elsewhere = session("c", T0);
+        let repo = Repo { root: "F:/p".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: None, stale: vec!["AV-7".into()] };
+        let repos = [repo];
+        let all = [&a, &elsewhere];
+        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + NAP_AFTER_MS), Some(Mood::Worry), "worry beats nap");
+        assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, T0), None);
     }
 
     #[test]

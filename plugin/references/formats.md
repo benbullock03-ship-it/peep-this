@@ -24,6 +24,7 @@ At the repo root. Walk (`/peep:walk`) writes it on first run; the owner may hand
 | `qt.round` | Questions per Question Time round, 2 to 4 | `4` |
 | `packup.questions` | `ask` (ask when the next step is unclear) or `never` (write straight away) | `ask` |
 | `shoot.widths` | Widths Shoot covers; wins over `widths` | `widths` |
+| `stale.days` | Days a `doing` ticket's file may sit unchanged before Ducks lists it first and the peep worries | `3` |
 | `skills.off` | Pack skills to switch off, comma-separated names (`coderot, reel`) | none |
 
 - `skills.off`: a skill listed there replies `peep <name>: switched off in .peep/setup.md.` and stops, not counted as a run. Walk is never switched off.

@@ -6,7 +6,7 @@ Cheap reads only. Never read the archive whole, never run `build`, run `test` on
 
 1. `git status --short` and `git branch --show-current`.
 2. Frontmatter of every `<tickets>*.md` (F§2): `id`, `status`, `depends`, `reason`, `wake`. Read the first lines of each file only.
-3. For each `doing` ticket: `git log -1 --format=%cr%x09%h --grep="<id>:"`.
+3. For each `doing` ticket: its file's last change, `stat -c %Y <file>` (Git Bash), the same clock the widget's worried peep uses.
 4. The setup's `test` command, once, with a 5-minute limit. Keep the exit code and the first few failing test names. No `test`: "no test command".
 5. `CLAUDE.md` at the root, if present.
 
@@ -14,7 +14,7 @@ Cheap reads only. Never read the archive whole, never run `build`, run `test` on
 
 | Kind | Found when |
 |---|---|
-| Stale `doing` | status `doing`, no commit naming `<id>:` in the last 7 days, and no uncommitted change to its ticket file |
+| Stale `doing` | status `doing` and its ticket file unchanged for the setup's `stale.days` (F§1). Always listed first |
 | `done`, waiting | status `done`: Claude's claim, waiting for the owner's close |
 | Wake met | parked, `wake: ticket:<X>` and X is closed (see below) |
 | Wake met | parked, `wake: date:<D>` and D is today or earlier |

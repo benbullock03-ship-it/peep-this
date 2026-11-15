@@ -412,7 +412,7 @@ mod tests {
         store.tick(60_000 + mood::GREET_MS);
         assert_eq!(mood_of("a"), None);
         let closed = Some(crate::tickets::Closed { id: "AV-1".into(), at: 70_000 });
-        let repo = Repo { root: "C:/work/demo".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: closed };
+        let repo = Repo { root: "C:/work/demo".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: closed, stale: vec![] };
         store.set_repos(vec![repo], 70_000);
         assert_eq!(mood_of("a"), Some(Mood::Cheer));
     }

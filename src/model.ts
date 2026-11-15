@@ -143,6 +143,8 @@ export type Repo = {
   tickets: RepoTicket[];
   /** Latest ticket seen closing since the widget first read the repo; `at` is ms. */
   lastClosed?: { id: string; at: number };
+  /** `doing` ticket ids unchanged for the setup's `stale.days`; absent when none. */
+  stale?: string[];
 };
 
 export type Snapshot = {

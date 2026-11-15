@@ -52,6 +52,21 @@ pub struct Repo {
     /// The latest ticket seen closing since the widget first read this repo (AV-70 cheer).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_closed: Option<Closed>,
+    /// `doing` tickets whose file has not changed for the setup's `stale.days` (AV-78 worry).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stale: Vec<String>,
+}
+
+pub const STALE_DAYS_DEFAULT: u64 = 3;
+const DAY_MS: u64 = 24 * 60 * 60 * 1000;
+
+fn stale_days(repo: &Path) -> u64 {
+    setup_key(repo, "stale.days").and_then(|d| d.parse().ok()).unwrap_or(STALE_DAYS_DEFAULT)
+}
+
+fn modified_ms(path: &Path) -> Option<u64> {
+    let t = std::fs::metadata(path).ok()?.modified().ok()?;
+    Some(t.duration_since(std::time::UNIX_EPOCH).ok()?.as_millis() as u64)
 }
 
 /// The first `PREFIX-N` argument, uppercased, with its title when the ticket file is found in the repo `cwd` is in.
@@ -166,10 +181,10 @@ pub fn parse(text: &str, path: &Path) -> Option<Ticket> {
 }
 
 /// Every parseable ticket directly in `dir`; malformed files are skipped.
-fn read_tickets(dir: &Path) -> Vec<Ticket> {
+fn read_tickets(dir: &Path) -> Vec<(PathBuf, Ticket)> {
     md_files(dir)
         .into_iter()
-        .filter_map(|p| std::fs::read_to_string(&p).ok().and_then(|t| parse(&t, &p)))
+        .filter_map(|p| std::fs::read_to_string(&p).ok().and_then(|t| parse(&t, &p)).map(|t| (p, t)))
         .collect()
 }
 
@@ -190,12 +205,21 @@ impl Shelf {
         groups
             .into_iter()
             .map(|(root, sessions)| {
-                let (closed, tickets): (Vec<Ticket>, Vec<Ticket>) =
-                    read_tickets(&tickets_dir(&root)).into_iter().partition(|t| t.status == Status::Closed);
+                let (closed, live): (Vec<_>, Vec<_>) =
+                    read_tickets(&tickets_dir(&root)).into_iter().partition(|(_, t)| t.status == Status::Closed);
+                let after = stale_days(&root) * DAY_MS;
+                let stale = live
+                    .iter()
+                    .filter(|(p, t)| {
+                        t.status == Status::Doing && modified_ms(p).is_some_and(|m| now.saturating_sub(m) >= after)
+                    })
+                    .map(|(_, t)| t.id.clone())
+                    .collect();
+                let tickets: Vec<Ticket> = live.into_iter().map(|(_, t)| t).collect();
                 // Archive files are only listed, never parsed.
                 let now_closed: HashSet<String> = closed
                     .into_iter()
-                    .map(|t| t.id)
+                    .map(|(_, t)| t.id)
                     .chain(md_files(&archive_dir(&root)).iter().filter_map(|p| id_from_name(p)))
                     .collect();
                 let (seen, last) = self.closed.entry(root.clone()).or_insert_with(|| (now_closed.clone(), None));
@@ -203,7 +227,7 @@ impl Shelf {
                     *last = Some(Closed { id: id.clone(), at: now });
                 }
                 *seen = now_closed;
-                Repo { root: root.to_string_lossy().into_owned(), sessions, tickets, last_closed: last.clone() }
+                Repo { root: root.to_string_lossy().into_owned(), sessions, tickets, last_closed: last.clone(), stale }
             })
             .collect()
     }
@@ -312,7 +336,7 @@ mod tests {
     #[test]
     fn shelf_parser_reads_fixture_folder_and_skips_malformed_index_and_archive() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tickets");
-        let got = read_tickets(&dir);
+        let got: Vec<Ticket> = read_tickets(&dir).into_iter().map(|(_, t)| t).collect();
         let ids: Vec<(&str, Status)> = got.iter().map(|t| (t.id.as_str(), t.status)).collect();
         assert_eq!(
             ids,
@@ -371,5 +395,22 @@ mod tests {
         assert_eq!(shelf.read(&sessions, 4)[0].last_closed, Some(Closed { id: "AV-2".into(), at: 4 }));
         std::fs::rename(dir.join("tickets/AV-2-y.md"), dir.join("tickets/archive/AV-2-y.md")).unwrap();
         assert_eq!(shelf.read(&sessions, 5)[0].last_closed.as_ref().unwrap().at, 4,"the archive move is the same closing");
+    }
+
+    #[test]
+    fn doing_tickets_unchanged_for_stale_days_are_stale() {
+        let dir = repo("stale");
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        write(dir.join("tickets/AV-1-x.md"), "---\nid: AV-1\nstatus: doing\n---\n");
+        write(dir.join("tickets/AV-2-y.md"), "---\nid: AV-2\nstatus: open\n---\n");
+        let changed = modified_ms(&dir.join("tickets/AV-1-x.md")).unwrap();
+        let sessions = [s("s1", &dir)];
+        let at = |now| Shelf::default().read(&sessions, now)[0].stale.clone();
+        assert!(at(changed + STALE_DAYS_DEFAULT * DAY_MS - 1).is_empty());
+        assert_eq!(at(changed + STALE_DAYS_DEFAULT * DAY_MS), vec!["AV-1"], "open tickets never go stale");
+        write(dir.join(".peep/setup.md"), "---\nprefix: AV\nstale.days: 1\n---\n");
+        assert_eq!(at(changed + DAY_MS), vec!["AV-1"], "the setup overrides the default");
+        write(dir.join(".peep/setup.md"), "---\nprefix: AV\nstale.days: soon\n---\n");
+        assert!(at(changed + DAY_MS).is_empty(), "an unreadable value falls back to the default");
     }
 }

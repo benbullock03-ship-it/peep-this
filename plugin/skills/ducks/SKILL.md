@@ -21,7 +21,7 @@ If `<root>/.peep/handoff.md` exists, read it before anything else. Its "not mine
 
 ## 2. Gather, cheaply
 
-Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run, `CLAUDE.md`. It yields the loose ends: stale `doing`, `done` waiting for the owner, parked (wake met, not met, free text), failing tests, uncommitted or unrelated work, rules likely to bite. Do not print the raw gather.
+Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run, `CLAUDE.md`. It yields the loose ends, stale `doing` always first: stale `doing`, `done` waiting for the owner, parked (wake met, not met, free text), failing tests, uncommitted or unrelated work, rules likely to bite. Do not print the raw gather.
 
 ## 3. Nothing loose
 
@@ -57,7 +57,7 @@ The final reply is these lines and nothing else:
 ```
 peep ducks: <n> loose ends, <n> acted on
 - <action taken, e.g. "AV-12 woke (AV-09 closed)" or "AV-07 closed (abc1234)">   one per line, omitted when none
-loose: <short list of what stays open> | none
+loose: <short list of what stays open, stale doing first> | none
 next: /peep:ticket <id> | clear to proceed
 ```
 
