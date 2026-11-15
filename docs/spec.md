@@ -319,6 +319,7 @@ Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-s
 - Live magnet: dragged within 16px of a work-area edge or corner, on any monitor, the widget jumps there with the 12px margin while still held; dragging more than 16px further breaks it free. Dropped elsewhere it floats.
 - The snapped edge or corner is the anchor. It is saved with the position, and every size change keeps the anchored edge fixed.
 - **Verify** (AV-34): a drag method that allows a live magnet. Fallback: snap on release.
+- Built (AV-38): `snap.rs` holds the maths. `window.rs` subclasses the window and rewrites `WM_MOVING` from the cursor and the grab offset, because Windows chains each proposal from the last one. A drop part-way off the work area is pulled back inside. `window.json` stores `anchor` (`float`, an edge, or a corner like `bottom-right`). A file without one reads as `float`, or as `top-right` when it sits on the default dock.
 
 ### 12.5 Peep strip (AV-39)
 

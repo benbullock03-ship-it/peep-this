@@ -7,6 +7,7 @@ mod install;
 mod motion;
 mod notify;
 mod risk;
+mod snap;
 mod source;
 pub mod statusline_original;
 mod tray;

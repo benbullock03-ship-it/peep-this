@@ -10,7 +10,9 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, Monitor, PhysicalPosition, Runtime, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, Runtime, WindowEvent};
+
+use crate::snap::{anchored_origin, Anchor};
 
 pub const WIDTH: f64 = 360.0;
 pub const MIN_HEIGHT: f64 = 48.0;
@@ -66,6 +68,15 @@ pub struct Saved {
     pub y: i32,
 }
 
+/// `window.json`: the position plus, since AV-38, the anchor. Files without one still parse.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+struct Stored {
+    #[serde(flatten)]
+    at: Saved,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    anchor: Option<Anchor>,
+}
+
 fn to_phys(logical: f64, scale: f64) -> i32 {
     (logical * scale).round() as i32
 }
@@ -86,19 +97,35 @@ fn default_dock(m: &MonitorInfo, w: i32, h: i32) -> (i32, i32) {
 /// None when there are no monitors. Saved spot wins if its monitor still exists (same name,
 /// position, size) and the saved card overlaps that monitor's work area (clamped fully inside);
 /// otherwise the primary's default dock.
+#[cfg(test)]
 pub fn place(
     saved: Option<&Saved>,
     monitors: &[MonitorInfo],
     primary: Option<&MonitorId>,
     size: (f64, f64),
 ) -> Option<(i32, i32)> {
+    place_anchored(saved, None, monitors, primary, size).map(|(at, _)| at)
+}
+
+/// `place` plus the anchor (AV-38). Anchored axes go back to their edge whatever size the card
+/// starts at; a save without an anchor is `Float`, or the top-right corner if it sits on the dock.
+pub fn place_anchored(
+    saved: Option<&Saved>,
+    anchor: Option<Anchor>,
+    monitors: &[MonitorInfo],
+    primary: Option<&MonitorId>,
+    size: (f64, f64),
+) -> Option<((i32, i32), Anchor)> {
     let card = (size.0 - SHADOW, size.1 - SHADOW);
     let phys = |m: &MonitorInfo| (to_phys(card.0, m.scale), to_phys(card.1, m.scale));
     if let Some(s) = saved {
         if let Some(m) = monitors.iter().find(|m| m.id == s.monitor) {
             let (w, h) = phys(m);
             if m.work.intersects(&Rect { x: s.x, y: s.y, w, h }) {
-                return Some(clamp_into(&m.work, s.x, s.y, w, h));
+                let on_dock = (s.x, s.y) == default_dock(m, w, h);
+                let a = anchor.unwrap_or(if on_dock { Anchor::TopRight } else { Anchor::Float });
+                let (x, y) = anchored_origin(a, m.work, to_phys(MARGIN, m.scale), (w, h), (s.x, s.y));
+                return Some((clamp_into(&m.work, x, y, w, h), a));
             }
         }
     }
@@ -106,16 +133,28 @@ pub fn place(
         .and_then(|p| monitors.iter().find(|m| &m.id == p))
         .or_else(|| monitors.first())?;
     let (w, h) = phys(m);
-    Some(default_dock(m, w, h))
+    Some((default_dock(m, w, h), Anchor::TopRight))
 }
 
 /// Logical window height for `content` logical px (shadow included), capped at 70% of the work
 /// area, and the outer top (physical) moved up if the card would cross the work area's bottom.
+#[cfg(test)]
 pub fn fit(content: f64, top: i32, m: &MonitorInfo) -> (f64, i32) {
+    fit_anchored(content, top, m, Anchor::Float)
+}
+
+/// `fit`, but a bottom-anchored card keeps its bottom on the margin and grows upward.
+pub fn fit_anchored(content: f64, top: i32, m: &MonitorInfo, anchor: Anchor) -> (f64, i32) {
     let cap = (MAX_HEIGHT_FRACTION * m.work.h as f64 / m.scale).floor().max(MIN_HEIGHT);
     let h = content.ceil().clamp(MIN_HEIGHT, cap);
     let card = to_phys(h - SHADOW, m.scale);
-    let y = if top + card > m.work.bottom() { m.work.bottom() - card } else { top };
+    let y = if anchor.is_bottom() {
+        m.work.bottom() - to_phys(MARGIN, m.scale) - card
+    } else if top + card > m.work.bottom() {
+        m.work.bottom() - card
+    } else {
+        top
+    };
     (h, y.max(m.work.y))
 }
 
@@ -140,6 +179,109 @@ fn set_region(hwnd: isize, rects: [Rect; 2]) {
     }
 }
 
+/// Live magnet (AV-34 answer): the native caption drag sends `WM_MOVING`, and rewriting its rect
+/// catches the card while held. Windows builds each proposal from the previous (snapped) rect, so
+/// the raw spot is rebuilt from the cursor and the grab offset; only then does pulling past the
+/// magnet break free.
+#[cfg(windows)]
+mod sys {
+    use super::*;
+    use crate::snap::{snap, MAGNET};
+    use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+    use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromRect, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+    use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
+    use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetCursorPos, GetWindowRect, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER, WM_ENTERSIZEMOVE,
+        WM_EXITSIZEMOVE, WM_MOVING,
+    };
+
+    static DRAG_ANCHOR: Mutex<Option<Anchor>> = Mutex::new(None);
+    /// Cursor minus window top-left when the drag began.
+    static GRAB: Mutex<Option<(i32, i32)>> = Mutex::new(None);
+
+    fn cursor() -> (i32, i32) {
+        let mut p = POINT { x: 0, y: 0 };
+        unsafe { GetCursorPos(&mut p) };
+        (p.x, p.y)
+    }
+
+    pub fn set_rect(h: isize, r: Rect) {
+        unsafe { SetWindowPos(h as HWND, std::ptr::null_mut(), r.x, r.y, r.w, r.h, SWP_NOZORDER | SWP_NOACTIVATE) };
+    }
+
+    fn scale(h: HWND) -> f64 {
+        unsafe { GetDpiForWindow(h) as f64 / 96.0 }
+    }
+
+    /// The card part of a window rect (the shadow hangs off its right and bottom).
+    fn card_of(rc: &RECT, s: i32) -> Rect {
+        Rect { x: rc.left, y: rc.top, w: rc.right - rc.left - s, h: rc.bottom - rc.top - s }
+    }
+
+    fn work_for(card: Rect) -> Rect {
+        let rc = RECT { left: card.x, top: card.y, right: card.right(), bottom: card.bottom() };
+        unsafe {
+            let mon = MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST);
+            let mut mi: MONITORINFO = std::mem::zeroed();
+            mi.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+            GetMonitorInfoW(mon, &mut mi);
+            let w = mi.rcWork;
+            Rect { x: w.left, y: w.top, w: w.right - w.left, h: w.bottom - w.top }
+        }
+    }
+
+    unsafe extern "system" fn proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _id: usize, _data: usize) -> LRESULT {
+        match msg {
+            WM_ENTERSIZEMOVE => {
+                let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+                unsafe { GetWindowRect(hwnd, &mut rc) };
+                let (cx, cy) = cursor();
+                *GRAB.lock().unwrap() = Some((cx - rc.left, cy - rc.top));
+            }
+            WM_MOVING => {
+                let rc = unsafe { &mut *(lp as *mut RECT) };
+                if let Some((gx, gy)) = *GRAB.lock().unwrap() {
+                    let (cx, cy) = cursor();
+                    let (w, h) = (rc.right - rc.left, rc.bottom - rc.top);
+                    (rc.left, rc.top) = (cx - gx, cy - gy);
+                    (rc.right, rc.bottom) = (rc.left + w, rc.top + h);
+                }
+                let k = scale(hwnd);
+                let card = card_of(rc, to_phys(SHADOW, k));
+                let (to, a) = snap(card, work_for(card), to_phys(MARGIN, k), to_phys(MAGNET, k));
+                let (dx, dy) = (to.x - card.x, to.y - card.y);
+                (rc.left, rc.top, rc.right, rc.bottom) = (rc.left + dx, rc.top + dy, rc.right + dx, rc.bottom + dy);
+                *DRAG_ANCHOR.lock().unwrap() = Some(a);
+                return 1;
+            }
+            WM_EXITSIZEMOVE => {
+                *GRAB.lock().unwrap() = None;
+                if let Some(a) = DRAG_ANCHOR.lock().unwrap().take() {
+                    *ANCHOR.lock().unwrap() = a;
+                    // Dropped part-way over a taskbar or off the edge: pull the card back inside.
+                    let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+                    unsafe { GetWindowRect(hwnd, &mut rc) };
+                    let card = card_of(&rc, to_phys(SHADOW, scale(hwnd)));
+                    let (x, y) = clamp_into(&work_for(card), card.x, card.y, card.w, card.h);
+                    if (x, y) != (card.x, card.y) {
+                        set_rect(hwnd as isize, Rect { x, y, w: rc.right - rc.left, h: rc.bottom - rc.top });
+                    }
+                    request_save();
+                }
+            }
+            _ => {}
+        }
+        unsafe { DefSubclassProc(hwnd, msg, wp, lp) }
+    }
+
+    pub fn subclass(h: isize) {
+        if unsafe { SetWindowSubclass(h as HWND, Some(proc), 0xA38, 0) } == 0 {
+            eprintln!("peepthis: snap subclass failed; dragging works without the magnet");
+        }
+    }
+}
+
 fn info(m: &Monitor) -> MonitorInfo {
     let wa = m.work_area();
     MonitorInfo {
@@ -159,12 +301,12 @@ fn state_path() -> Option<PathBuf> {
     std::env::var_os("APPDATA").map(|d| PathBuf::from(d).join("PeepThis").join("window.json"))
 }
 
-fn load() -> Option<Saved> {
+fn load() -> Option<Stored> {
     let text = std::fs::read_to_string(state_path()?).ok()?;
     serde_json::from_str(&text).ok()
 }
 
-fn store(saved: &Saved) -> std::io::Result<()> {
+fn store(saved: &Stored) -> std::io::Result<()> {
     let Some(path) = state_path() else { return Ok(()) };
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -177,7 +319,7 @@ fn store(saved: &Saved) -> std::io::Result<()> {
 fn save_now<R: Runtime>(app: &AppHandle<R>) {
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let (Ok(pos), Ok(Some(mon))) = (w.outer_position(), w.current_monitor()) else { return };
-    let saved = Saved { monitor: info(&mon).id, x: pos.x, y: pos.y };
+    let saved = Stored { at: Saved { monitor: info(&mon).id, x: pos.x, y: pos.y }, anchor: Some(anchor()) };
     if let Err(e) = store(&saved) {
         eprintln!("peepthis: saving window position failed: {e}");
     }
@@ -190,6 +332,17 @@ static LAST_CONTENT: Mutex<Option<f64>> = Mutex::new(None);
 static FOCUSED: AtomicBool = AtomicBool::new(false);
 /// Content is taller than the capped window, so the list scrolls.
 static OVERFLOWING: AtomicBool = AtomicBool::new(false);
+static ANCHOR: Mutex<Anchor> = Mutex::new(Anchor::TopRight);
+
+pub fn anchor() -> Anchor {
+    *ANCHOR.lock().unwrap()
+}
+
+fn request_save() {
+    if let Some(tx) = SAVE_TX.get() {
+        let _ = tx.send(());
+    }
+}
 
 pub fn is_focused() -> bool {
     FOCUSED.load(Ordering::SeqCst)
@@ -227,16 +380,21 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, content: f64) -> tauri::Result<()
         },
     };
     let pos = w.outer_position()?;
-    let (h, y) = fit(content, pos.y, &info(&mon));
+    let m = info(&mon);
+    let (h, y) = fit_anchored(content, pos.y, &m, anchor());
     OVERFLOWING.store(content.ceil() > h, Ordering::SeqCst);
-    w.set_size(LogicalSize::new(WIDTH, h))?;
-    if y != pos.y {
-        w.set_position(PhysicalPosition::new(pos.x, y))?;
-    }
+    let (pw, ph) = (to_phys(WIDTH, m.scale), to_phys(h, m.scale));
     #[cfg(windows)]
     {
-        let size = w.outer_size()?;
-        set_region(w.hwnd()?.0 as isize, hit_region(size.width as i32, size.height as i32, mon.scale_factor()));
+        // One call: size then position separately shows a frame at the wrong spot (AV-34).
+        let hwnd = w.hwnd()?.0 as isize;
+        sys::set_rect(hwnd, Rect { x: pos.x, y, w: pw, h: ph });
+        set_region(hwnd, hit_region(pw, ph, m.scale));
+    }
+    #[cfg(not(windows))]
+    {
+        w.set_size(tauri::PhysicalSize::new(pw as u32, ph as u32))?;
+        w.set_position(PhysicalPosition::new(pos.x, y))?;
     }
     if !USER_HIDDEN.load(Ordering::SeqCst) && !w.is_visible()? {
         w.show()?;
@@ -292,9 +450,15 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let primary = w.primary_monitor()?.map(|m| info(&m).id);
     let scale = w.scale_factor()?;
     let size = w.outer_size()?.to_logical::<f64>(scale);
-    if let Some((x, y)) = place(load().as_ref(), &monitors, primary.as_ref(), (WIDTH, size.height)) {
+    let stored = load();
+    let saved = stored.as_ref().map(|s| &s.at);
+    let anchor = stored.as_ref().and_then(|s| s.anchor);
+    if let Some(((x, y), a)) = place_anchored(saved, anchor, &monitors, primary.as_ref(), (WIDTH, size.height)) {
+        *ANCHOR.lock().unwrap() = a;
         w.set_position(PhysicalPosition::new(x, y))?;
     }
+    #[cfg(windows)]
+    sys::subclass(w.hwnd()?.0 as isize);
     spawn_saver(app.handle().clone());
     // Shown on the first fit_window call; this covers a frontend that never calls it.
     let handle = app.handle().clone();
@@ -313,11 +477,7 @@ pub fn on_event<R: Runtime>(w: &tauri::Window<R>, event: &WindowEvent) {
     }
     match event {
         WindowEvent::Focused(f) => FOCUSED.store(*f, Ordering::SeqCst),
-        WindowEvent::Moved(_) => {
-            if let Some(tx) = SAVE_TX.get() {
-                let _ = tx.send(());
-            }
-        }
+        WindowEvent::Moved(_) => request_save(),
         WindowEvent::ScaleFactorChanged { .. } => {
             let last = *LAST_CONTENT.lock().unwrap();
             if let Some(h) = last {
@@ -489,6 +649,59 @@ mod tests {
         let (h, y) = fit(400.0, 900, &m);
         assert_eq!(y, 1008 - to_phys(h - SHADOW, 1.5));
         assert!(y >= 0);
+    }
+
+    #[test]
+    fn window_first_run_is_the_top_right_corner_anchor() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.25, 48);
+        let (at, a) = place_anchored(None, None, &[m.clone()], Some(&m.id), SIZE).unwrap();
+        assert_eq!(Some(at), place(None, &[m.clone()], Some(&m.id), SIZE));
+        assert_eq!(a, Anchor::TopRight);
+    }
+
+    #[test]
+    fn window_save_without_anchor_is_float_unless_on_the_dock() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let (dx, dy) = place(None, &[m.clone()], Some(&m.id), SIZE).unwrap();
+        let on_dock = Saved { monitor: m.id.clone(), x: dx, y: dy };
+        assert_eq!(place_anchored(Some(&on_dock), None, &[m.clone()], Some(&m.id), SIZE).unwrap().1, Anchor::TopRight);
+        let elsewhere = Saved { monitor: m.id.clone(), x: 600, y: 300 };
+        assert_eq!(place_anchored(Some(&elsewhere), None, &[m.clone()], Some(&m.id), SIZE).unwrap(), ((600, 300), Anchor::Float));
+    }
+
+    #[test]
+    fn window_bottom_anchor_restores_on_its_edge_at_any_start_height() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
+        // Saved while tall; launched short. The card's bottom still lands on the margin.
+        let s = Saved { monitor: m.id.clone(), x: 300, y: 400 };
+        let ((x, y), a) = place_anchored(Some(&s), Some(Anchor::BottomLeft), &[m.clone()], Some(&m.id), SIZE).unwrap();
+        assert_eq!(a, Anchor::BottomLeft);
+        assert_eq!(x, 18);
+        assert_eq!(y + to_phys(200.0 - SHADOW, 1.5), 1008 - 18);
+    }
+
+    #[test]
+    fn window_bottom_anchored_card_grows_upward() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let bottom = |(h, y): (f64, i32)| y + to_phys(h - SHADOW, 1.0);
+        let short = fit_anchored(150.0, 500, &m, Anchor::BottomRight);
+        let tall = fit_anchored(450.0, short.1, &m, Anchor::BottomRight);
+        assert_eq!(bottom(short), 1040 - 12);
+        assert_eq!(bottom(tall), 1040 - 12);
+        assert!(tall.1 < short.1);
+        // Top-anchored keeps its top.
+        assert_eq!(fit_anchored(450.0, 12, &m, Anchor::TopRight).1, 12);
+    }
+
+    #[test]
+    fn window_stored_file_reads_old_format_and_writes_anchor() {
+        let old = r#"{"monitor":{"name":"D1","x":0,"y":0,"width":1920,"height":1080},"x":5,"y":6}"#;
+        let s: Stored = serde_json::from_str(old).unwrap();
+        assert_eq!((s.at.x, s.at.y, s.anchor), (5, 6, None));
+        let new = Stored { anchor: Some(Anchor::Bottom), ..s };
+        let text = serde_json::to_string(&new).unwrap();
+        assert!(text.contains(r#""anchor":"bottom""#), "{text}");
+        assert_eq!(serde_json::from_str::<Stored>(&text).unwrap(), new);
     }
 
     #[test]
