@@ -1,7 +1,7 @@
 ---
 id: AV-33
 title: Opt-in model summary for the digest
-status: in-progress
+status: done
 depends: [AV-32]
 attended: true
 ---
@@ -11,7 +11,7 @@ attended: true
 **What to build:** Stub. A setting, off by default, that adds one model-written sentence per session to the away digest (spec §11.9).
 
 - [x] Headless `claude -p` on the Haiku model, fed the session's event facts and last assistant message; never the transcript wholesale
-- [ ] The summary session must not appear as a row or trigger hooks into the widget (built and unit-tested; live look owed)
+- [x] The summary session must not appear as a row or trigger hooks into the widget
 - [x] Facts card renders first; sentences fill in when ready; failure or offline leaves the facts card as is
 - [x] Setting text states that it spends rate limit and sends session facts to the model
 
@@ -39,6 +39,8 @@ Decide: attended because it spends the owner's quota and changes the offline pro
 
 - The session is dropped by its id only, not by child PID as the ruling says. The session file carries the id, so the id covers the sessions-dir scan; `--setting-sources project` also keeps the user's hooks from firing at all.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner looked at the build installed 19:44 and said it looks good. What was owed:
 
 - Owner: turn the setting on, be away past the threshold, come back. Sentences should fill in under each name and no extra row should appear.
