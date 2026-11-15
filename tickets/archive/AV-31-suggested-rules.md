@@ -1,7 +1,7 @@
 ---
 id: AV-31
 title: Suggested auto-allow rules
-status: in-progress
+status: done
 depends: [AV-22, AV-26]
 attended: false
 ---
@@ -46,7 +46,9 @@ Safety, as built: the classifier is re-run inside `auto_rule` and in `hold` on e
 - Offers render only in the panel, not in the strip flyout window.
 - Rule ids are `r<hex ms>`; use count and last use are written to `rules.json` on every auto-allow.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. What was owed, as it stood:
 
 Live check by Claude in `npm run tauri dev` with real mouse clicks (`SetCursorPos`/`mouse_event`) and synthetic `PermissionRequest` POSTs for a fake session (`0a310a31-…`, cwd `C:\peeptest\av31`). Screenshots in `C:\Users\benbu\AppData\Local\Temp\claude\30a9097ea8fcfb1f\4987ae0e-47a2-463f-9c4f-ed2e98c06b1a\scratchpad\AV-31\`.
 
