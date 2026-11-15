@@ -21,7 +21,7 @@ If `<root>/.peep/handoff.md` exists, read it before anything else. Its "not mine
 
 ## 2. Gather, cheaply
 
-Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run, `CLAUDE.md`. It yields the loose ends, stale `doing` always first: stale `doing`, `done` waiting for the owner, parked (wake met, not met, free text), failing tests, uncommitted or unrelated work, rules likely to bite. Do not print the raw gather.
+Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run, `CLAUDE.md`. It yields the loose ends, `done` always first with a count: `done` waiting for the owner, stale `doing`, parked (wake met, not met, free text), failing tests, uncommitted or unrelated work, rules likely to bite. Do not print the raw gather.
 
 ## 3. Nothing loose
 
@@ -36,7 +36,7 @@ Facts are found, never asked. If no answers come back (e.g. a headless run), giv
 
 Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 
-- **Do**: each action the answers chose, one per line: `wake <id> (<condition met>)`, `close <id>`, `<id> -> <status>`. "nothing" when empty.
+- **Do**: each action the answers chose, one per line: `close <n> done: <id>, <id>` first, then `wake <id> (<condition met>)`, `<id> -> <status>`. "nothing" when empty. The count is stated here, before anything moves; the owner can reply `leave <ids>` to take ids out of the batch.
 - **Loose**: what stays as it is and why (failing test named, uncommitted files, free-text wakes kept, not-met wakes with their condition).
 - **Watch**: at most 3 `CLAUDE.md` rules that bite the next ticket, each with its file and a few words; the next ticket goes here too, as `next: <id>`.
 
@@ -57,7 +57,7 @@ The final reply is these lines and nothing else:
 ```
 peep ducks: <n> loose ends, <n> acted on
 - <action taken, e.g. "AV-12 woke (AV-09 closed)" or "AV-07 closed (abc1234)">   one per line, omitted when none
-loose: <short list of what stays open, stale doing first> | none
+loose: <short list of what stays open, done left out first, then stale doing> | none
 next: /peep:ticket <id> | clear to proceed
 ```
 

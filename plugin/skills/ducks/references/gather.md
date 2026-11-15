@@ -12,10 +12,12 @@ Cheap reads only. Never read the archive whole, never run `build`, run `test` on
 
 ## Loose ends
 
+Listed in this order.
+
 | Kind | Found when |
 |---|---|
-| Stale `doing` | status `doing` and its ticket file unchanged for the setup's `stale.days` (F§1). Always listed first |
-| `done`, waiting | status `done`: Claude's claim, waiting for the owner's close |
+| `done`, waiting | status `done`: Claude's claim, waiting for the owner's close. Always first, as one item with a count: `<n> done: <id>, <id>` in ticket order |
+| Stale `doing` | status `doing` and its ticket file unchanged for the setup's `stale.days` (F§1) |
 | Wake met | parked, `wake: ticket:<X>` and X is closed (see below) |
 | Wake met | parked, `wake: date:<D>` and D is today or earlier |
 | Wake not met | parked, condition not yet met: listed, no action |
