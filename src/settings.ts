@@ -1,5 +1,6 @@
 import { comboFromKey } from "./inbox";
 import type { TrailEntry, TrailOutcome } from "./model";
+import { THEME_PREFS, type ThemePref } from "./theme";
 import { entryTitle, filterTrail, formatWhen, LOG_MAX, markOf, OUTCOMES, sessionOptions, shownTarget, type TrailFilter } from "./trail";
 
 /** hotkey.rs `Status`. */
@@ -10,6 +11,7 @@ export type SettingsApi = {
   enabled: () => Promise<boolean>;
   setEnabled: (on: boolean) => Promise<boolean>;
   hotkey?: { get: () => Promise<HotkeyStatus>; set: (combo: string) => Promise<HotkeyStatus> };
+  theme?: { get: () => ThemePref; set: (pref: ThemePref) => void };
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement, text?: string) {
@@ -40,6 +42,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   err.hidden = true;
 
   const hotkey = api.hotkey ? createHotkeyField(host, api.hotkey) : null;
+  const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
 
   el("h3", "settings-sub", host, "Decision log");
   const filters = el("div", "log-filters", host);
@@ -123,10 +126,23 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     }
     renderSessions();
     renderList();
+    if (themeSelect && api.theme) themeSelect.value = api.theme.get();
     await hotkey?.refresh();
   }
 
   return { refresh, hotkeyStatus: (s: HotkeyStatus) => hotkey?.show(s) };
+}
+
+const THEME_LABELS: Record<ThemePref, string> = { system: "Match Windows", dark: "Dark", light: "Light" };
+
+function createThemeField(host: HTMLElement, api: NonNullable<SettingsApi["theme"]>) {
+  el("h3", "settings-sub", host, "Theme");
+  const select = el("select", "log-select theme-select", host);
+  select.setAttribute("aria-label", "Theme");
+  for (const p of THEME_PREFS) el("option", "", select, THEME_LABELS[p]).value = p;
+  select.value = api.get();
+  select.addEventListener("change", () => api.set(select.value as ThemePref));
+  return select;
 }
 
 /** The inbox hotkey: press a combination in the field, then Save (Enter). Esc puts the live one back. */

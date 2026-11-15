@@ -7,10 +7,12 @@ import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
 import { createList } from "./rows";
 import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
+import { initTheme } from "./theme";
 import { ROW_TRAIL } from "./trail";
 import { watchContentHeight } from "./windowFit";
 
 const DEMO_STEP_MS = 3200;
+const theme = initTheme();
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
 const limitsEl = document.querySelector<HTMLElement>("#limits")!;
@@ -32,7 +34,7 @@ function showNotice(text: string) {
 }
 
 function mountSettings(api: SettingsApi) {
-  const settings = createSettings(settingsEl, api, () => showSettings(false));
+  const settings = createSettings(settingsEl, { ...api, theme }, () => showSettings(false));
   function showSettings(open: boolean) {
     settingsEl.hidden = !open;
     root.hidden = open;

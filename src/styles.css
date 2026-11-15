@@ -1,7 +1,8 @@
 @import "./fonts.css";
 
-/* Dark tokens from design/shell/shell.css (light theme is AV-45), plus the app's own extras below them. */
+/* Tokens from design/shell/shell.css, plus the app's own extras below them. theme.ts sets data-theme. */
 :root {
+  color-scheme: dark;
   --ps-desk: #0e0d12;
   --ps-panel: #1b1921;
   --ps-panel-2: #262330;
@@ -23,9 +24,47 @@
   --ps-dim: #7d7889;
   --amber: 255, 178, 62;
   --red: var(--st-error);
+  --scroll: rgba(255, 255, 255, 0.16);
+  --risk-text: #ffb3b3;
+  --diff-add-bg: rgba(94, 214, 140, 0.12);
+  --diff-add-text: #b9f0cc;
+  --diff-add-mark: #5ed68c;
+  --diff-del-bg: rgba(255, 93, 93, 0.12);
+  --diff-del-text: #ffc2c2;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --sans: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ps-desk: #e6ddcd;
+  --ps-panel: #fffcf6;
+  --ps-panel-2: #f1e9db;
+  --ps-line: rgba(42, 34, 51, 0.16);
+  --ps-text: #2a2233;
+  --ps-muted: #645c70;
+  --ps-accent: #8a5a00;
+  --ps-on-st: #ffffff;
+  --ps-shelf: #c9b48e;
+  --ps-shelf-top: #e2d2b0;
+  --st-idle: #3d6e8c;
+  --st-thinking: #6a48c8;
+  --st-working: #0b7391;
+  --st-waiting: #a85b00;
+  --st-success: #1f7a3d;
+  --st-error: #c22f2f;
+  --st-stuck: #5a6477;
+
+  --ps-dim: #776f82;
+  --amber: 168, 91, 0;
+  --scroll: rgba(42, 34, 51, 0.24);
+  --risk-text: #9e1f1f;
+  --diff-add-bg: rgba(31, 122, 61, 0.1);
+  --diff-add-text: #1a5c30;
+  --diff-add-mark: #1f7a3d;
+  --diff-del-bg: rgba(194, 47, 47, 0.1);
+  --diff-del-text: #8e1f1f;
 }
 
 .st-idle { --st: var(--st-idle); }
@@ -234,7 +273,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-color: var(--scroll) transparent;
 }
 
 #sessions {
@@ -710,7 +749,7 @@ body {
 @keyframes row-flash {
   0%,
   40% {
-    background: rgba(247, 214, 74, 0.18);
+    background: color-mix(in srgb, var(--ps-accent) 18%, transparent);
   }
   100% {
     background: transparent;
@@ -926,7 +965,7 @@ body {
   max-height: 160px;
   overflow: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-color: var(--scroll) transparent;
   padding: 6px 8px;
   background: var(--ps-panel);
   font: 11px/1.45 var(--mono);
@@ -939,9 +978,9 @@ body {
 }
 
 .card-risk {
-  background: rgba(255, 93, 93, 0.22);
-  color: #ffb3b3;
-  box-shadow: 0 0 0 1px rgba(255, 93, 93, 0.45);
+  background: color-mix(in srgb, var(--red) 22%, transparent);
+  color: var(--risk-text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--red) 45%, transparent);
 }
 
 .card[data-tier="shell"] .card-risk,
@@ -973,18 +1012,18 @@ body {
 }
 
 .diff-add {
-  background: rgba(94, 214, 140, 0.12);
-  color: #b9f0cc;
+  background: var(--diff-add-bg);
+  color: var(--diff-add-text);
 }
 
 .diff-add::before {
   content: "+";
-  color: #5ed68c;
+  color: var(--diff-add-mark);
 }
 
 .diff-del {
-  background: rgba(255, 93, 93, 0.12);
-  color: #ffc2c2;
+  background: var(--diff-del-bg);
+  color: var(--diff-del-text);
 }
 
 .diff-del::before {
@@ -1103,7 +1142,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(255, 93, 93, 0.35);
+  background: color-mix(in srgb, var(--red) 35%, transparent);
   transform: scaleX(0);
   transform-origin: left;
   z-index: -1;
