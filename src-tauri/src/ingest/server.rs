@@ -10,6 +10,7 @@ use serde_json::Value;
 use super::http;
 use crate::approve::{self, Broker, TcpResponder};
 use crate::away::Note;
+use crate::mood;
 use crate::source::claude::skill;
 use crate::tickets;
 use crate::state::{Event, ShellEvent, ShellExit};
@@ -250,6 +251,10 @@ pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
                     }
                     None => e,
                 };
+                let e = match test_run(name, &v, cwd.as_deref()) {
+                    Some(passed) => Event::TestRun { passed, event: Box::new(e) },
+                    None => e,
+                };
                 match shell_update(name, &v) {
                     Some(update) => Event::Shell { update, event: Box::new(e) },
                     None => e,
@@ -331,6 +336,21 @@ fn hook_event(name: &str, v: &Value, cwd: Option<&str>) -> Option<Event> {
         "SessionEnd" => Event::Ended,
         _ => return None,
     })
+}
+
+/// Whether a finished Bash/PowerShell call that ran the repo setup's test command passed. A failure fires `PostToolUseFailure` (AV-54); an interrupt is neither.
+fn test_run(name: &str, v: &Value, cwd: Option<&str>) -> Option<bool> {
+    let passed = match name {
+        "PostToolUse" => true,
+        "PostToolUseFailure" if v.get("is_interrupt").and_then(Value::as_bool) != Some(true) => false,
+        _ => return None,
+    };
+    if !matches!(str_at(v, "/tool_name")?.as_str(), "Bash" | "PowerShell") {
+        return None;
+    }
+    let command = str_at(v, "/tool_input/command")?;
+    let setup = tickets::setup_test(cwd.filter(|c| !c.is_empty())?)?;
+    mood::is_test_run(&command, &setup).then_some(passed)
 }
 
 fn agent_id(v: &Value) -> Option<String> {
@@ -491,6 +511,7 @@ fn write_endpoint(dir: &Path, port: u16, token: &str) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mood::Mood;
     use crate::state::State;
     use std::io::Write;
     use std::net::{TcpListener, TcpStream};
@@ -1257,6 +1278,32 @@ mod tests {
         assert_eq!(note_of("Stop", "stop.json"), Some(Note::Stop { line: Some("SECRET-ASSISTANT-TEXT".into()) }));
         assert_eq!(note_of("StopFailure", "stop_failure.json"), Some(Note::Stop { line: None }));
         assert_eq!(note_of("PreToolUse", "pre_tool_use_bash.json"), None);
+    }
+
+    #[test]
+    fn test_command_runs_wrap_as_test_run_and_worry_the_session_live() {
+        let repo = temp_dir();
+        std::fs::create_dir_all(repo.join(".peep")).unwrap();
+        std::fs::write(repo.join(".peep/setup.md"), "---\nprefix: AV\ntest: npm test && cd src-tauri && cargo test\n---\n").unwrap();
+        let routed = |name: &str, file: &str, command: &str| {
+            let mut v: Value = serde_json::from_str(&fixture(file)).unwrap();
+            v["cwd"] = Value::String(repo.to_string_lossy().into_owned());
+            v["tool_input"]["command"] = Value::String(command.into());
+            parse_value(&Route::Hook(name.into()), &v).unwrap()
+        };
+        let failed = routed("PostToolUseFailure", "post_tool_use_failure_bash.json", "cd src-tauri && cargo test");
+        assert_eq!(failed.event, Some(Event::TestRun { passed: false, event: Box::new(Event::PostToolUse) }));
+        let passed = routed("PostToolUse", "post_tool_use_bash.json", "npm test");
+        assert_eq!(passed.event, Some(Event::TestRun { passed: true, event: Box::new(Event::PostToolUse) }));
+        let other = routed("PostToolUseFailure", "post_tool_use_failure_bash.json", "ls nonexistent_dir_zz");
+        assert_eq!(other.event, Some(Event::PostToolUse));
+
+        let store = quiet_store();
+        store.apply_or_placeholder(SID, failed.cwd.as_deref(), Event::UserPromptSubmit, 1_000);
+        dispatch(&store, failed, 2_000);
+        assert_eq!(store.snapshot().sessions[0].mood, Some(Mood::Worry));
+        dispatch(&store, passed, 3_000);
+        assert_eq!(store.snapshot().sessions[0].mood, None);
     }
 
     #[test]

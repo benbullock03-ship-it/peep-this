@@ -77,6 +77,11 @@ pub fn repo_root(cwd: &Path) -> PathBuf {
         .to_path_buf()
 }
 
+/// The repo setup's `test:` line for the repo `cwd` is in.
+pub fn setup_test(cwd: &str) -> Option<String> {
+    setup_key(&repo_root(Path::new(cwd)), "test")
+}
+
 fn setup_key(repo: &Path, key: &str) -> Option<String> {
     let setup = std::fs::read_to_string(repo.join(".peep").join("setup.md")).ok()?;
     frontmatter(&setup)?.get(key).filter(|v| !v.is_empty()).map(|v| v.to_string())
@@ -239,7 +244,7 @@ fn watch(store: &Store) {
                 }
             }
         }
-        store.set_repos(repos);
+        store.set_repos(repos, store::now_ms());
         match rx.recv_timeout(POLL) {
             Ok(first) => {
                 std::thread::sleep(DEBOUNCE);

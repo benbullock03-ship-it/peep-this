@@ -128,7 +128,8 @@ The derivation is a pure function `(SessionState, Event, now) -> SessionState` i
 | `ingest/server.rs` | `127.0.0.1` HTTP listener for hook and statusline payloads; token check. |
 | `ingest/hooks.rs` | The native HTTP hook entries the installer merges into settings.json. |
 | `state.rs` | `Session`, `State`, `Event`, the pure transition function, stuck timer. |
-| `store.rs` | Map `sessionId -> Session`; emits a full snapshot to the frontend on change, throttled to at most every 100ms. |
+| `store.rs` | Map `sessionId -> Session`; emits a full snapshot to the frontend on change, throttled to at most every 100ms. Rederives every mood after each change and tick. |
+| `mood.rs` | The pure mood function (§13.5): one mood per session from the session, the other sessions and its repo; priority in one place. |
 | `notify.rs` | Toasts, de-duplication rules (§3.6). |
 | `focus.rs` | PID to top-level window resolution and foregrounding (§6.6). |
 | `window.rs`, `tray.rs` | Docking, persistence, tray menu, autostart. |
@@ -165,6 +166,7 @@ type Session = {
   shells: { id: string; command: string; description: string; state: "running" | "quiet" | "serving" | "exited" | "failed";
             stateSince: number; startedAt: number; endedAt?: number; port?: number; exitCode?: number; lastLine?: string }[];
   contextPct?: number;   // used, 0–100
+  mood?: "cheer" | "greet" | "worry" | "yawn" | "sweat" | "nap";  // set even in an attention state; the frontend hides it
   alive: boolean;
   endedAt?: number;
 };
@@ -393,6 +395,7 @@ The repo's open and parked tickets on an open row. Status chips are hollow and d
 
 - A mood is a short-lived feeling shown as an emote in the speech bubble on top of the state. At most one per session, derived in the backend from pure inputs, priority fixed in one place. A mood never changes the session's state, and an attention state (`waiting`, `error`, `stuck`) always takes the bubble first. Each mood can be switched off in settings; that hides the emote only.
 - Tired: sweat drop as context fills, then yawn at the nudge threshold. Worried: the repo setup's test command failed. Cheering: a ticket in that repo closed; the other sessions cheer briefly. Greeting: a new session appeared; open ones wave. Napping (zzz): idle past a threshold; clears on the next prompt. Startled: a clash (§13.6).
+- Built in the backend (AV-69, `mood.rs`): priority cheer, greet, worry, yawn, sweat, nap. Sweat from 70% context, yawn from the nudge (fixed at 80 until AV-70's setting); worry for 5 min after a failed run of any non-`cd` step of the repo setup's `test` line, cleared by a passing run; cheer 8s for the repo's sessions other than the one linked to the closed ticket; greet 5s by sessions at least 2s older than the newcomer; nap after 10 min in `idle` or `success`.
 - Context nudge: at the threshold (setting 50 to 95 in steps of 5, default 80) the tired peep's bubble suggests Pack Up, then `/clear`, with a Pack Up Jump and "Not yet"; once more at 95%.
 
 ### 13.6 Clash (AV-71, ADR 0002)

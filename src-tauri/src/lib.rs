@@ -6,6 +6,7 @@ mod focus;
 mod hotkey;
 mod ingest;
 mod install;
+mod mood;
 mod motion;
 mod notify;
 mod peek;

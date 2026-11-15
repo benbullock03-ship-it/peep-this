@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 
 use crate::away;
+use crate::mood::{self, Mood};
 use crate::notify;
 use crate::source::{SessionInfo, ShellQuery, SourceEvent};
 use crate::state::{self, Event, Session};
@@ -172,7 +173,7 @@ impl Store {
             let alert = notify::entered_waiting(Some(&*s), &next).then(|| next.clone());
             *s = next;
             inner.entered.extend(alert);
-            changed
+            refresh_moods(inner, now) || changed
         });
     }
 
@@ -198,7 +199,7 @@ impl Store {
                 inner.entered.push(next.clone());
             }
             inner.sessions.insert(id.to_string(), next);
-            changed
+            refresh_moods(inner, now) || changed
         });
     }
 
@@ -207,7 +208,7 @@ impl Store {
             let changed = ticker::tick(&mut inner.sessions, now);
             let Inner { sessions, activity, .. } = inner;
             activity.prune(|id| sessions.contains_key(id), now);
-            changed
+            refresh_moods(inner, now) || changed
         });
     }
 
@@ -276,11 +277,11 @@ impl Store {
         });
     }
 
-    pub fn set_repos(&self, repos: Vec<Repo>) {
+    pub fn set_repos(&self, repos: Vec<Repo>, now: u64) {
         self.mutate(|inner| {
             let changed = inner.repos != repos;
             inner.repos = repos;
-            changed
+            refresh_moods(inner, now) || changed
         });
     }
 
@@ -314,9 +315,26 @@ impl Store {
                 inner.entered.push(s.clone());
             }
             inner.sessions.insert(info.id, s);
-            changed
+            refresh_moods(inner, now) || changed
         });
     }
+}
+
+/// Rederives every session's mood; true if any changed.
+fn refresh_moods(inner: &mut Inner, now: u64) -> bool {
+    let all: Vec<&Session> = inner.sessions.values().collect();
+    let moods: Vec<(String, Option<Mood>)> = all
+        .iter()
+        .map(|s| (s.id.clone(), mood::derive(s, &all, &inner.repos, mood::NUDGE_PCT_DEFAULT, now)))
+        .collect();
+    let mut changed = false;
+    for (id, m) in moods {
+        if let Some(s) = inner.sessions.get_mut(&id).filter(|s| s.mood != m) {
+            s.mood = m;
+            changed = true;
+        }
+    }
+    changed
 }
 
 fn placeholder(id: &str, cwd: &str, now: u64) -> Session {
@@ -363,6 +381,22 @@ mod tests {
 
     fn settle() {
         std::thread::sleep(EMIT_INTERVAL * 3);
+    }
+
+    #[test]
+    fn moods_refresh_live_on_changes_and_expire_on_tick() {
+        let (store, _) = recording_store();
+        let mood_of = |id: &str| store.snapshot().sessions.into_iter().find(|s| s.id == id).unwrap().mood;
+        store.ingest(upsert("a", None), 1_000);
+        store.ingest(upsert("b", None), 60_000);
+        assert_eq!(mood_of("a"), Some(Mood::Greet));
+        assert_eq!(mood_of("b"), None);
+        store.tick(60_000 + mood::GREET_MS);
+        assert_eq!(mood_of("a"), None);
+        let closed = Some(crate::tickets::Closed { id: "AV-1".into(), at: 70_000 });
+        let repo = Repo { root: "C:/work/demo".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: closed };
+        store.set_repos(vec![repo], 70_000);
+        assert_eq!(mood_of("a"), Some(Mood::Cheer));
     }
 
     #[test]

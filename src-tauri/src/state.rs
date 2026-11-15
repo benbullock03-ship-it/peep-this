@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::approve::PendingApproval;
+use crate::mood::Mood;
 
 pub const STUCK_AFTER_MS: u64 = 6 * 60 * 1000;
 pub const HOOK_FRESH_MS: u64 = 10 * 1000;
@@ -70,6 +71,9 @@ pub struct Session {
     /// Kept across turns until the next `/peep:` prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ticket: Option<TicketLink>,
+    /// Set by the mood engine in the store, never by `apply`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mood: Option<Mood>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
     pub alive: bool,
@@ -92,6 +96,11 @@ pub struct Session {
     /// Set while `waiting` came from a subagent's prompt: (agent id, state and task to return to).
     #[serde(skip)]
     pub waiting_on_agent: Option<(String, State, String)>,
+    #[serde(skip)]
+    pub born_at: u64,
+    /// Last failed run of the repo setup's test command; cleared when one passes.
+    #[serde(skip)]
+    pub worried_at: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -221,6 +230,8 @@ pub enum Event {
     Shell { update: ShellEvent, event: Box<Event> },
     /// A `/peep:<skill>` prompt or `Skill` tool call; `event` is applied as usual first.
     Skill { skill: String, ticket: Option<TicketLink>, event: Box<Event> },
+    /// A finished Bash/PowerShell call that ran the repo setup's test command; `event` is applied as usual afterwards.
+    TestRun { passed: bool, event: Box<Event> },
     /// OS probe result for one shell; never resets the stuck timer.
     ShellProbe { id: String, obs: ShellObservation },
     /// The widget answered a held permission request, or the terminal took it (spec §11.1).
@@ -259,6 +270,7 @@ impl Session {
             pending: Vec::new(),
             skill: None,
             ticket: None,
+            mood: None,
             context_pct: None,
             alive: true,
             ended_at: None,
@@ -268,6 +280,8 @@ impl Session {
             model_from_statusline: false,
             pending_agents: Vec::new(),
             waiting_on_agent: None,
+            born_at: now,
+            worried_at: None,
         }
     }
 
@@ -618,6 +632,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         s.apply_shell(update, now);
         return apply(s, *event, now);
     }
+    if let Event::TestRun { passed, event } = event {
+        s.worried_at = (!passed).then_some(now);
+        return apply(s, *event, now);
+    }
     if let Event::Skill { skill, ticket, event } = event {
         // A prompt replaces the ticket link; a Skill tool call mid-turn only adds one.
         let from_prompt = *event == Event::UserPromptSubmit;
@@ -863,6 +881,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         | Event::TranscriptModel { .. }
         | Event::Shell { .. }
         | Event::Skill { .. }
+        | Event::TestRun { .. }
         | Event::ShellProbe { .. }
         | Event::Ended
         | Event::Tick => unreachable!("handled above"),

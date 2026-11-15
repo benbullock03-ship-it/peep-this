@@ -1,0 +1,189 @@
+//! Moods (spec §13.5): at most one per session, derived from the session, its neighbours and its repo. Never changes state.
+
+use serde::Serialize;
+
+use crate::state::{Session, State};
+use crate::tickets::Repo;
+
+pub const SWEAT_FROM_PCT: f64 = 70.0;
+/// The context nudge until AV-70's setting (50 to 95, default 80) exists.
+pub const NUDGE_PCT_DEFAULT: f64 = 80.0;
+pub const WORRY_MS: u64 = 5 * 60 * 1000;
+pub const CHEER_MS: u64 = 8 * 1000;
+pub const GREET_MS: u64 = 5 * 1000;
+/// A session must predate the newcomer by this much to greet it, so sessions found in one startup scan don't greet each other.
+pub const GREET_GAP_MS: u64 = 2 * 1000;
+pub const NAP_AFTER_MS: u64 = 10 * 60 * 1000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Mood {
+    Cheer,
+    Greet,
+    Worry,
+    Yawn,
+    Sweat,
+    Nap,
+}
+
+/// The one mood `s` shows now; the order of the checks is the priority.
+pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64, now: u64) -> Option<Mood> {
+    if !s.alive {
+        return None;
+    }
+    let cheer = repos.iter().filter(|r| r.sessions.contains(&s.id)).filter_map(|r| r.last_closed.as_ref()).any(|c| {
+        now.saturating_sub(c.at) < CHEER_MS && s.ticket.as_ref().is_none_or(|t| t.id != c.id)
+    });
+    let greet = sessions.iter().any(|o| {
+        o.id != s.id
+            && o.alive
+            && o.born_at >= s.born_at + GREET_GAP_MS
+            && now.saturating_sub(o.born_at) < GREET_MS
+    });
+    let worry = s.worried_at.is_some_and(|t| now.saturating_sub(t) < WORRY_MS);
+    let pct = s.context_pct.unwrap_or(0.0);
+    let nap = matches!(s.state, State::Idle | State::Success) && now.saturating_sub(s.state_since) >= NAP_AFTER_MS;
+    [
+        (cheer, Mood::Cheer),
+        (greet, Mood::Greet),
+        (worry, Mood::Worry),
+        (pct >= nudge_pct, Mood::Yawn),
+        (pct >= SWEAT_FROM_PCT, Mood::Sweat),
+        (nap, Mood::Nap),
+    ]
+    .into_iter()
+    .find_map(|(on, m)| on.then_some(m))
+}
+
+/// Whether `command` runs any step of the repo setup's `test` line (`cd` steps don't count).
+pub fn is_test_run(command: &str, setup_test: &str) -> bool {
+    let norm = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
+    let command = norm(command);
+    setup_test
+        .split(['&', '|', ';'])
+        .map(norm)
+        .filter(|step| !step.is_empty() && step != "cd" && !step.starts_with("cd "))
+        .any(|step| command.contains(&step))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{apply, Event, TicketLink};
+    use crate::tickets::Closed;
+
+    const T0: u64 = 1_000_000_000;
+    const MIN: u64 = 60_000;
+
+    fn session(id: &str, born: u64) -> Session {
+        Session::new(id, 1, id, "F:/p", "interactive", "cli", born)
+    }
+
+    fn mood(s: &Session, now: u64) -> Option<Mood> {
+        derive(s, &[s], &[], NUDGE_PCT_DEFAULT, now)
+    }
+
+    fn with_pct(pct: f64) -> Session {
+        apply(session("a", T0), Event::Statusline { model: None, context_pct: Some(pct) }, T0)
+    }
+
+    fn test_run(s: Session, passed: bool, now: u64) -> Session {
+        apply(s, Event::TestRun { passed, event: Box::new(Event::PostToolUse) }, now)
+    }
+
+    #[test]
+    fn tired_sweats_from_70_then_yawns_at_the_nudge() {
+        assert_eq!(mood(&with_pct(69.9), T0), None);
+        assert_eq!(mood(&with_pct(70.0), T0), Some(Mood::Sweat));
+        assert_eq!(mood(&with_pct(79.0), T0), Some(Mood::Sweat));
+        assert_eq!(mood(&with_pct(80.0), T0), Some(Mood::Yawn));
+        assert_eq!(mood(&with_pct(96.0), T0), Some(Mood::Yawn));
+        assert_eq!(derive(&with_pct(55.0), &[], &[], 50.0, T0), Some(Mood::Yawn), "a nudge under 70 yawns without sweat");
+    }
+
+    #[test]
+    fn worry_after_a_failed_test_run_until_it_passes_or_expires() {
+        let s = test_run(session("a", T0), false, T0 + 1);
+        assert_eq!(s.state, State::Thinking, "the wrapped event still applies");
+        assert_eq!(mood(&s, T0 + 2), Some(Mood::Worry));
+        assert_eq!(mood(&s, T0 + 1 + WORRY_MS), None);
+        assert_eq!(mood(&test_run(s, true, T0 + 3), T0 + 4), None);
+    }
+
+    #[test]
+    fn cheer_for_the_other_sessions_in_the_repo_when_a_ticket_closes() {
+        let a = session("a", T0);
+        let mut closer = session("b", T0);
+        closer.ticket = Some(TicketLink { id: "AV-7".into(), title: None });
+        let elsewhere = session("c", T0);
+        let repo = Repo {
+            root: "F:/p".into(),
+            sessions: vec!["a".into(), "b".into()],
+            tickets: vec![],
+            last_closed: Some(Closed { id: "AV-7".into(), at: T0 + 10 }),
+        };
+        let repos = [repo];
+        let all = [&a, &closer, &elsewhere];
+        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), Some(Mood::Cheer));
+        assert_eq!(derive(&closer, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), None, "the closer doesn't cheer itself");
+        assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), None);
+        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 10 + CHEER_MS), None);
+    }
+
+    #[test]
+    fn open_sessions_greet_a_newcomer_briefly() {
+        let old = session("a", T0);
+        let new = session("b", T0 + MIN);
+        let all = [&old, &new];
+        let at = |s: &Session, now| derive(s, &all, &[], NUDGE_PCT_DEFAULT, now);
+        assert_eq!(at(&old, T0 + MIN + 1), Some(Mood::Greet));
+        assert_eq!(at(&new, T0 + MIN + 1), None, "the newcomer doesn't greet itself");
+        assert_eq!(at(&old, T0 + MIN + GREET_MS), None);
+        let twin = session("c", T0 + 1);
+        assert_eq!(derive(&old, &[&old, &twin], &[], NUDGE_PCT_DEFAULT, T0 + 2), None, "same startup scan");
+    }
+
+    #[test]
+    fn nap_when_idle_past_the_threshold_and_cleared_by_a_prompt() {
+        let s = session("a", T0);
+        assert_eq!(mood(&s, T0 + NAP_AFTER_MS - 1), None);
+        assert_eq!(mood(&s, T0 + NAP_AFTER_MS), Some(Mood::Nap));
+        let done = apply(s.clone(), Event::Stop, T0 + 1);
+        assert_eq!(mood(&done, T0 + 1 + NAP_AFTER_MS), Some(Mood::Nap));
+        let woke = apply(s, Event::UserPromptSubmit, T0 + NAP_AFTER_MS + 1);
+        assert_eq!(mood(&woke, T0 + NAP_AFTER_MS + 2), None);
+    }
+
+    #[test]
+    fn priority_is_cheer_greet_worry_yawn_sweat_nap() {
+        let tired = test_run(with_pct(90.0), false, T0);
+        assert_eq!(mood(&tired, T0 + 1), Some(Mood::Worry), "worry beats yawn");
+        let new = session("b", T0 + MIN);
+        assert_eq!(derive(&tired, &[&tired, &new], &[], NUDGE_PCT_DEFAULT, T0 + MIN), Some(Mood::Greet));
+        assert_eq!(mood(&with_pct(75.0), T0 + NAP_AFTER_MS), Some(Mood::Sweat), "sweat beats nap");
+    }
+
+    #[test]
+    fn attention_states_keep_their_mood_for_the_frontend_to_hide() {
+        let s = apply(with_pct(85.0), Event::Notification { message: "q".into(), idle: false }, T0 + 1);
+        assert_eq!(s.state, State::Waiting);
+        assert_eq!(mood(&s, T0 + 2), Some(Mood::Yawn));
+    }
+
+    #[test]
+    fn ended_sessions_have_no_mood() {
+        let s = apply(with_pct(90.0), Event::Ended, T0 + 1);
+        assert_eq!(mood(&s, T0 + 2), None);
+    }
+
+    #[test]
+    fn test_run_matches_any_non_cd_step_of_the_setup_line() {
+        let setup = "npm test && cd src-tauri && cargo test";
+        assert!(is_test_run("npm test", setup));
+        assert!(is_test_run("cd src-tauri &&  cargo test mood", setup));
+        assert!(is_test_run("npm  test -- --run", setup));
+        assert!(!is_test_run("cd src-tauri", setup));
+        assert!(!is_test_run("npm run build", setup));
+        assert!(!is_test_run("ls", ""));
+    }
+}
