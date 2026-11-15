@@ -24,9 +24,11 @@ Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1): `url`
 
 ## 3. Questions, before any shot
 
-Per element, 3 to 6 pass/fail questions tied to the ticket's "Done when" and the repo's own design rules (its docs or design tokens). E.g. "chip text uses the accent token", "no text clipped mid-word". Banned: "does it look good", "is it clean", "is it consistent" with nothing named. Write them into the reply before the first shot.
+Per element, 3 to 6 pass/fail questions tied to the ticket's "Done when" and the repo's own design rules (its docs or design tokens). E.g. "chip text uses the accent token", "no text clipped mid-word". Banned: "does it look good", "is it clean", "is it consistent" with nothing named. Post them as a numbered list in a message of their own before any `browser_*` call; putting them only in the final table does not count. Answer exactly these later; a question added after a shot is marked `(added)`.
 
 ## 4. DOM, then shots
+
+Gate: the message that makes the first `browser_*` call must begin with a visible line `Questions:` followed by the step 3 list, unless an earlier message already showed it. Thinking does not count, and terse output modes do not waive it.
 
 - DOM facts per width with `browser_evaluate`: `references/dom-asserts.md`. A screenshot cannot overrule a DOM fact.
 - The theme x width matrix and shot order: `references/matrix.md`.
@@ -37,7 +39,7 @@ Read every shot. Answer each question `pass`, `fail` or `can't tell`, one line p
 
 ## 6. Report
 
-Under 30 lines, this shape:
+The final reply is this and nothing else, under 30 lines (no summary before it; notes such as a missing `.gitignore` entry or a console error go in one `Notes:` line at the end):
 
 ```
 Shoot: <change>, <url>
