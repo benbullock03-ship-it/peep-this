@@ -1,6 +1,7 @@
 import { identityFor, type Identity } from "./identity";
 import { STATES, type Session, type State } from "./model";
 import { sayFor } from "./say";
+import { failNote } from "./shells";
 import { isAttention, STATE_LABEL } from "./stateMeta";
 
 export type RowView = {
@@ -14,6 +15,8 @@ export type RowView = {
   accessory: string;
   contextPct: number | null;
   alive: boolean;
+  /** Non-empty when a background shell failed: the red dot's hover text. */
+  shellNote: string;
 };
 
 export type IdentityOf = (s: Session) => Identity;
@@ -50,5 +53,6 @@ export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFo
     accessory,
     contextPct: contextFill(s.contextPct),
     alive: s.alive,
+    shellNote: failNote(s.shells),
   };
 }

@@ -14,8 +14,9 @@ export type StripCell = {
   color: string;
   accessory: string;
   alive: boolean;
-  /** AV-30 hook: one of the session's background shells failed. */
   shellFailed: boolean;
+  /** Exit code and last line of each failed shell, for the cell's hover. */
+  shellNote: string;
 };
 
 export type StripView = { cells: StripCell[]; more: number };
@@ -24,8 +25,8 @@ export type StripView = { cells: StripCell[]; more: number };
 export function stripView(sessions: readonly Session[], identityOf?: IdentityOf, max = STRIP_MAX): StripView {
   const sorted = sortSessions(sessions);
   const cells = sorted.slice(0, max).map((s) => {
-    const { id, name, state, label, attention, color, accessory, alive } = toRowView(s, identityOf);
-    return { id, name, state, label, attention, color, accessory, alive, shellFailed: s.shells?.some((sh) => sh.state === "failed") ?? false };
+    const { id, name, state, label, attention, color, accessory, alive, shellNote } = toRowView(s, identityOf);
+    return { id, name, state, label, attention, color, accessory, alive, shellFailed: shellNote !== "", shellNote };
   });
   return { cells, more: sorted.length - cells.length };
 }

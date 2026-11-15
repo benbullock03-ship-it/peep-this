@@ -39,9 +39,9 @@ function updateCell(c: Cell, v: StripCell) {
   if (l?.attention !== v.attention) c.el.classList.toggle("is-att", v.attention);
   if (l?.color !== v.color) c.peep.setAttribute("color", v.color);
   if (l?.accessory !== v.accessory) c.peep.setAttribute("accessory", v.accessory);
-  if (l?.name !== v.name || l.label !== v.label || l.shellFailed !== v.shellFailed) {
+  if (l?.name !== v.name || l.label !== v.label || l.shellNote !== v.shellNote) {
     const text = `${v.name}: ${v.label}${v.shellFailed ? ", a shell failed" : ""}`;
-    c.el.title = text;
+    c.el.title = v.shellNote ? `${text}\n\n${v.shellNote}` : text;
     c.el.setAttribute("aria-label", `${text}. Open Peep This`);
   }
   if (l?.shellFailed !== v.shellFailed) c.fail.hidden = !v.shellFailed;

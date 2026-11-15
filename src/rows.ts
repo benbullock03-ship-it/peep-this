@@ -6,6 +6,7 @@ import { createKids, type KidsRender } from "./kidRows";
 import type { Session, TrailEntry } from "./model";
 import { MOTION_MS, motionMs } from "./motion";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
+import { createShells, type ShellsRender } from "./shellRows";
 import { sortSessions } from "./sort";
 import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
 
@@ -49,6 +50,9 @@ type Row = {
   session: Session;
   cards?: (pending: Session["pending"]) => number;
   kids: KidsRender;
+  shells: ShellsRender;
+  /** Red dot on the peep for a failed shell; survives the chip folding and the row closing. */
+  fail: HTMLElement;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
@@ -131,6 +135,10 @@ function createRow(s: Session, decide?: Decide): Row {
   }
   const kidsHost = el("div", "ps-kids", item);
   kidsHost.hidden = true;
+  const shellsHost = el("div", "ps-kids ps-shells", item);
+  shellsHost.hidden = true;
+  const fail = el("span", "ps-fail", peepWrap);
+  fail.hidden = true;
   return {
     el: item,
     closed,
@@ -147,6 +155,8 @@ function createRow(s: Session, decide?: Decide): Row {
     session: s,
     cards,
     kids: createKids(kidsHost, decide),
+    shells: createShells(shellsHost),
+    fail,
   };
 }
 
@@ -175,7 +185,12 @@ function updateRow(r: Row, v: RowView) {
       x.parentElement!.title = v.say;
     }
   }
-  if (l.name !== v.name || l.label !== v.label || l.say !== v.say) r.closed.setAttribute("aria-label", `${v.name}: ${v.label}. ${v.say}`);
+  if (l.shellNote !== v.shellNote) {
+    r.fail.hidden = !v.shellNote;
+    r.fail.title = v.shellNote;
+  }
+  if (l.name !== v.name || l.label !== v.label || l.say !== v.say || l.shellNote !== v.shellNote)
+    r.closed.setAttribute("aria-label", `${v.name}: ${v.label}${v.shellNote ? ", a shell failed" : ""}. ${v.say}`);
   if (l.alive !== v.alive) r.el.dataset.alive = String(v.alive);
   r.last = v;
 }
@@ -338,7 +353,8 @@ export function createList(
       const view = toRowView(s, identityOf, now);
       updateRow(r, view);
       const kids = r.kids(s, view.color, now);
-      if (kids.foldAt !== null && (foldAt === null || kids.foldAt < foldAt)) foldAt = kids.foldAt;
+      const shellFold = r.shells(s, now).foldAt;
+      for (const at of [kids.foldAt, shellFold]) if (at !== null && (foldAt === null || at < foldAt)) foldAt = at;
       r.cards?.(s.alive ? s.pending?.filter((p) => !kids.claimed.has(p.id)) : undefined);
       if (r === open) {
         fillFacts(r, now);

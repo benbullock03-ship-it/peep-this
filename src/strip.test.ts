@@ -47,7 +47,13 @@ describe("stripView", () => {
   });
 
   it("flags a parent whose shell failed", () => {
-    const v = stripView([s("a", "working", 2, { shells: [{ id: "1", state: "running" }, { id: "2", state: "failed" }] }), s("b", "working", 1)]);
+    const sh = { command: "npm run build", description: "", stateSince: 1, startedAt: 1 };
+    const shells = [
+      { ...sh, id: "1", state: "running" as const },
+      { ...sh, id: "2", state: "failed" as const, endedAt: 2, exitCode: 3, lastLine: "build broke" },
+    ];
+    const v = stripView([s("a", "working", 2, { shells }), s("b", "working", 1)]);
     expect(v.cells.map((c) => c.shellFailed)).toEqual([true, false]);
+    expect(v.cells[0].shellNote).toBe("Shell failed: npm run build\nexit code 3\nlast: build broke");
   });
 });

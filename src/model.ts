@@ -43,8 +43,21 @@ export type Agent = {
   result?: string;
 };
 
-/** A background shell (state.rs `Shell`); only what the strip's failed dot reads until AV-30. */
-export type Shell = { id: string; state: "running" | "quiet" | "serving" | "exited" | "failed" };
+export type ShellState = "running" | "quiet" | "serving" | "exited" | "failed";
+
+/** A background shell (state.rs `Shell`); ended once `endedAt` is set. */
+export type Shell = {
+  id: string;
+  command: string;
+  description: string;
+  state: ShellState;
+  stateSince: number;
+  startedAt: number;
+  endedAt?: number;
+  port?: number;
+  exitCode?: number;
+  lastLine?: string;
+};
 
 export type RiskTier = "safe" | "shell" | "destructive";
 

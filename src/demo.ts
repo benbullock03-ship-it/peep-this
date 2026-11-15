@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { Agent, LastTool, PendingApproval, Session, Snapshot, State } from "./model";
+import type { Agent, LastTool, PendingApproval, Session, Shell, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
@@ -99,6 +99,31 @@ function kidsFor(i: number, now: number): Agent[] | undefined {
   });
 }
 
+type ShellSeed = [id: string, command: string, description: string, state: Shell["state"], ageS: number, extra?: { endedAgoS?: number; port?: number; exitCode?: number; lastLine?: string }];
+
+// A dev server with its port, a long running command, an exit that folds in ~27s, a failed build that flags its parent.
+const SHELLS: Record<number, ShellSeed[]> = {
+  0: [
+    ["demo-sh-dev", "npm run dev -- --port 5173", "Start the dev server", "serving", 240, { port: 5173, lastLine: "  ➜  Local:   http://localhost:5173/" }],
+    ["demo-sh-watch", ".venv/Scripts/python -m pipelines.ingest.watch --batch 14 --source invoices/inbox", "Watch the invoice inbox", "running", 75],
+  ],
+  3: [
+    ["demo-sh-render", "python scripts/render_digest.py --week 46", "Render the digest", "exited", 20, { endedAgoS: 3, exitCode: 0 }],
+    ["demo-sh-lint", "npx markdownlint digest/", "Lint the digest", "exited", 300, { endedAgoS: 200, exitCode: 0 }],
+  ],
+  4: [
+    ["demo-sh-tsc", "npx tsc --watch --noEmit", "Type-check in watch mode", "quiet", 600],
+    ["demo-sh-build", "npm run build", "Build the sync bundle", "failed", 40, { endedAgoS: 12, exitCode: 1, lastLine: "error TS2307: Cannot find module './sync/queue'" }],
+  ],
+};
+
+function shellsFor(i: number, now: number): Shell[] | undefined {
+  return SHELLS[i]?.map(([id, command, description, state, ageS, x = {}]) => {
+    const endedAt = x.endedAgoS !== undefined ? now - x.endedAgoS * 1000 : undefined;
+    return { id, command, description, state, stateSince: endedAt ?? now - ageS * 500, startedAt: now - ageS * 1000, endedAt, port: x.port, exitCode: x.exitCode, lastLine: x.lastLine };
+  });
+}
+
 function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number): PendingApproval {
   return { ...p, receivedAt: now, releaseAt: now + HOLD_MS };
 }
@@ -134,6 +159,7 @@ export function demoSnapshot(now: number): Snapshot {
       task: taskFor(i, a.state),
       subagents: KIDS[i]?.filter((k) => !k[5]).length ?? 0,
       agents: kidsFor(i, now),
+      shells: shellsFor(i, now),
       // Low, amber (70+) and red (90+) context for the segmented bars.
       contextPct: [74, 35, 93, 12, 47, undefined][i],
       alive: true,

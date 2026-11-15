@@ -962,6 +962,102 @@ body[data-fold] > .ps-strip {
   background: var(--ps-panel-2);
 }
 
+/* ---------- background shell chips (AV-30) ---------- */
+/* Same rail as the subagents, below them; no peep, one square chip per shell. */
+.sh-running { --sh: var(--st-working); }
+.sh-quiet { --sh: var(--st-stuck); }
+.sh-serving { --sh: var(--st-success); }
+.sh-exited { --sh: var(--ps-dim); }
+.sh-failed { --sh: var(--st-error); }
+
+.ps-kids + .ps-shells {
+  margin-top: -4px;
+}
+
+.ps-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 6px;
+  padding: 2px 6px;
+  background: var(--ps-panel-2);
+  border: 2px solid var(--ps-line);
+  font: 11px var(--mono);
+  white-space: nowrap;
+}
+
+.ps-shell::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: var(--ps-shelf-top);
+}
+
+.ps-shell.sh-failed {
+  border-color: var(--sh);
+}
+
+.ps-shell-glyph {
+  flex: none;
+  color: var(--sh);
+  font-weight: 500;
+}
+
+/* A zero basis, so its width never depends on the text; shellRows.ts middle-truncates to fit it. */
+.ps-shell-cmd {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ps-text);
+}
+
+.ps-shell.is-ended .ps-shell-cmd {
+  color: var(--ps-muted);
+}
+
+.ps-shell-time {
+  flex: none;
+  color: var(--ps-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-shell-state {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid var(--sh);
+  color: var(--sh);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ps-shell-ended {
+  color: var(--ps-muted);
+}
+
+.ps-shell-ended[aria-expanded="true"] {
+  background: var(--ps-panel-2);
+}
+
+/* The parent's failed-shell flag: on the peep, so it shows closed, open and with chips folded. */
+.ps-fail {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  background: var(--st-error);
+  box-shadow: 0 0 0 2px var(--ps-panel);
+  cursor: help;
+}
+
 /* ---------- row lifecycle ---------- */
 .ps-item[data-alive="false"] {
   opacity: 0.55;
