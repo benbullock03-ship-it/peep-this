@@ -7,6 +7,7 @@ Rhythm: why, what, build, prove, carry on, check in.
 1 why       /peep:reel     pin down who it is for and why it exists
 2 what      /peep:qt       questions about an idea, then tickets
 2 what      /peep:sneak    2 or 3 UI variants side by side, pick one
+3 build     /peep:goose    map what calls what before changing it
 3 build     /peep:ticket   work one ticket, commit it, mark it done
 4 prove     /peep:shoot    check a web UI change in a real browser
 4 prove     /peep:coderot  break code on purpose to see if tests fail

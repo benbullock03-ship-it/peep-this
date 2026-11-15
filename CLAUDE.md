@@ -29,7 +29,7 @@ Peep This: an always-on-top desktop companion for new Claude Code users, the wid
 
 ## Design (`design/`)
 
-- `peep.js` is the user's art and the **source of truth for the creature**. It is a dependency-free `<peep-bot>` custom element drawn on a 32×32 canvas. `src/vendor/peep.js` is a byte-identical copy; if the user sends a new version, replace both. Do not redraw, restyle or add poses; any change to the art goes back to the user.
+- `peep.js` is the user's art and the **source of truth for the creature**. It is a dependency-free `<peep-bot>` custom element drawn on a 32×32 canvas. `src/vendor/peep.js` and `plugin/skills/goose/assets/peep.js` are byte-identical copies; if the user sends a new version, replace all three. Do not redraw, restyle or add poses; any change to the art goes back to the user.
   - API: attributes `state`, `color` (palette name or any CSS colour), `accessory`, `energy` (1–10, sets 8–12 fps), `size`, `hover="off"`. JS setters: `el.state = 'waiting'`.
   - One shared rAF loop. Rendering pauses when a peep is off-screen (IntersectionObserver).
 - `peep-this.dc.html` is the Claude Design reference page. It runs on `support.js`, the Claude Design runtime, which is not app code. Its "In a monitor" section is the row mock.
