@@ -1,7 +1,7 @@
 ---
 id: AV-70
 title: Emotes in the bubble and the context nudge
-status: done
+status: closed
 depends: [AV-63, AV-67, AV-69]
 attended: true
 ---
