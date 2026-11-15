@@ -264,13 +264,13 @@ function runDemo() {
     );
     renderDigest(demoDigest(snap, Date.now()));
   }
-  render(snap.sessions);
+  render(snap.sessions, snap.repos);
   renderStrip(snap.sessions);
   inbox.sync(snap.sessions);
   renderLimits(snap.rateLimits);
   setInterval(() => {
     snap = demoStep(snap, Date.now());
-    render(snap.sessions);
+    render(snap.sessions, snap.repos);
     renderStrip(snap.sessions);
     inbox?.sync(snap.sessions);
     renderLimits(snap.rateLimits);
@@ -417,7 +417,7 @@ async function runLive() {
   await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
   const render = (snap: Snapshot) => {
     sessions = snap.sessions;
-    renderList(snap.sessions);
+    renderList(snap.sessions, snap.repos ?? []);
     renderStrip(snap.sessions);
     flySessions = snap.sessions;
     syncFlyouts();

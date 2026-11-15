@@ -120,7 +120,8 @@ export type Jump = (command: string) => Promise<boolean>;
 
 /**
  * The open row's tray section (FLOPPY-SPEC §02, §08, §10): disk box on first run, the tray as one roving tab stop,
- * the Pack Up action, the hover card and the hint bar. `clear()` drops the hint when the session changes state.
+ * the Pack Up action, the hover card and the hint bar. `clear()` drops the hint when the session changes state;
+ * `fire()` lets the ticket shelf Jump through the same hint bar.
  */
 export function createTray(jump: Jump) {
   const sec = el("div", "tray");
@@ -163,8 +164,7 @@ export function createTray(jump: Jump) {
     hint.replaceChildren();
   };
 
-  const fire = async (b: HTMLButtonElement, skill: string) => {
-    const cmd = jumpCommand(skill);
+  const fire = async (b: HTMLButtonElement, cmd: string) => {
     hideCard(b);
     const ok = await jump(cmd);
     clear();
@@ -190,7 +190,7 @@ export function createTray(jump: Jump) {
     b.addEventListener("pointerleave", () => hideCard(b));
     b.addEventListener("focus", () => showCard(b, f));
     b.addEventListener("blur", () => hideCard(b));
-    b.addEventListener("click", () => void fire(b, f.skill));
+    b.addEventListener("click", () => void fire(b, jumpCommand(f.skill)));
     return b;
   });
   group.addEventListener("keydown", (e) => {
@@ -209,7 +209,7 @@ export function createTray(jump: Jump) {
   disk("packup", 16, pack);
   el("span", "tray-pack-label", pack).textContent = "Pack up";
   pack.setAttribute("aria-label", `Pack up: copy ${jumpCommand("packup")}`);
-  pack.addEventListener("click", () => void fire(pack, "packup"));
+  pack.addEventListener("click", () => void fire(pack, jumpCommand("packup")));
 
-  return { el: sec, clear };
+  return { el: sec, clear, fire };
 }

@@ -20,6 +20,11 @@
   --st-success: #7dffa6;
   --st-error: #ff7a7a;
   --st-stuck: #a9b3c6;
+  --tk-todo: #ede9f2;
+  --tk-active: #f7d64a;
+  --tk-review: #8fb4ff;
+  --tk-blocked: #ff8ad1;
+  --tk-parked: #a49fb0;
 
   --ps-dim: #7d7889;
   --amber: 255, 178, 62;
@@ -58,6 +63,11 @@
   --st-success: #1f7a3d;
   --st-error: #b82d2d;
   --st-stuck: #5a6477;
+  --tk-todo: #2a2233;
+  --tk-active: #8a5a00;
+  --tk-review: #2f5fd0;
+  --tk-blocked: #b0237e;
+  --tk-parked: #645c70;
 
   --ps-dim: #665f70;
   --amber: 150, 81, 0;
@@ -1207,6 +1217,174 @@ body[data-fold] > .ps-strip {
 .diskbox-ok:focus-visible {
   outline: 2px solid var(--ps-text);
   outline-offset: 2px;
+}
+
+/* ---------- ticket shelf (AV-68, FLOPPY-SPEC §03, §04) ---------- */
+.shelf {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--ps-line);
+}
+
+.shelf[hidden] {
+  display: none;
+}
+
+.shelf-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--ps-line);
+}
+
+.shelf-count {
+  color: var(--ps-muted);
+  font: 11px var(--mono);
+}
+
+/* Five rows, then it scrolls inside; shelf.ts sets the exact height. */
+.shelf-list {
+  position: relative;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-color: var(--scroll) transparent;
+}
+
+.shelf-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 2px solid transparent;
+  border-bottom-color: var(--ps-line);
+  background: none;
+  color: var(--ps-text);
+  font: 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+
+.shelf-row:last-child {
+  border-bottom-color: transparent;
+}
+
+.shelf-row:hover,
+.shelf-row:focus-visible {
+  outline: none;
+  border-color: var(--ps-accent);
+  background: var(--ps-panel-2);
+}
+
+.shelf-id {
+  font: 600 12px var(--mono);
+}
+
+.shelf-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelf-jump {
+  display: none;
+  grid-column: 3;
+  padding: 1px 8px;
+  background: var(--ps-accent);
+  color: var(--ps-on-st);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.shelf-row:hover .shelf-jump,
+.shelf-row:focus-visible .shelf-jump {
+  display: block;
+}
+
+.shelf-row .tk-chip {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.shelf-note {
+  grid-column: 2 / -1;
+  margin-top: 3px;
+  color: var(--ps-muted);
+  font-size: 11px;
+}
+
+/* Parked dims by colour, not the design's 62% opacity, so its text keeps AA contrast (AV-52). */
+.shelf-row.is-deferred .shelf-id,
+.shelf-row.is-deferred .shelf-title {
+  color: var(--ps-muted);
+}
+
+.shelf-more {
+  padding: 4px 10px;
+  border-top: 2px solid var(--ps-line);
+  color: var(--ps-muted);
+  font-size: 11px;
+}
+
+.shelf-more:empty {
+  display: none;
+}
+
+.shelf-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  font-size: 12px;
+}
+
+.shelf-empty div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--ps-muted);
+}
+
+.shelf-empty strong {
+  color: var(--ps-text);
+  font-weight: 600;
+}
+
+.tk-open { --tk: var(--tk-todo); }
+.tk-doing { --tk: var(--tk-active); }
+.tk-done { --tk: var(--tk-review); }
+.tk-blocked { --tk: var(--tk-blocked); }
+.tk-deferred { --tk: var(--tk-parked); }
+
+/* Hollow stub with a 6 x 4 notch in each side; session chips are the filled-dot ones. */
+.tk-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border: 2px solid var(--tk);
+  color: var(--tk);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, 100% calc(50% - 3px), calc(100% - 4px) calc(50% - 3px), calc(100% - 4px) calc(50% + 3px), 100% calc(50% + 3px), 100% 100%, 0 100%, 0 calc(50% + 3px), 4px calc(50% + 3px), 4px calc(50% - 3px), 0 calc(50% - 3px));
+}
+
+.tk-deferred {
+  border-style: dashed;
+}
+
+.tk-glyph {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  shape-rendering: crispEdges;
 }
 
 @media (prefers-reduced-motion: reduce) {

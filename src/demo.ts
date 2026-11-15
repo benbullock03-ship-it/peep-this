@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { Agent, Digest, LastTool, PendingApproval, Session, Shell, Snapshot, State } from "./model";
+import type { Agent, Digest, LastTool, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
@@ -151,6 +151,27 @@ const LINKS: Record<number, Pick<Session, "skill" | "ticket">> = {
   4: { skill: "ticket", ticket: { id: "AV-66" } },
 };
 
+// AV-68 shelves: normal (one of each status), long (17, scrolls) and empty; triage-03 and scrape-06 have no repo.
+const NORMAL: RepoTicket[] = [
+  { id: "AV-35", title: "strip clash bracket", status: "open" },
+  { id: "AV-31", title: "token sheet", status: "blocked", reason: "the palette is not signed off", wake: "the owner rules on AV-63" },
+  { id: "AV-29", title: "sound pack", status: "deferred", reason: "waiting on the emote sheet", wake: "AV-31 is done" },
+  { id: "AV-34", title: "chip contrast", status: "doing" },
+  { id: "AV-36", title: "tray overflow box", status: "done" },
+  { id: "AV-37", title: "first-run disk box", status: "open" },
+];
+const LONG: RepoTicket[] = [
+  ...NORMAL,
+  ...["sticker slots", "emote pack loader", "custom floppy renderer", "settings drag order", "per-project colour", "nudge snooze", "eject timer", "hover card delay", "disk box grid", "plank slot art", "shelf scroll footer"].map(
+    (title, k): RepoTicket => ({ id: `AV-${80 + k}`, title, status: k % 4 === 3 ? "deferred" : "open", ...(k % 4 === 3 ? { reason: "later", wake: "2026-12-01 passes" } : {}) }),
+  ),
+];
+const REPOS: Repo[] = [
+  { root: "C:/Users/demo/Projects/accounts-payable", sessions: ["demo-1", "demo-4"], tickets: NORMAL },
+  { root: "C:/demo/sync-05", sessions: ["demo-5"], tickets: LONG },
+  { root: "C:/demo/research-02", sessions: ["demo-2"], tickets: [] },
+];
+
 const skillIn = (i: number, state: State) => (state === "success" || state === "idle" ? undefined : LINKS[i]?.skill);
 
 function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number): PendingApproval {
@@ -174,6 +195,7 @@ export function demoSnapshot(now: number): Snapshot {
   return {
     integration: "missing",
     rateLimits: { fiveHourPct: 42, sevenDayPct: 18, at: now },
+    repos: REPOS,
     sessions: AGENTS.map((a, i) => withPending({
       id: demoId(i),
       pid: 1000 + i,

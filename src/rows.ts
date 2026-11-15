@@ -4,10 +4,11 @@ import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
-import type { RuleOffer, Session, TrailEntry } from "./model";
+import type { Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
 import { MOTION_MS, motionMs, reducedMotion } from "./motion";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { createOffers, type AnswerOffer } from "./ruleOffer";
+import { createShelf } from "./shelf";
 import { createShells, type ShellsRender } from "./shellRows";
 import { sortSessions } from "./sort";
 import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
@@ -46,6 +47,7 @@ type Facts = {
   trail: HTMLElement;
   trailKey: string;
   clearHint: () => void;
+  shelf: (tickets: readonly RepoTicket[] | undefined) => void;
 };
 
 type Row = {
@@ -70,6 +72,7 @@ type Row = {
   /** Red dot on the peep for a failed shell; survives the chip folding and the row closing. */
   fail: HTMLElement;
   floppy?: HTMLElement;
+  tickets?: readonly RepoTicket[];
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
@@ -99,6 +102,8 @@ function createFacts(jump: Jump): Facts {
   const box = el("div", "ps-facts");
   const tray = createTray(jump);
   box.appendChild(tray.el);
+  const shelf = createShelf((b, cmd) => void tray.fire(b, cmd));
+  box.appendChild(shelf.el);
   const tags = el("div", "ps-tags", box);
   const since = el("span", "ps-tag is-st", tags);
   const model = el("span", "ps-tag", tags);
@@ -114,7 +119,7 @@ function createFacts(jump: Jump): Facts {
   const cwd = el("div", "ps-path", box);
   const trail = el("div", "ps-trail", box);
   trail.setAttribute("aria-label", "Recent approval decisions");
-  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear };
+  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render };
 }
 
 function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): Row {
@@ -254,6 +259,7 @@ function fillFacts(r: Row, now: number) {
   x.ctx.set(f.ctx ?? 0);
   setText(x.ctxValue, f.ctx === null ? "—" : `${Math.round(f.ctx)}%`);
   setText(x.cwd, f.cwd);
+  x.shelf(r.tickets);
 }
 
 function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined, rules?: RowRules) {
@@ -403,7 +409,10 @@ export function createList(
     if (target.closest(".ps-row, .ps-openhead")) toggle(r);
   });
 
-  return function render(sessions: readonly Session[]) {
+  let repos: readonly Repo[] = [];
+  /** `nextRepos` omitted keeps the last ones, for re-renders that only carry sessions. */
+  return function render(sessions: readonly Session[], nextRepos?: readonly Repo[]) {
+    if (nextRepos) repos = nextRepos;
     const sorted = sortSessions(sessions);
     const seen = new Set<string>();
     const now = Date.now();
@@ -418,6 +427,7 @@ export function createList(
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }
       r.session = s;
+      r.tickets = repos.find((p) => p.sessions.includes(s.id))?.tickets;
       if (r.el.classList.contains("leaving")) {
         clearTimeout(Number(r.el.dataset.leaveTimer));
         r.el.classList.remove("leaving");
