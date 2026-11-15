@@ -4,8 +4,8 @@
 
 ## 1. The owner's yes
 
-- The owner typed `/peep:ticket close <id>` (or pasted it from the widget) in this session: that is the yes.
-- Claude reached this step itself (a batch, its own suggestion, another skill): ask `Close <id>? Reply "yes".` and wait. Only a plain yes goes on.
+- The owner's own message is `/peep:ticket close <id>` (or pasted from the widget), sent while the ticket was already `done`: that is the yes.
+- Anything else asks `Close <id>? Reply "yes".` and waits; only a plain yes in a later message goes on. That includes a batch, Claude's own suggestion, another skill, and a request to work and then close in one message ("do TT-01 then close it"): the owner has not seen the work yet, so finish at `done` and ask.
 - Status is not `done`: say which status it has and ask `Close <id> anyway? Reply "yes".` Only a plain yes goes on.
 - Already `closed` or already in the archive: say so and stop.
 
