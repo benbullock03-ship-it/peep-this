@@ -1,7 +1,7 @@
 ---
 id: AV-49
 title: Shells from a subagent-run session never end
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -33,6 +33,8 @@ Also seen 2026-11-15: a top-level session after `/clear` keeps writing under its
 - Search by task id rather than resolve the parent id: nothing in the hook payload names the parent, and task ids are random.
 - No fixture files: the test builds the folder layout inline, as the existing output-file test does. No hook payload from an agent-run session was captured.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner looked at the build installed 19:44 and said it looks good. The fixture box stays unticked (see decisions). What was owed:
 
 - Live: a failing and a clean background command from an agent-run session, both ending in the reinstalled widget on their own.
