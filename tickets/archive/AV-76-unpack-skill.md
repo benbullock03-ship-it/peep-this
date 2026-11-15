@@ -1,7 +1,7 @@
 ---
 id: AV-76
 title: Unpack skill - check the Pack Up note, read back, start
-status: done
+status: closed
 depends: [AV-74]
 ---
 
