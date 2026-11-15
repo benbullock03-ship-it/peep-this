@@ -9,7 +9,8 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::ingest::http;
-use crate::risk::{self, Verdict};
+use crate::risk::{self, Tier, Verdict};
+use crate::rules::Rules;
 use crate::state::{ApprovalOutcome, Event, Session, State};
 use crate::store::{self, Store};
 use crate::trail::Outcome;
@@ -122,6 +123,8 @@ pub struct Decision<'a> {
     pub outcome: Outcome,
     pub reason: Option<&'a str>,
     pub via: Option<Release>,
+    /// The rule that auto-allowed it.
+    pub rule: Option<&'a str>,
     pub at: u64,
 }
 
@@ -153,6 +156,7 @@ pub struct Broker {
     inner: Mutex<Inner>,
     wake: Condvar,
     recorder: OnceLock<Recorder>,
+    rules: OnceLock<Arc<Rules>>,
 }
 
 impl Broker {
@@ -164,6 +168,7 @@ impl Broker {
             inner: Mutex::new(Inner::default()),
             wake: Condvar::new(),
             recorder: OnceLock::new(),
+            rules: OnceLock::new(),
         })
     }
 
@@ -171,9 +176,54 @@ impl Broker {
         let _ = self.recorder.set(r);
     }
 
+    /// Without rules nothing is ever auto-allowed.
+    pub fn set_rules(&self, r: Arc<Rules>) {
+        let _ = self.rules.set(r);
+    }
+
     fn record(&self, session_id: &str, request: &PendingApproval, outcome: Outcome, reason: Option<&str>, via: Option<Release>, at: u64) {
+        self.record_rule(session_id, request, outcome, reason, via, None, at);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn record_rule(
+        &self,
+        session_id: &str,
+        request: &PendingApproval,
+        outcome: Outcome,
+        reason: Option<&str>,
+        via: Option<Release>,
+        rule: Option<&str>,
+        at: u64,
+    ) {
         if let Some(r) = self.recorder.get() {
-            r(&Decision { session_id, request, outcome, reason, via, at });
+            r(&Decision { session_id, request, outcome, reason, via, rule, at });
+        }
+    }
+
+    /// A confirmed rule answers at once; the request is never held or shown.
+    fn auto_allow(&self, req: Request, risk: Verdict, rule: String, responder: Box<dyn Responder>, now: u64) {
+        let meta = PendingApproval {
+            id: format!("auto-{now}"),
+            tool: req.tool,
+            input: req.input,
+            cwd: req.cwd,
+            agent_id: req.agent_id,
+            received_at: now,
+            release_at: now,
+            risk,
+        };
+        let delivered = responder.reply(Reply::Allow);
+        println!("peepthis: auto-allowed by rule {rule} for session {} (delivered: {delivered})", req.session_id);
+        if delivered {
+            self.record_rule(&req.session_id, &meta, Outcome::AutoAllowed, None, None, Some(&rule), now);
+            if let Some(r) = self.rules.get() {
+                r.record_use(&rule, now);
+            }
+            self.store.apply(&req.session_id, Event::Approval { agent_id: meta.agent_id, outcome: ApprovalOutcome::Allowed }, now);
+        } else {
+            self.record(&req.session_id, &meta, Outcome::Released, None, Some(Release::Disconnected), now);
+            self.abandon(req.session_id, meta.agent_id, now);
         }
     }
 
@@ -196,11 +246,18 @@ impl Broker {
 
     /// Takes over the hook's connection. Released at once when the widget is hidden.
     pub fn hold(&self, req: Request, responder: Box<dyn Responder>, now: u64) -> Option<String> {
+        let risk = risk::classify(&req.tool, &req.input, &req.cwd);
+        let rule = (risk.tier != Tier::Destructive)
+            .then(|| self.rules.get().and_then(|r| r.auto_rule(&req.tool, &req.input, &req.cwd)))
+            .flatten();
+        if let Some(rule) = rule {
+            self.auto_allow(req, risk, rule, responder, now);
+            return None;
+        }
         if self.env.widget_hidden() {
             responder.reply(Reply::Release);
             return None;
         }
-        let risk = risk::classify(&req.tool, &req.input, &req.cwd);
         let session_id = req.session_id.clone();
         let id = {
             let mut inner = self.inner.lock().unwrap();
@@ -244,6 +301,13 @@ impl Broker {
         if delivered {
             let outcome = if allow { Outcome::Allowed } else { Outcome::Denied };
             self.record(&session_id, &meta, outcome, reason.as_deref(), None, now);
+            if let Some(r) = self.rules.get() {
+                if allow {
+                    r.note_allow(&session_id, &meta.tool, &meta.input, &meta.cwd, now);
+                } else {
+                    r.note_deny(&meta.tool, &meta.input, &meta.cwd);
+                }
+            }
         } else {
             self.record(&session_id, &meta, Outcome::Released, None, Some(Release::Disconnected), now);
         }
@@ -704,6 +768,64 @@ mod tests {
                 (Outcome::Released, None, Some(Release::Disconnected)),
             ]
         );
+    }
+
+    type Log = Arc<Mutex<Vec<(Outcome, Option<String>)>>>;
+
+    fn with_rules(r: &Rig) -> (crate::rules::tests::TempDir, Arc<Rules>, Log) {
+        let d = crate::rules::tests::temp();
+        let rules = Rules::open(&d.0);
+        r.broker.set_rules(Arc::clone(&rules));
+        let log: Log = Arc::default();
+        let sink = Arc::clone(&log);
+        r.broker.set_recorder(Box::new(move |d: &Decision<'_>| {
+            sink.lock().unwrap().push((d.outcome, d.rule.map(str::to_owned)));
+        }));
+        (d, rules, log)
+    }
+
+    #[test]
+    fn three_allows_offer_a_rule_and_an_accepted_rule_answers_without_holding() {
+        let r = rig();
+        let (_d, rules, log) = with_rules(&r);
+        for i in 0..3 {
+            assert!(rules.view().offers.is_empty(), "no offer before allow {}", i + 1);
+            let (id, _) = r.request("permission_request_bash.json", T0 + i * 10);
+            r.broker.decide(&id, true, None, T0 + i * 10 + 1).unwrap();
+        }
+        let offer = rules.view().offers[0].clone();
+        assert_eq!((offer.session_id.as_str(), offer.shape.pattern.as_str()), (SID, "mkdir zz-test"));
+        let rule = rules.answer(&offer.id, crate::rules::Answer::Yes, T0 + 50).unwrap().rules[0].id.clone();
+
+        let v = payload("permission_request_bash.json");
+        r.store.apply(SID, Event::UserPromptSubmit, T0 + 60);
+        let probe = Arc::new(Probe::default());
+        assert_eq!(r.broker.hold(Request::from_payload(&v).unwrap(), Box::new(Fake(Arc::clone(&probe))), T0 + 60), None);
+        assert_eq!(replies(&probe), vec![Reply::Allow]);
+        assert!(r.session().pending.is_empty());
+        assert_eq!(log.lock().unwrap().last().cloned(), Some((Outcome::AutoAllowed, Some(rule.clone()))));
+        assert_eq!(rules.view().rules[0].uses, 1);
+
+        rules.revoke(&rule).unwrap();
+        let (_, after) = r.request("permission_request_bash.json", T0 + 70);
+        assert!(replies(&after).is_empty(), "held again once revoked");
+        assert_eq!(r.session().pending.len(), 1);
+    }
+
+    #[test]
+    fn a_rule_never_lets_a_destructive_request_through() {
+        let r = rig();
+        let (d, _rules, log) = with_rules(&r);
+        let mut v = payload("permission_request_bash.json");
+        v["tool_input"]["command"] = "git push --force".into();
+        let shape = crate::rules::shape_of("Bash", &v["tool_input"], "C:\\work\\demo").unwrap();
+        let book = json!({ "version": 1, "rules": [{ "id": "r1", "cwd": shape.cwd, "tool": "Bash", "pattern": shape.pattern, "created": T0 }] });
+        std::fs::write(d.0.join("rules.json"), book.to_string()).unwrap();
+        let probe = Arc::new(Probe::default());
+        let held = r.broker.hold(Request::from_payload(&v).unwrap(), Box::new(Fake(Arc::clone(&probe))), T0);
+        assert!(held.is_some());
+        assert!(replies(&probe).is_empty());
+        assert!(log.lock().unwrap().is_empty());
     }
 
     #[test]

@@ -90,6 +90,13 @@ export type TrailEntry = {
   agentId?: string;
 };
 
+/** src-tauri/src/rules.rs `Shape`: cwd is lowercased with forward slashes. */
+export type RuleShape = { cwd: string; tool: string; pattern: string };
+export type Rule = RuleShape & { id: string; created: number; uses: number; lastUsed?: number };
+export type RuleOffer = RuleShape & { id: string; sessionId: string; tier: RiskTier; at: number };
+export type RulesView = { rules: Rule[]; offers: RuleOffer[]; error?: string };
+export type RuleAnswer = "yes" | "not-now" | "never";
+
 export type RateLimits ={ fiveHourPct: number; sevenDayPct: number; at: number };
 
 export type Snapshot = {

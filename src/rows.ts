@@ -3,14 +3,23 @@ import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
-import type { Session, TrailEntry } from "./model";
+import type { RuleOffer, Session, TrailEntry } from "./model";
 import { MOTION_MS, motionMs } from "./motion";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
+import { createOffers, type AnswerOffer } from "./ruleOffer";
 import { createShells, type ShellsRender } from "./shellRows";
 import { sortSessions } from "./sort";
 import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
 
 export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
+
+/** AV-31: offers under the row, and revoking a rule from its trail entry. */
+export type RowRules = {
+  offersOf: (sessionId: string) => readonly RuleOffer[];
+  answer: AnswerOffer;
+  revoke: (ruleId: string) => Promise<unknown>;
+  live: (ruleId: string) => boolean;
+};
 
 const PEEP_SIZE = "48";
 const PEEP_SIZE_OPEN = "96";
@@ -49,6 +58,7 @@ type Row = {
   last: Partial<RowView>;
   session: Session;
   cards?: (pending: Session["pending"]) => number;
+  offers?: (offers: readonly RuleOffer[]) => void;
   kids: KidsRender;
   shells: ShellsRender;
   /** Red dot on the peep for a failed shell; survives the chip folding and the row closing. */
@@ -98,7 +108,7 @@ function createFacts(): Facts {
   return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-" };
 }
 
-function createRow(s: Session, decide?: Decide): Row {
+function createRow(s: Session, decide?: Decide, rules?: RowRules): Row {
   const item = el("div", "ps-item");
   item.dataset.id = s.id;
 
@@ -133,6 +143,12 @@ function createRow(s: Session, decide?: Decide): Row {
     host.hidden = true;
     cards = createCards(host, decide);
   }
+  let offers: Row["offers"];
+  if (rules) {
+    const host = el("div", "cards", item);
+    host.hidden = true;
+    offers = createOffers(host, rules.answer);
+  }
   const kidsHost = el("div", "ps-kids", item);
   kidsHost.hidden = true;
   const shellsHost = el("div", "ps-kids ps-shells", item);
@@ -154,6 +170,7 @@ function createRow(s: Session, decide?: Decide): Row {
     last: {},
     session: s,
     cards,
+    offers,
     kids: createKids(kidsHost, decide),
     shells: createShells(shellsHost),
     fail,
@@ -214,8 +231,9 @@ function fillFacts(r: Row, now: number) {
   setText(x.cwd, f.cwd);
 }
 
-function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined) {
-  const key = trailKey(entries);
+function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined, rules?: RowRules) {
+  const ruled = (entries ?? []).filter((e) => e.outcome === "auto-allowed" && e.rule);
+  const key = `${trailKey(entries)}|${rules ? ruled.map((e) => Number(rules.live(e.rule!))).join("") : ""}`;
   if (key === r.facts.trailKey) return;
   r.facts.trailKey = key;
   const host = r.facts.trail;
@@ -223,16 +241,34 @@ function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined) {
   host.hidden = !entries?.length;
   const now = Date.now();
   for (const e of entries ?? []) {
-    const item = el("div", "trail-item", host);
+    const rule = rules && e.outcome === "auto-allowed" ? e.rule : undefined;
+    const item = rule ? button("trail-item is-rule", host) : el("div", "trail-item", host);
     item.dataset.outcome = e.outcome;
     item.title = entryTitle(e, now);
     el("span", "trail-mark", item).textContent = markOf(e.outcome);
     el("span", "trail-tool", item).textContent = e.tool;
     el("span", "trail-target", item).textContent = shownTarget(e);
+    if (!rule || !rules) continue;
+    const live = rules.live(rule);
+    el("span", "trail-revoke", item).textContent = live ? "revoke" : "revoked";
+    if (!live) {
+      item.classList.add("is-revoked");
+      (item as HTMLButtonElement).disabled = true;
+      item.title += "\nRule revoked";
+      continue;
+    }
+    item.title += "\nClick to revoke this rule";
+    item.addEventListener("click", () => {
+      (item as HTMLButtonElement).disabled = true;
+      rules.revoke(rule).catch((err) => {
+        console.error("peepthis: revoke_rule failed", err);
+        (item as HTMLButtonElement).disabled = false;
+      });
+    });
   }
 }
 
-function expand(r: Row, trail?: readonly TrailEntry[]) {
+function expand(r: Row, trail?: readonly TrailEntry[], rules?: RowRules) {
   r.closed.hidden = true;
   r.head.hidden = false;
   r.stage.hidden = false;
@@ -240,7 +276,7 @@ function expand(r: Row, trail?: readonly TrailEntry[]) {
   r.peep.setAttribute("size", PEEP_SIZE_OPEN);
   r.plank.after(r.facts.el);
   r.facts.trailKey = "-";
-  fillTrail(r, trail);
+  fillTrail(r, trail, rules);
   fillFacts(r, Date.now());
   r.el.classList.add("is-open");
 }
@@ -279,6 +315,7 @@ export function createList(
   onFocus?: OnFocus,
   onDecide?: Decide,
   trailOf?: TrailOf,
+  rules?: RowRules,
 ) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
@@ -309,7 +346,7 @@ export function createList(
     const wasOpen = open === r;
     close(wasOpen && r.head.contains(document.activeElement));
     if (wasOpen) return;
-    expand(r, trailOf?.(r.session.id));
+    expand(r, trailOf?.(r.session.id), rules);
     open = r;
     if (r.closed.contains(document.activeElement) || document.activeElement === document.body) r.head.focus();
     ticker = window.setInterval(() => open && fillFacts(open, Date.now()), TICK_MS);
@@ -341,7 +378,7 @@ export function createList(
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
-        r = createRow(s, onDecide);
+        r = createRow(s, onDecide, rules);
         rows.set(s.id, r);
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }
@@ -356,9 +393,10 @@ export function createList(
       const shellFold = r.shells(s, now).foldAt;
       for (const at of [kids.foldAt, shellFold]) if (at !== null && (foldAt === null || at < foldAt)) foldAt = at;
       r.cards?.(s.alive ? s.pending?.filter((p) => !kids.claimed.has(p.id)) : undefined);
+      r.offers?.(s.alive && rules ? rules.offersOf(s.id) : []);
       if (r === open) {
         fillFacts(r, now);
-        fillTrail(r, trailOf?.(s.id));
+        fillTrail(r, trailOf?.(s.id), rules);
       }
       // Fading rows hold their slot, so ordering skips over them.
       let next: Element | null = prev ? prev.nextElementSibling : list.firstElementChild;

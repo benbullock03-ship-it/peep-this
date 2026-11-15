@@ -1662,6 +1662,99 @@ body[data-fold] > .ps-strip {
   color: var(--ps-dim);
 }
 
+/* ---------- auto-allow rules (AV-31) ---------- */
+.trail-item.is-rule {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trail-revoke {
+  flex: none;
+  color: var(--ps-dim);
+  font-size: 10px;
+  visibility: hidden;
+}
+
+.trail-item.is-rule:hover .trail-revoke,
+.trail-item.is-rule:focus-visible .trail-revoke,
+.trail-item.is-revoked .trail-revoke {
+  visibility: visible;
+}
+
+.trail-item.is-rule:hover .trail-revoke,
+.trail-item.is-rule:focus-visible .trail-revoke {
+  color: var(--red);
+}
+
+.trail-item.is-rule:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 1px;
+}
+
+.trail-item.is-revoked {
+  cursor: default;
+}
+
+.trail-item.is-revoked .trail-target {
+  text-decoration: line-through;
+}
+
+.offer-q {
+  margin: 0;
+  color: var(--ps-text);
+  overflow-wrap: anywhere;
+}
+
+.offer-pattern,
+.rule-pattern {
+  padding: 0 3px;
+  border: 1px solid var(--ps-line);
+  color: var(--ps-text);
+  font: 12px var(--mono);
+}
+
+.rule-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.rule-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 6px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 4px 0;
+  border-top: 1px solid var(--ps-line);
+  font-size: 11px;
+}
+
+.rule-item .log-what {
+  grid-column: auto;
+}
+
+.rule-pattern {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rule-meta {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ps-dim);
+}
+
 /* ---------- settings (AV-26) ---------- */
 #settings {
   display: flex;

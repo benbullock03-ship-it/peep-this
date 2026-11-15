@@ -1,5 +1,6 @@
 import { comboFromKey } from "./inbox";
-import type { TrailEntry, TrailOutcome } from "./model";
+import type { RulesView, TrailEntry, TrailOutcome } from "./model";
+import { usesText } from "./rules";
 import { THEME_PREFS, type ThemePref } from "./theme";
 import { entryTitle, filterTrail, formatWhen, LOG_MAX, markOf, OUTCOMES, sessionOptions, shownTarget, type TrailFilter } from "./trail";
 
@@ -15,6 +16,7 @@ export type SettingsApi = {
   hotkey?: HotkeyApi;
   toggleHotkey?: HotkeyApi;
   theme?: { get: () => ThemePref; set: (pref: ThemePref) => void };
+  rules?: { view: () => Promise<RulesView>; revoke: (ruleId: string) => Promise<RulesView> };
 };
 
 const INBOX_FIELD = {
@@ -56,6 +58,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const hotkey = api.hotkey ? createHotkeyField(host, api.hotkey, INBOX_FIELD) : null;
   const toggleHotkey = api.toggleHotkey ? createHotkeyField(host, api.toggleHotkey, TOGGLE_FIELD) : null;
   const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
+  const rules = api.rules ? createRulesField(host, api.rules) : null;
 
   el("h3", "settings-sub", host, "Decision log");
   const filters = el("div", "log-filters", host);
@@ -140,13 +143,62 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh()]);
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh()]);
   }
 
   return {
     refresh,
+    rulesChanged: (v: RulesView) => rules?.show(v),
     hotkeyStatus: (s: HotkeyStatus) => hotkey?.show(s),
     toggleHotkeyStatus: (s: HotkeyStatus) => toggleHotkey?.show(s),
+  };
+}
+
+/** AV-31: confirmed auto-allow rules with their use counts; Delete revokes. */
+function createRulesField(host: HTMLElement, api: NonNullable<SettingsApi["rules"]>) {
+  el("h3", "settings-sub", host, "Auto-allow rules");
+  el("p", "settings-note", host, "Offered after three identical allows in one project. Never used for destructive requests.");
+  const msg = el("p", "settings-error", host);
+  msg.hidden = true;
+  const list = el("div", "rule-list", host);
+
+  function show(v: RulesView) {
+    msg.hidden = !v.error;
+    msg.textContent = v.error ? `${v.error}. No rule applies until it is fixed.` : "";
+    list.replaceChildren();
+    if (!v.error && v.rules.length === 0) el("div", "log-count", list, "No rules yet.");
+    for (const r of v.rules) {
+      const item = el("div", "rule-item", list);
+      item.dataset.id = r.id;
+      const what = el("span", "log-what", item);
+      el("span", "trail-tool", what, r.tool);
+      el("code", "rule-pattern", what, r.pattern).title = r.pattern;
+      const del = el("button", "card-btn rule-delete", item, "Delete");
+      del.type = "button";
+      del.addEventListener("click", async () => {
+        del.disabled = true;
+        try {
+          show(await api.revoke(r.id));
+        } catch (e) {
+          msg.textContent = `Could not delete: ${e}`;
+          msg.hidden = false;
+          del.disabled = false;
+        }
+      });
+      el("span", "rule-meta", item, `${usesText(r)} · ${r.cwd}`).title = r.cwd;
+    }
+  }
+
+  return {
+    show,
+    async refresh() {
+      try {
+        show(await api.view());
+      } catch (e) {
+        msg.textContent = `Could not read the rules: ${e}`;
+        msg.hidden = false;
+      }
+    },
   };
 }
 

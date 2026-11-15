@@ -94,7 +94,7 @@ impl Entry {
             tier: d.request.risk.tier,
             outcome: d.outcome,
             reason: d.reason.map(|r| clip(r, REASON_MAX_CHARS)),
-            rule: None,
+            rule: d.rule.map(str::to_owned),
             via: d.via.map(|r| via(r).to_string()),
             agent_id: d.request.agent_id.clone(),
         }
@@ -479,7 +479,7 @@ mod tests {
             release_at: NOW + 60_000,
             risk: risk::classify("Edit", &input, "C:\\work\\demo"),
         };
-        let d = Decision { session_id: "s1", request: &p, outcome: Outcome::Released, reason: None, via: Some(Release::Window), at: NOW };
+        let d = Decision { session_id: "s1", request: &p, outcome: Outcome::Released, reason: None, via: Some(Release::Window), rule: None, at: NOW };
         let e = Entry::from_decision(&d, "demo");
         assert_eq!(e.target, "C:\\work\\demo\\src\\a.ts");
         assert_eq!(e.via.as_deref(), Some("timed-out"));

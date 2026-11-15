@@ -6,7 +6,8 @@ import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
-import type { Session, Snapshot, TrailEntry } from "./model";
+import type { RulesView, Session, Snapshot, TrailEntry } from "./model";
+import { EMPTY_RULES, offersFor, ruleLive } from "./rules";
 import { reducedMotion } from "./motion";
 import { pinsPeek } from "./peek";
 import { createList } from "./rows";
@@ -193,6 +194,7 @@ function mountSettings(api: SettingsApi) {
     refresh: () => settings.refresh(),
     hotkeyStatus: settings.hotkeyStatus,
     toggleHotkeyStatus: settings.toggleHotkeyStatus,
+    rulesChanged: settings.rulesChanged,
   };
 }
 
@@ -293,12 +295,19 @@ async function runLive() {
   const [{ invoke }, { listen }] = await Promise.all([import("@tauri-apps/api/core"), import("@tauri-apps/api/event")]);
   let recent: Record<string, TrailEntry[]> = {};
   let sessions: Session[] = [];
+  let rulesView: RulesView = EMPTY_RULES;
   const renderList = createList(
     root,
     undefined,
     (id) => invoke<boolean>("focus_session", { sessionId: id }),
     (requestId, decision, reason) => invoke<boolean>("decide_approval", { requestId, decision, reason }),
     (id) => recent[id],
+    {
+      offersOf: (id) => offersFor(rulesView, id),
+      answer: (offerId, answer) => invoke<RulesView>("answer_rule_offer", { offerId, answer }),
+      revoke: (ruleId) => invoke<RulesView>("revoke_rule", { ruleId }),
+      live: (id) => ruleLive(rulesView, id),
+    },
   );
   const renderStrip = createStrip(stripEl, stripActions);
   const settings = mountSettings({
@@ -313,8 +322,19 @@ async function runLive() {
       get: () => invoke<HotkeyStatus>("toggle_hotkey"),
       set: (hotkey) => invoke<HotkeyStatus>("set_toggle_hotkey", { hotkey }),
     },
+    rules: {
+      view: () => invoke<RulesView>("rules_view"),
+      revoke: (ruleId) => invoke<RulesView>("revoke_rule", { ruleId }),
+    },
   });
   await listen("open-settings", () => settings.show(true));
+  const applyRules = (v: RulesView) => {
+    rulesView = v;
+    renderList(sessions);
+    settings.rulesChanged(v);
+  };
+  await listen<RulesView>("rules", (e) => applyRules(e.payload));
+  invoke<RulesView>("rules_view").then(applyRules, (err) => console.error("peepthis: rules_view failed", err));
   const inbox = mountInbox({
     reveal: () => settings.show(false),
     focusTerminal: (id) => void invoke<boolean>("focus_session", { sessionId: id }).catch((err) => console.error("peepthis: focus_session failed", err)),

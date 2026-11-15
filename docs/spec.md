@@ -284,6 +284,8 @@ Each background shell is a chip row under its parent with the command and runtim
 
 After the third manual allow of the same shape (project + tool + normalised target) the widget offers to auto-allow it. Confirmed rules live in the widget's own store, are listed and revocable, and each use is written to the trail and shown as a tick. The `destructive` tier is never offered and never matched.
 
+Built in `rules.rs` (AV-31): shapes keep the command, subcommand and other words and fold trailing in-project file arguments into `<files>`; file tools use `dir/*.ext`. Rules and a never-ask list are in `%APPDATA%\PeepThis\rules.json`; any read or parse error there means no auto-allow. The broker checks rules before holding; the classifier runs first on every request.
+
 ### 11.9 While-you-were-away digest (AV-32, AV-33)
 
 On return from a locked screen or idle period, one card: blocked on you, failed, finished, still running, with time taken, files changed and commands run per session. Built from events only by default. An opt-in setting adds a one-sentence summary per session from a headless `claude -p` call on Haiku, which spends rate limit and needs the network.
