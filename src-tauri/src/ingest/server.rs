@@ -9,6 +9,7 @@ use serde_json::Value;
 
 use super::http;
 use crate::approve::{self, Broker, TcpResponder};
+use crate::away::Note;
 use crate::state::{Event, ShellEvent, ShellExit};
 use crate::store::{self, Store};
 
@@ -156,13 +157,16 @@ pub fn handle_full(store: &Store, expected: &str, req: &Request, body: impl Read
     if buf.len() > MAX_BODY {
         return Outcome::Status(413);
     }
-    match parse(&route, &buf) {
-        Ok(routed) => {
+    let parsed = serde_json::from_slice::<Value>(&buf).map_err(|_| "malformed JSON");
+    match parsed.and_then(|v| parse_value(&route, &v).map(|r| (v, r))) {
+        Ok((v, routed)) => {
+            let (id, cwd) = (routed.session_id.clone(), routed.cwd.clone());
             dispatch(store, routed, now);
-            let hold = (route == Route::Hook("PermissionRequest".into()))
-                .then(|| serde_json::from_slice::<Value>(&buf).ok())
-                .flatten()
-                .and_then(|v| approve::Request::from_payload(&v));
+            let Route::Hook(name) = &route else { return Outcome::Status(204) };
+            if let Some(note) = activity_note(name, &v, cwd.as_deref()) {
+                store.note(&id, note, now);
+            }
+            let hold = (name == "PermissionRequest").then(|| approve::Request::from_payload(&v)).flatten();
             hold.map_or(Outcome::Status(204), Outcome::Hold)
         }
         Err(e) => {
@@ -203,8 +207,31 @@ pub fn parse_route(url: &str) -> Option<Route> {
         .then(|| Route::Hook(name.to_string()))
 }
 
+#[cfg(test)]
 pub fn parse(route: &Route, body: &[u8]) -> Result<Routed, &'static str> {
     let v: Value = serde_json::from_slice(body).map_err(|_| "malformed JSON")?;
+    parse_value(route, &v)
+}
+
+/// What the away digest keeps from a hook (spec §11.9): file paths, command counts, turn edges and the last assistant line.
+fn activity_note(name: &str, v: &Value, cwd: Option<&str>) -> Option<Note> {
+    let tool = || str_at(v, "/tool_name").unwrap_or_default();
+    match name {
+        "UserPromptSubmit" => Some(Note::Prompt),
+        "PostToolUse" | "PostToolUseFailure" => match tool().as_str() {
+            "Bash" | "PowerShell" => Some(Note::Command),
+            "Edit" | "Write" | "MultiEdit" | "NotebookEdit" if name == "PostToolUse" => {
+                v.get("tool_input").and_then(|i| tool_target(i, cwd)).map(Note::File)
+            }
+            _ => None,
+        },
+        "Stop" => Some(Note::Stop { line: str_at(v, "/last_assistant_message").and_then(|m| first_line(&m)) }),
+        "StopFailure" => Some(Note::Stop { line: None }),
+        _ => None,
+    }
+}
+
+pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
     let session_id = str_at(&v, "/session_id")
         .filter(|s| !s.trim().is_empty())
         .ok_or("missing session_id")?;
@@ -1156,6 +1183,44 @@ mod tests {
             store.snapshot().sessions[0].pending.is_empty()
         });
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn note_of(name: &str, file: &str) -> Option<Note> {
+        let v: Value = serde_json::from_str(&fixture(file)).unwrap();
+        activity_note(name, &v, str_at(&v, "/cwd").as_deref())
+    }
+
+    #[test]
+    fn activity_notes_keep_paths_counts_and_the_first_reply_line_only() {
+        let edit = fixture("pre_tool_use_edit.json").replace("PreToolUse", "PostToolUse");
+        let v: Value = serde_json::from_str(&edit).unwrap();
+        let note = activity_note("PostToolUse", &v, Some("C:\\work\\demo"));
+        assert_eq!(note, Some(Note::File("src\\main.ts".into())));
+        assert!(!format!("{note:?}").contains("SECRET"));
+        assert_eq!(activity_note("PostToolUseFailure", &v, Some("C:\\work\\demo")), None, "a failed edit changed nothing");
+        assert_eq!(note_of("PostToolUse", "post_tool_use_bash_background.json"), Some(Note::Command));
+        assert_eq!(note_of("PostToolUse", "post_tool_use.json"), None, "reads are not changes");
+        assert_eq!(note_of("UserPromptSubmit", "user_prompt_submit.json"), Some(Note::Prompt));
+        assert_eq!(note_of("Stop", "stop.json"), Some(Note::Stop { line: Some("SECRET-ASSISTANT-TEXT".into()) }));
+        assert_eq!(note_of("StopFailure", "stop_failure.json"), Some(Note::Stop { line: None }));
+        assert_eq!(note_of("PreToolUse", "pre_tool_use_bash.json"), None);
+    }
+
+    #[test]
+    fn hooks_feed_the_activity_log_behind_the_digest() {
+        let store = quiet_store();
+        let r = req("/hook/UserPromptSubmit", Some(TOKEN));
+        assert_eq!(send(&store, &r, &fixture("user_prompt_submit.json")), 204);
+        let edit = fixture("pre_tool_use_edit.json").replace("PreToolUse", "PostToolUse");
+        assert_eq!(send(&store, &req("/hook/PostToolUse", Some(TOKEN)), &edit), 204);
+        assert_eq!(send(&store, &req("/hook/PostToolUse", Some(TOKEN)), &fixture("post_tool_use_bash_background.json")), 204);
+        assert_eq!(send(&store, &req("/hook/Stop", Some(TOKEN)), &fixture("stop.json")), 204);
+        let d = store.digest(1_000, 2_000).unwrap();
+        let e = &d.entries[0];
+        assert_eq!((e.file_count, e.commands), (1, 1));
+        assert_eq!(e.files, vec!["src\\main.ts".to_string()]);
+        assert_eq!(e.last_line.as_deref(), Some("SECRET-ASSISTANT-TEXT"));
+        assert!(store.digest(1_001, 2_000).is_none());
     }
 
     #[test]

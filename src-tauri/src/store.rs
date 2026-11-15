@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
+use crate::away;
 use crate::notify;
 use crate::source::{SessionInfo, ShellQuery, SourceEvent};
 use crate::state::{self, Event, Session};
@@ -43,6 +44,8 @@ struct Inner {
     dirty: bool,
     /// Sessions that entered `waiting` during the current mutation; drained outside the lock.
     entered: Vec<Session>,
+    /// Behind the away digest; never in the snapshot.
+    activity: away::Activity,
 }
 
 impl Inner {
@@ -72,6 +75,7 @@ impl Store {
                 integration: Integration::Missing,
                 dirty: false,
                 entered: Vec::new(),
+                activity: away::Activity::default(),
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
@@ -170,7 +174,25 @@ impl Store {
     }
 
     pub fn tick(&self, now: u64) {
-        self.mutate(|inner| ticker::tick(&mut inner.sessions, now));
+        self.mutate(|inner| {
+            let changed = ticker::tick(&mut inner.sessions, now);
+            let Inner { sessions, activity, .. } = inner;
+            activity.prune(|id| sessions.contains_key(id), now);
+            changed
+        });
+    }
+
+    /// Adds to a known session's activity log; unknown ids are dropped.
+    pub fn note(&self, id: &str, note: away::Note, now: u64) {
+        let mut inner = self.inner.lock().unwrap();
+        let Some(name) = inner.sessions.get(id).map(|s| s.name.clone()) else { return };
+        inner.activity.note(id, &name, note, now);
+    }
+
+    pub fn digest(&self, since: u64, now: u64) -> Option<away::Digest> {
+        let inner = self.inner.lock().unwrap();
+        let sessions: Vec<Session> = inner.sessions.values().cloned().collect();
+        away::digest(&inner.activity, &sessions, since, now)
     }
 
     /// Shells of live sessions the probe should look at: running ones, plus ended ones whose output tail is unread.

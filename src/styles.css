@@ -1203,6 +1203,127 @@ body[data-fold] > .ps-strip {
   overflow-wrap: anywhere;
 }
 
+/* ---------- away digest (AV-32) ---------- */
+.card--digest {
+  margin: 8px 14px 10px;
+  border-left-color: var(--ps-accent);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+.card--digest[hidden] {
+  display: none;
+}
+
+.digest-close {
+  flex: none;
+  padding: 0 2px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ps-dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.digest-close:hover {
+  color: var(--ps-text);
+}
+
+.digest-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.digest-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 10px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ps-dim);
+}
+
+.digest-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--st);
+}
+
+.digest-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 4px 6px 4px 8px;
+  border: 0;
+  border-left: 2px solid var(--st);
+  background: var(--ps-panel);
+  color: var(--ps-text);
+  font: inherit;
+  text-align: left;
+}
+
+button.digest-entry {
+  cursor: pointer;
+}
+
+button.digest-entry:hover {
+  background: var(--ps-panel-2);
+}
+
+button.digest-entry:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 1px;
+}
+
+.digest-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.digest-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 12px var(--mono);
+}
+
+.digest-ended {
+  flex: none;
+  font: 500 10px var(--mono);
+  text-transform: uppercase;
+  color: var(--ps-dim);
+}
+
+.digest-facts,
+.digest-files,
+.digest-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ps-muted);
+}
+
+.digest-facts {
+  white-space: normal;
+}
+
+.digest-files {
+  font-family: var(--mono);
+  color: var(--ps-dim);
+}
+
+.digest-line {
+  font-style: italic;
+}
+
 /* ---------- integration banner ---------- */
 .banner {
   display: flex;

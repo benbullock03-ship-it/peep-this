@@ -290,6 +290,8 @@ Built in `rules.rs` (AV-31): shapes keep the command, subcommand and other words
 
 On return from a locked screen or idle period, one card: blocked on you, failed, finished, still running, with time taken, files changed and commands run per session. Built from events only by default. An opt-in setting adds a one-sentence summary per session from a headless `claude -p` call on Haiku, which spends rate limit and needs the network.
 
+Built (AV-32): `away.rs` polls once a second: `GetLastInputInfo` for idle, `OpenInputDesktop` failing for the lock screen. Away is a lock or `awayAfterMin` (settings.json, 1/2/5/10/15/30, default 5) without input; back is the unlock or the first input. The store keeps an in-memory log per session (256 notes, then counts are marked `+`): prompts, stops with the first line of `last_assistant_message` (160 chars), changed file paths from successful `Edit`/`Write`/`MultiEdit`/`NotebookEdit` `PostToolUse`, a count of `Bash`/`PowerShell` runs, and approvals released to the terminal. A session is on the card if it has notes or a state change in the window; nothing changed means no card. The card (`src/digestCard.ts`) sits at the top of the panel; Esc, its close button or any widget allow/deny dismisses it. The model summary is AV-33.
+
 ### 11.10 Considered and not taken
 
 Collision radar (two sessions on one file or branch), usage forecasts, phone remote, orphan shell tracking, a per-session trust dial, a global pause switch, launching sessions.

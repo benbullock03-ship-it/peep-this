@@ -1,4 +1,5 @@
 mod approve;
+mod away;
 mod cover;
 mod flyout;
 mod focus;
@@ -137,7 +138,7 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     }));
 }
 
-fn wire_trail(app: &tauri::App, store: &Arc<Store>, broker: &approve::Broker) {
+fn wire_trail(app: &tauri::App, store: &Arc<Store>, broker: &approve::Broker, away: &Arc<away::Away>) {
     let trail = trail::Trail::open(&ingest::server::default_dir());
     let pruner = Arc::clone(&trail);
     let spawned = std::thread::Builder::new().name("trail-prune".into()).spawn(move || match pruner.prune(store::now_ms()) {
@@ -149,8 +150,17 @@ fn wire_trail(app: &tauri::App, store: &Arc<Store>, broker: &approve::Broker) {
         eprintln!("peepthis: trail prune thread failed: {e}");
     }
     app.manage(Arc::clone(&trail));
-    let (handle, weak) = (app.handle().clone(), Arc::downgrade(store));
+    let (handle, weak, away) = (app.handle().clone(), Arc::downgrade(store), Arc::clone(away));
     broker.set_recorder(Box::new(move |d| {
+        match d.outcome {
+            trail::Outcome::Allowed | trail::Outcome::Denied => away.dismiss(),
+            trail::Outcome::Released => {
+                if let Some(st) = weak.upgrade() {
+                    st.note(d.session_id, away::Note::Released, d.at);
+                }
+            }
+            trail::Outcome::AutoAllowed => {}
+        }
         let name = weak
             .upgrade()
             .and_then(|st| st.snapshot().sessions.into_iter().find(|s| s.id == d.session_id).map(|s| s.name))
@@ -229,6 +239,10 @@ pub fn run() {
             rules::rules_view,
             rules::answer_rule_offer,
             rules::revoke_rule,
+            away::get_digest,
+            away::dismiss_digest,
+            away::away_after,
+            away::set_away_after,
             hotkey::inbox_hotkey,
             hotkey::set_inbox_hotkey,
             hotkey::toggle_hotkey,
@@ -250,7 +264,8 @@ pub fn run() {
             wire_alerts(app, &store);
             ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
             let broker = approve::Broker::new(Arc::clone(&store), Box::new(WidgetEnv), approve::HOLD_MS);
-            wire_trail(app, &store, &broker);
+            let away = away::wire(app, &store);
+            wire_trail(app, &store, &broker, &away);
             wire_rules(app, &broker);
             broker.spawn();
             app.manage(Arc::clone(&broker));

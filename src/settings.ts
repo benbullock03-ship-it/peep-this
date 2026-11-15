@@ -1,3 +1,4 @@
+import { AWAY_CHOICES } from "./digest";
 import { comboFromKey } from "./inbox";
 import type { RulesView, TrailEntry, TrailOutcome } from "./model";
 import { usesText } from "./rules";
@@ -17,6 +18,7 @@ export type SettingsApi = {
   toggleHotkey?: HotkeyApi;
   theme?: { get: () => ThemePref; set: (pref: ThemePref) => void };
   rules?: { view: () => Promise<RulesView>; revoke: (ruleId: string) => Promise<RulesView> };
+  away?: { get: () => Promise<number>; set: (minutes: number) => Promise<number> };
 };
 
 const INBOX_FIELD = {
@@ -58,6 +60,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const hotkey = api.hotkey ? createHotkeyField(host, api.hotkey, INBOX_FIELD) : null;
   const toggleHotkey = api.toggleHotkey ? createHotkeyField(host, api.toggleHotkey, TOGGLE_FIELD) : null;
   const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
+  const away = api.away ? createAwayField(host, api.away) : null;
   const rules = api.rules ? createRulesField(host, api.rules) : null;
 
   el("h3", "settings-sub", host, "Decision log");
@@ -143,7 +146,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh()]);
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh()]);
   }
 
   return {
@@ -212,6 +215,39 @@ function createThemeField(host: HTMLElement, api: NonNullable<SettingsApi["theme
   select.value = api.get();
   select.addEventListener("change", () => api.set(select.value as ThemePref));
   return select;
+}
+
+/** AV-32: how long without input counts as away; a locked screen always does. */
+function createAwayField(host: HTMLElement, api: NonNullable<SettingsApi["away"]>) {
+  el("h3", "settings-sub", host, "Away after");
+  const select = el("select", "log-select away-select", host);
+  select.setAttribute("aria-label", "Away after");
+  for (const m of AWAY_CHOICES) el("option", "", select, `${m} min without input`).value = String(m);
+  el("p", "settings-note", host, "Locking the screen also counts. On return, one card says what happened meanwhile.");
+  const msg = el("p", "settings-error", host);
+  msg.hidden = true;
+  select.addEventListener("change", async () => {
+    select.disabled = true;
+    try {
+      select.value = String(await api.set(Number(select.value)));
+      msg.hidden = true;
+    } catch (e) {
+      msg.textContent = `Could not save: ${e}`;
+      msg.hidden = false;
+    } finally {
+      select.disabled = false;
+    }
+  });
+  return {
+    async refresh() {
+      try {
+        select.value = String(await api.get());
+      } catch (e) {
+        msg.textContent = `Could not read the setting: ${e}`;
+        msg.hidden = false;
+      }
+    },
+  };
 }
 
 /** A global hotkey: press a combination in the field, then Save (Enter). Esc puts the live one back. */

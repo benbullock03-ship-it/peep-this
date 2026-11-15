@@ -97,6 +97,25 @@ export type RuleOffer = RuleShape & { id: string; sessionId: string; tier: RiskT
 export type RulesView = { rules: Rule[]; offers: RuleOffer[]; error?: string };
 export type RuleAnswer = "yes" | "not-now" | "never";
 
+/** src-tauri/src/away.rs `Digest`: entries arrive grouped and ordered. */
+export type DigestGroup = "blocked" | "failed" | "finished" | "running";
+export type DigestEntry = {
+  sessionId: string;
+  name: string;
+  group: DigestGroup;
+  state?: State;
+  alive: boolean;
+  pending: boolean;
+  tookMs: number;
+  files: string[];
+  fileCount: number;
+  commands: number;
+  released: number;
+  lastLine?: string;
+  partial: boolean;
+};
+export type Digest = { since: number; until: number; entries: DigestEntry[] };
+
 export type RateLimits ={ fiveHourPct: number; sevenDayPct: number; at: number };
 
 export type Snapshot = {

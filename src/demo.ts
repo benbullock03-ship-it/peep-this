@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { Agent, LastTool, PendingApproval, Session, Shell, Snapshot, State } from "./model";
+import type { Agent, Digest, LastTool, PendingApproval, Session, Shell, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
@@ -164,6 +164,33 @@ export function demoSnapshot(now: number): Snapshot {
       contextPct: [74, 35, 93, 12, 47, undefined][i],
       alive: true,
     }, i, now)),
+  };
+}
+
+/** `?demo&digest`: a sample away card over the demo sessions. */
+export function demoDigest(snap: Snapshot, now: number): Digest {
+  const [a, b, c, d] = snap.sessions;
+  const base = { alive: true, pending: false, files: [], fileCount: 0, commands: 0, released: 0, partial: false };
+  return {
+    since: now - 42 * 60_000,
+    until: now,
+    entries: [
+      { ...base, sessionId: a.id, name: a.name, group: "blocked", state: "waiting", pending: true, tookMs: 18 * 60_000, commands: 3, released: 1 },
+      { ...base, sessionId: b.id, name: b.name, group: "failed", state: "error", tookMs: 6 * 60_000, commands: 7, lastLine: "API error: 529 Overloaded" },
+      {
+        ...base,
+        sessionId: c.id,
+        name: c.name,
+        group: "finished",
+        state: "success",
+        tookMs: 24 * 60_000,
+        files: ["src/rows.ts", "src/styles.css", "src/digest.ts"],
+        fileCount: 3,
+        commands: 12,
+        lastLine: "All 175 tests pass and the build is clean.",
+      },
+      { ...base, sessionId: d.id, name: d.name, group: "running", state: "working", tookMs: 31 * 60_000, files: ["src-tauri/src/away.rs"], fileCount: 1, commands: 4 },
+    ],
   };
 }
 

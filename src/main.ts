@@ -1,12 +1,13 @@
 import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
-import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { demoDecide, demoDigest, demoIdentity, demoSnapshot, demoStep } from "./demo";
 import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
+import { createDigestCard } from "./digestCard";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
-import type { RulesView, Session, Snapshot, TrailEntry } from "./model";
+import type { Digest, RulesView, Session, Snapshot, TrailEntry } from "./model";
 import { EMPTY_RULES, offersFor, ruleLive } from "./rules";
 import { reducedMotion } from "./motion";
 import { pinsPeek } from "./peek";
@@ -255,6 +256,14 @@ function runDemo() {
     }
   });
   const renderLimits = createLimits(limitsEl);
+  if (params.has("digest")) {
+    const renderDigest = createDigestCard(
+      root,
+      { focus: () => {}, openInbox: () => inbox?.open(), dismiss: () => renderDigest(null) },
+      () => !!inbox?.active,
+    );
+    renderDigest(demoDigest(snap, Date.now()));
+  }
   render(snap.sessions);
   renderStrip(snap.sessions);
   inbox.sync(snap.sessions);
@@ -326,6 +335,10 @@ async function runLive() {
       view: () => invoke<RulesView>("rules_view"),
       revoke: (ruleId) => invoke<RulesView>("revoke_rule", { ruleId }),
     },
+    away: {
+      get: () => invoke<number>("away_after"),
+      set: (minutes) => invoke<number>("set_away_after", { minutes }),
+    },
   });
   await listen("open-settings", () => settings.show(true));
   const applyRules = (v: RulesView) => {
@@ -358,6 +371,18 @@ async function runLive() {
   invoke<HotkeyStatus>("toggle_hotkey").then(applyToggleHotkey, (err) => console.error("peepthis: toggle_hotkey failed", err));
   await listen("inbox-open", () => inbox.open());
   await listen("inbox-empty", () => inbox.flash());
+  const dismissDigest = () => void invoke("dismiss_digest").catch((err) => console.error("peepthis: dismiss_digest failed", err));
+  const renderDigest = createDigestCard(
+    root,
+    {
+      focus: (id) => void invoke<boolean>("focus_session", { sessionId: id }).catch((err) => console.error("peepthis: focus_session failed", err)),
+      openInbox: () => inbox.open(),
+      dismiss: dismissDigest,
+    },
+    () => inbox.active || settingsEl.hidden === false,
+  );
+  await listen<Digest | null>("digest", (e) => renderDigest(e.payload));
+  invoke<Digest | null>("get_digest").then(renderDigest, (err) => console.error("peepthis: get_digest failed", err));
   const loadRecent = async () => {
     try {
       recent = await invoke<Record<string, TrailEntry[]>>("trail_recent", { perSession: ROW_TRAIL });
