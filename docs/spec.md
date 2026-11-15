@@ -17,7 +17,7 @@ From 2026-11-15 Peep This is the widget plus the `peep` skill pack, for new Clau
 ## 2. Non-goals (v1)
 
 - Agents other than Claude Code (the adapter seam exists, no second adapter ships).
-- Acting on sessions beyond permission decisions (§11.1) and Jump (§13.3): no typing into a session, replying, answering questions, killing, or starting sessions.
+- Acting on sessions beyond permission decisions (§11.1), Jump (§13.3) and ending one on a 1s hold from the open row (ADR 0003, AV-96, AV-97): no typing into a session, replying, answering questions, or starting sessions.
 - Token counts, cost, history of ended sessions.
 - macOS/Linux. Code should not gratuitously block them, but nothing is tested there.
 - Changing the peep art. `design/peep.js` is the user's; new poses are a request to the user.
