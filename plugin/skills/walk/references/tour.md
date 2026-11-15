@@ -1,6 +1,6 @@
 # Walk: the rhythm tour
 
-Printed after the setup is written, as one block, in this order. One line per skill: command, then what it is for in plain words. Skip any skill named in `skills.off`.
+Printed after the setup is written, as one block, in this order. One line per skill: command, then what it is for in plain words. Drop a line only when `skills.off` names that skill; every other line prints, Reel included.
 
 ```
 Rhythm: why, what, build, prove, carry on, check in.
@@ -17,4 +17,4 @@ When you need it: /peep:hello (install check)
 
 Shoot needs a `url` in the setup, so say so on its line when none was written. Coderot needs `test`; same.
 
-Next step: `/peep:reel` when `.peep/reel.md` does not exist; else `/peep:qt <idea>` when no tickets are open; else `/peep:ducks`.
+Next step: `/peep:reel` when `.peep/reel.md` does not exist and Reel is not off; else `/peep:qt <idea>` when no tickets are open; else `/peep:ducks`.
