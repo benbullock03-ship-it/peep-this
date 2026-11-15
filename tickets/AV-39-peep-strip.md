@@ -37,6 +37,7 @@ attended: false
 - `+N` is set in Plex Mono 500, the face the shell already uses for its pixel-desktop labels; no pixel font is bundled.
 - A row strip longer than the work area is cut at the work area. A column of 8 peeps and `+N` is about 580px.
 - The tray item is "Collapse to strip", under Show/Hide.
+- Owner asked 2026-11-15 for a button to get from the panel to the strip: the header has the design's `›` button (`#collapse-btn`), right of settings. This is AV-40's "collapse control in the header", built early; AV-40 still owes the hotkey it mirrors.
 - The `design-tropes` skill the ticket workflow names is not installed in this environment; the look was checked against `design/shell/` and by screenshot.
 
 ## Owed before done

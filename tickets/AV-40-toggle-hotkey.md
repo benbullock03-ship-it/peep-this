@@ -15,7 +15,7 @@ attended: false
 - [ ] The hotkey does not take keyboard focus from the app the user is in
 - [ ] Tray left click and Show/Hide toggle `hidden` against the last visible mode
 - [ ] A registration clash with another app is reported in the tray menu, not silent
-- [ ] A collapse control in the header does the same as the hotkey for mouse users
+- [x] A collapse control in the header does the same as the hotkey for mouse users (built in AV-39 on the owner's ask: `#collapse-btn` calls `switch_mode`)
 - [ ] No `Esc` and no click-outside dismissal
 - [ ] The plumbing is shared with AV-24, which registers its own key
 

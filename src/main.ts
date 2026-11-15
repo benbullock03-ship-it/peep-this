@@ -23,6 +23,9 @@ const stripEl = document.querySelector<HTMLElement>("#strip")!;
 let view: ModeView = { mode: "panel", layout: "panel", anchor: "float" };
 let remeasure = () => {};
 const stripActions: StripActions = { open: () => applyMode({ ...view, mode: "panel", layout: "panel" }) };
+// Replaced by the backend's switch once Tauri is up; in a browser the swap is local.
+let collapse = () => applyMode({ ...view, mode: "strip", layout: "column" });
+document.querySelector<HTMLButtonElement>("#collapse-btn")!.addEventListener("click", () => collapse());
 
 function applyMode(v: ModeView) {
   view = v;
@@ -236,7 +239,8 @@ async function startSurface() {
     import("@tauri-apps/api/window"),
   ]);
   stripActions.open = () => void invoke("switch_mode", { mode: "panel" }).catch((err) => console.error("peepthis: switch_mode failed", err));
-  stripActions.drag = () => void getCurrentWindow().startDragging().catch((err) => console.error("peepthis: drag failed", err));
+  collapse = () => void invoke("switch_mode", { mode: "strip" }).catch((err) => console.error("peepthis: switch_mode failed", err));
+  stripActions.drag =() => void getCurrentWindow().startDragging().catch((err) => console.error("peepthis: drag failed", err));
   await listen<ModeView>("mode", (e) => applyMode(e.payload));
   applyMode(await invoke<ModeView>("get_mode"));
 
