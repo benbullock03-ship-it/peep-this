@@ -1,7 +1,7 @@
 ---
 id: AV-43
 title: House peep empty state
-status: in-progress
+status: done
 depends: [AV-39]
 attended: false
 ---
@@ -29,7 +29,9 @@ attended: false
 - **Peek (AV-41):** the house sits outside `.ps-item`, so a press on it during a peek pins like any other panel press; it is not in `KEEPS_PEEK`.
 - **Browser check param:** `?empty` shows the empty state, `?empty=banner` adds the install banner, `?empty=cycle` brings one demo session in and out every 3.2s. Combine with `&strip=column|row`.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. What was owed, as it stood:
 
 - Seen (headless Edge on `npm run dev`): `?empty` panel with the 96px house and text; `?empty=banner` with the install banner above it; `?empty&strip=column` and `strip=row` with the 40px house; `?empty=cycle` with the session row in place of the house, the house absent while the last row fades, and back after; strip plate the same size with the house as with one session.
 - Seen (`npm run tauri dev`, 2 real sessions): panel rows as before, no house peep.
