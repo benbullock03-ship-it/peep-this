@@ -58,7 +58,7 @@ Switch animation, seen by Claude 2026-11-15 in `npm run tauri dev` (2560×1440 a
 
 The owner then named the last cause: the strip showing at the panel's corner for an instant. On an unfold the window was resized before its region was set, so the old strip-shaped region sat at the union's top-left for a moment. The region is now set first. **Owner 2026-11-15, in `npm run tauri dev` after that fix: "looks good".** Which edges the owner tried was not said, so "Done when" (right, top, floating, and a restart into the strip) is still open.
 
-Four-sided border, seen by Claude 2026-11-15 in `npm run tauri dev` (2560×1440 at 100%), strip dragged by script and screenshotted on top, left, right, bottom and bottom-right: a closed 2px border on every side at each. An unfold on the top edge kept the window's x and y. The owner has not looked at it yet.
+Four-sided border, seen by Claude 2026-11-15 in `npm run tauri dev` (2560×1440 at 100%), strip dragged by script and screenshotted on top, left, right, bottom and bottom-right: a closed 2px border on every side at each. An unfold on the top edge kept the window's x and y. **Owner 2026-11-15, in `npm run tauri dev`: "looks good".** Which edges the owner tried, and whether a restart into the strip was seen, was not said, so "Done when" is still open.
 
 Not seen live, so not claimed:
 - Folding back from the tray item (the item is in the menu; driving the tray by script was unreliable).
