@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Three new floppies</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1260px; background: #141218;">
+<div class="board-h">
+<h1>06 · Three new floppies</h1>
+<p>Unpack, Walk Through and The Reel, drawn on the same 16 px body as the six. Colours chosen to sit apart from yellow, green, pink, orange-red, blue and purple in both themes.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · all nine at 32 px</p>
+<div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+<span class="fl fl32 fl-ducks" role="img" aria-label="Ducks"></span>
+<span class="fl fl32 fl-qt" role="img" aria-label="Question Time"></span>
+<span class="fl fl32 fl-ticket" role="img" aria-label="Ticket"></span>
+<span class="fl fl32 fl-shoot" role="img" aria-label="Shoot"></span>
+<span class="fl fl32 fl-packup" role="img" aria-label="Pack Up"></span>
+<span class="fl fl32 fl-coderot" role="img" aria-label="Coderot"></span>
+<span style="width: 2px; height: 32px; background: var(--ps-line); margin: 0 6px;"></span>
+<span class="fl fl32 fl-unpack" role="img" aria-label="Unpack"></span>
+<span class="fl fl32 fl-walk" role="img" aria-label="Walk Through"></span>
+<span class="fl fl32 fl-reel" role="img" aria-label="The Reel"></span>
+</div>
+
+<p class="cap">Five resting states</p>
+<div style="display: grid; grid-template-columns: 120px repeat(5, 52px); gap: 6px 4px; align-items: center; font-size: 11px;">
+<span></span><span class="k">tray</span><span class="k">hover</span><span class="k">focus</span><span class="k">plank</span><span class="k">off</span>
+<sc-for list="{{fl}}" as="f" hint-placeholder-count="3">
+<span class="swatch"><i style="background: var({{f.var}});"></i><span><b>{{f.name}}</b><br><span style="color: var(--ps-muted);">{{f.hex}}</span></span></span>
+<span class="fbox"><span class="fl fl32 {{f.cls}}"></span></span>
+<span class="fbox hov"><span class="fl fl32 {{f.cls}}"></span></span>
+<span class="fbox foc"><span class="fl fl32 {{f.cls}}"></span></span>
+<span class="seat"><span class="fl fl32 {{f.cls}}" style="bottom: -10px;"></span><span class="plank"></span></span>
+<span class="fbox"><span class="fl fl32 off {{f.cls}}"></span></span>
+</sc-for>
+</div>
+
+<p class="cap">Sizes · 16 / 32 / 48 / 96</p>
+<div style="display: flex; gap: 14px; align-items: flex-end;">
+<span class="fl fl-reel"></span><span class="fl fl32 fl-reel"></span><span class="fl fl48 fl-reel"></span><span class="fl fl96 fl-reel"></span>
+</div>
+
+<p class="cap">Hover cards</p>
+<sc-for list="{{fl}}" as="f" hint-placeholder-count="3">
+<div class="card">
+<span class="fl fl48 {{f.cls}}"></span>
+<div>
+<h3>{{f.name}}</h3>
+<div class="cmd">{{f.cmd}}</div>
+<p>{{f.what}}</p>
+<p class="when">{{f.when}}</p>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1260}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = [
+      { name: 'Unpack', cls: 'fl-unpack', var: '--fl-unpack', hexD: '#3FD0D8', hexL: '#13959E', cmd: '/peep:unpack',
+        what: 'Opens a session from your Pack Up note: checks the repo still matches, reads back anything that moved, then starts the first step.',
+        when: 'Use when you sit back down after packing up.' },
+      { name: 'Walk Through', cls: 'fl-walk', var: '--fl-walk', hexD: '#B6E04A', hexL: '#76A01A', cmd: '/peep:walk',
+        what: 'Tours the disks in order, asks a few batched questions about your repo and how you work, then sets the pack up to match.',
+        when: 'Use the first time, or when the pack feels off.' },
+      { name: 'The Reel', cls: 'fl-reel', var: '--fl-reel', hexD: '#F2A65E', hexL: '#B8702E', cmd: '/peep:reel',
+        what: 'Pins down what the project is for in one line, plus its hook and what it will not do.',
+        when: 'Use when starting out, or when the work starts to drift.' }
+    ];
+    return {
+      themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }],
+      fl: dark.map((f) => ({ ...f, hex: f.hexD + ' / ' + f.hexL }))
+    };
+  }
+}
+</script>
+</body>
+</html>

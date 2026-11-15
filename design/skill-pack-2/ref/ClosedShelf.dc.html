@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Closed shelf</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1960px; background: #141218;">
+<div class="board-h">
+<h1>01 · Closed shelf</h1>
+<p>Sessions that ended in the last 8 hours, newest first. Peeps are 32 px, idle at energy 1, dimmed and greyed: present but asleep. Flags are thin accent outlines with a pixel dot, never a fill. The header counts what to check so flagged rows never need to jump the order.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+
+<p class="cap">{{t.label}} · empty</p>
+<div class="win">
+<div class="shelf-h" style="border-top: 0;"><span class="lbl">Closed</span><span class="sub">last 8h · 0</span></div>
+<div class="shelf-empty">Nothing ended in the last 8 hours.</div>
+</div>
+<p class="note">Empty stays one quiet line so the shelf is learnable from day one. Collapsed by default when empty.</p>
+
+<p class="cap">One row</p>
+<div class="win">
+<button class="shelf-h" style="border-top: 0;" aria-expanded="true"><span class="lbl">Closed</span><span class="sub">last 8h · 1</span><span class="flg">1 to check</span></button>
+<button class="crow flagged">
+<div class="pcol"><peep-bot state="idle" color="blue" accessory="hardhat" size="32" energy="1" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">polling-91</span><span class="chip hollow st-waiting">ended waiting</span><span class="ago">14m</span></div>
+<div class="gbub">Allow rm -rf dist?</div>
+<div class="flags"><span class="tk">P-12</span><span class="flag">uncommitted</span><span class="flag">P-12 left doing</span><span class="flag">no Pack Up</span></div>
+</div>
+</button>
+</div>
+
+<p class="cap">Six rows</p>
+<div class="win">
+<button class="shelf-h" style="border-top: 0;" aria-expanded="true"><span class="lbl">Closed</span><span class="sub">last 8h · 6</span><span class="flg">2 to check</span></button>
+<sc-for list="{{six}}" as="r" hint-placeholder-count="6">
+<button class="{{r.cls}}">
+<div class="pcol"><peep-bot state="idle" color="{{r.color}}" accessory="{{r.acc}}" size="32" energy="1" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">{{r.name}}</span><span class="{{r.chip}}">{{r.end}}</span><span class="ago">{{r.ago}}</span></div>
+<div class="gbub">{{r.last}}</div>
+<div class="flags"><span class="tk">{{r.tk}}</span><sc-for list="{{r.flags}}" as="f" hint-placeholder-count="0"><span class="flag">{{f}}</span></sc-for></div>
+</div>
+</button>
+</sc-for>
+</div>
+
+<p class="cap">Twenty rows</p>
+<div class="win">
+<button class="shelf-h" style="border-top: 0;" aria-expanded="true"><span class="lbl">Closed</span><span class="sub">last 8h · 20</span><span class="flg">4 to check</span></button>
+<sc-for list="{{five}}" as="r" hint-placeholder-count="5">
+<button class="{{r.cls}}">
+<div class="pcol"><peep-bot state="idle" color="{{r.color}}" accessory="{{r.acc}}" size="32" energy="1" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">{{r.name}}</span><span class="{{r.chip}}">{{r.end}}</span><span class="ago">{{r.ago}}</span></div>
+<div class="gbub">{{r.last}}</div>
+<div class="flags"><span class="tk">{{r.tk}}</span><sc-for list="{{r.flags}}" as="f" hint-placeholder-count="0"><span class="flag">{{f}}</span></sc-for></div>
+</div>
+</button>
+</sc-for>
+<div class="more-row">15 more below · 3 to check · <u>show all</u></div>
+</div>
+<p class="note">Five rows, then the list scrolls inside, like the ticket shelf. Newest first always; the footer repeats how many flagged rows sit below the fold.</p>
+
+<p class="cap">Copied moment</p>
+<div class="step"><b>1</b><span>Click a row (or Enter on it)</span></div>
+<div class="win">
+<button class="crow copied">
+<div class="pcol"><peep-bot state="idle" color="blue" accessory="hardhat" size="32" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">polling-91</span><span class="chip hollow st-waiting">ended waiting</span><span class="ago">14m</span></div>
+<div class="bub" style="min-height: 26px; padding: 4px 6px;"><span class="t">On your clipboard!</span><span class="em em-wave" aria-hidden="true"></span></div>
+<div class="flags"><span class="tk">P-12</span><span class="flag">uncommitted</span><span class="flag">P-12 left doing</span><span class="flag">no Pack Up</span></div>
+</div>
+</button>
+<div class="hint" aria-live="polite"><span class="clip" aria-hidden="true"></span><span class="msg">Copied claude --resume 3f9a2c1e · now paste it in a terminal</span><span class="kcap">Ctrl+V</span></div>
+</div>
+<div class="step"><b>2</b><span>The peep wakes: full colour, waves, real bubble. Outline and hint bar hold 6 s. When the session comes back it leaves the shelf and rejoins the live rows.</span></div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = (name, color, acc, endSt, end, ago, last, tk, flags) => ({
+      name, color, acc, end, ago, last, tk, flags,
+      chip: 'chip hollow ' + endSt,
+      cls: flags.length ? 'crow flagged' : 'crow'
+    });
+    const all = [
+      row('polling-91', 'blue', 'hardhat', 'st-waiting', 'ended waiting', '14m', 'Allow rm -rf dist?', 'P-12', ['uncommitted', 'P-12 left doing', 'no Pack Up']),
+      row('peep-this-6c', 'yellow', 'headphones', 'st-success', 'success', '1h', 'AV-70: mood emotes · packed up', 'AV-70', []),
+      row('siambr-01', 'lavender', 'glasses', 'st-error', 'ended error', '2h', 'API error 529: overloaded', 'W-71', ['W-71 left doing']),
+      row('datamapuk-3d', 'pink', 'bow', 'st-success', 'success', '3h', 'S-308: sitemap index · packed up', 'S-308', []),
+      row('peep-this-5f', 'yellow', 'party', 'st-idle', 'idle', '5h', 'All done!', 'AV-68', []),
+      row('polling-90', 'blue', 'chef', 'st-success', 'success', '7h', 'P-11: poll card copy · packed up', 'P-11', [])
+    ];
+    return {
+      themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }],
+      six: all,
+      five: [all[0], all[1], all[2], all[3], row('peep-this-5f', 'green', 'chef', 'st-success', 'success', '4h', 'AV-67: Pack Up button', 'AV-67', ['no Pack Up'])]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Title pressure and limit meters</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1120px; background: #141218;">
+<div class="board-h">
+<h1>02–03 · Title pressure and limit meters</h1>
+<p>The title plate reacts to whichever limit is higher. Four steps, all flat fills and stripe changes: no glow, no blur, no loop. Meters keep their 10 blocks and gain the number beside them, 11 px mono, tabular.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · calm, below 80%</p>
+<div class="win"><div class="head">
+<span class="title">Peep This</span>
+<span class="usage"><span class="meter"><span class="k">5h</span><span class="blocks"><b style="--n: 6;"></b></span><span class="v">62%</span></span><span class="meter"><span class="k">7d</span><span class="blocks"><b style="--n: 2;"></b></span><span class="v">21%</span></span></span>
+<button class="ibtn" aria-label="Collapse to strip">›</button>
+</div></div>
+
+<p class="cap">80%: outline step</p>
+<div class="win"><div class="head p80">
+<span class="title">Peep This</span>
+<span class="usage"><span class="meter amb"><span class="k">5h</span><span class="blocks"><b style="--n: 8;"></b></span><span class="v">82%</span></span><span class="meter"><span class="k">7d</span><span class="blocks"><b style="--n: 3;"></b></span><span class="v">27%</span></span></span>
+<button class="ibtn" aria-label="Collapse to strip">›</button>
+</div></div>
+<p class="note">Plate gets a 2 px amber inset, stripes turn amber at 40%.</p>
+
+<p class="cap">95%: filled plate</p>
+<div class="win"><div class="head p95">
+<span class="title">Peep This</span>
+<span class="usage"><span class="meter red"><span class="k">5h</span><span class="blocks"><b style="--n: 10;"></b></span><span class="v">96%</span></span><span class="meter"><span class="k">7d</span><span class="blocks"><b style="--n: 3;"></b></span><span class="v">28%</span></span></span>
+<button class="ibtn" aria-label="Collapse to strip">›</button>
+</div></div>
+<p class="note">Plate fills amber, ink text; stripes tighten to a 2 px pitch at 70%. Crossing 95% plays one 4-frame nudge (below), then holds.</p>
+
+<p class="cap">100%: out</p>
+<div class="win"><div class="head p100">
+<span class="title">Peep This<span class="tag">· full</span></span>
+<span class="usage"><span class="meter red"><span class="k">5h</span><span class="blocks"><b style="--n: 10;"></b></span><span class="v">100%</span></span><span class="meter"><span class="k">7d</span><span class="blocks"><b style="--n: 3;"></b></span><span class="v">29%</span></span></span>
+<button class="ibtn" aria-label="Collapse to strip">›</button>
+</div></div>
+<p class="note">Plate fills red and reads "· full". Stripes turn to a 45° hatch, the only diagonal in the shell, so it reads as a different state, not just more of the same. Stays until the limit resets.</p>
+
+<p class="cap">95% crossing · 4 frames, 40 ms each</p>
+<div class="pair">
+<div class="head p95" style="width: 104px; border: 2px solid var(--ps-edge); background-color: var(--ps-panel);"><span class="title">Peep This</span></div>
+<div class="head p95" style="width: 104px; border: 2px solid var(--ps-edge); background-color: var(--ps-panel);"><span class="title sx1">Peep This</span></div>
+<div class="head p95" style="width: 104px; border: 2px solid var(--ps-edge); background-color: var(--ps-panel);"><span class="title sx2">Peep This</span></div>
+<div class="head p95" style="width: 104px; border: 2px solid var(--ps-edge); background-color: var(--ps-panel);"><span class="title">Peep This</span></div>
+</div>
+<p class="note">Rest, 2 px left, 2 px right, rest. Reduced motion: frame 1 only.</p>
+
+<p class="cap">Meter close-up · 2x</p>
+<div style="display: flex; flex-direction: column; gap: 10px; zoom: 2; transform-origin: left top;">
+<span class="usage" style="align-self: flex-start;"><span class="meter"><span class="k">5h</span><span class="blocks"><b style="--n: 4;"></b></span><span class="v">43%</span></span></span>
+<span class="usage" style="align-self: flex-start;"><span class="meter amb"><span class="k">5h</span><span class="blocks"><b style="--n: 7;"></b></span><span class="v">74%</span></span></span>
+<span class="usage" style="align-self: flex-start;"><span class="meter red"><span class="k">7d</span><span class="blocks"><b style="--n: 9;"></b></span><span class="v">91%</span></span></span>
+</div>
+<p class="note">Block = 3 px + 1 px gap, 39 px for ten. Number in text colour below 70%, amber from 70, red from 90, same as the blocks. The reset time stays in the hover tooltip.</p>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1120}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }] };
+  }
+}
+</script>
+</body>
+</html>

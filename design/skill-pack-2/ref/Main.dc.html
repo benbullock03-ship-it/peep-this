@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open window overview</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1040px; background: #141218;">
+<div class="board-h">
+<h1>00 · Open window: where it all sits</h1>
+<p>Live rows on top, attention first. The open row gains the arc line under its tray. The closed shelf sits under the last live row, inside the same scroll, behind its own striped header. Title and meters carry the numbers.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · 5h 48% · 7d 15%</p>
+<div class="win">
+<div class="head">
+<span class="title">Peep This</span>
+<span class="usage">
+<span class="meter"><span class="k">5h</span><span class="blocks"><b style="--n: 5;"></b></span><span class="v">48%</span></span>
+<span class="meter"><span class="k">7d</span><span class="blocks"><b style="--n: 2;"></b></span><span class="v">15%</span></span>
+</span>
+<button class="ibtn" aria-label="Collapse to strip">›</button>
+</div>
+<div class="list">
+<div class="row st-waiting">
+<div class="pcol"><peep-bot state="waiting" color="pink" accessory="bow" size="48"></peep-bot><span class="plank" style="width: 48px; margin: 0;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">datamapuk-3e</span><span class="chip">waiting</span></div>
+<div class="bub att"><span class="idtab">S-309</span><span class="t">Allow edit to schema.ts?</span><span class="em mono em-startled" aria-hidden="true"></span></div>
+</div>
+</div>
+<div class="st-working" style="border-top: 2px solid var(--ps-line); margin-top: 8px;">
+<div class="openhead"><span class="name">peep-this-7a</span><span class="chip">working</span></div>
+<div class="stage">
+<div class="pcol"><peep-bot state="working" color="yellow" accessory="headphones" size="96"></peep-bot><span class="plank" style="width: 104px; margin: 0;"></span></div>
+<div class="bub"><span class="t" style="white-space: normal;"><span class="id">AV-81:</span> rate-limit warning <span class="vb">· ticketing</span></span></div>
+</div>
+<div class="tray" role="toolbar" aria-label="Floppies">
+<button class="tcell" aria-label="Ducks"><span class="fl fl32 fl-ducks"></span></button>
+<button class="tcell" aria-label="Question Time"><span class="fl fl32 fl-qt"></span></button>
+<button class="tcell" aria-label="Ticket"><span class="fl fl32 fl-ticket"></span></button>
+<button class="tcell" aria-label="Shoot"><span class="fl fl32 fl-shoot"></span></button>
+<button class="tcell" aria-label="Pack Up"><span class="fl fl32 fl-packup"></span></button>
+<button class="tcell" aria-label="Coderot"><span class="fl fl32 fl-coderot"></span></button>
+<button class="tcell more" aria-label="3 more floppies">+3</button>
+</div>
+<div style="padding: 4px 12px 0;">
+<div class="arc"><span class="star" aria-hidden="true"></span><span class="ns">A calm desk pet that teaches new Claude Code users a rhythm</span><span class="cnt"><span><span class="c">41</span> closed</span><span>12 open</span><span>3 parked</span></span><span class="last"><span class="tick" aria-hidden="true"></span>AV-70</span></div>
+</div>
+<div class="facts">
+<div class="tags"><span class="tagx">2m 14s</span><span class="tagx">Opus 5.5</span><span class="tagx">cli</span></div>
+<div class="fact"><span class="k">context</span><span class="bar10"><b style="--n: 4;"></b></span><span>38%</span></div>
+<div class="path">F:\Projects\agentview widget</div>
+</div>
+</div>
+<div class="row st-thinking" style="border-top: 2px solid var(--ps-line);">
+<div class="pcol"><peep-bot state="thinking" color="lavender" accessory="glasses" size="48"></peep-bot><span class="plank" style="width: 48px; margin: 0;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">siambr-02</span><span class="chip">thinking</span></div>
+<div class="bub"><span class="t"><span class="id">W-73:</span> ward map tiles <span class="vb">· ticketing</span></span></div>
+</div>
+</div>
+</div>
+<button class="shelf-h" aria-expanded="true"><span class="lbl">Closed</span><span class="sub">last 8h · 3</span><span class="flg">1 to check</span></button>
+<button class="crow flagged">
+<div class="pcol"><peep-bot state="idle" color="blue" accessory="hardhat" size="32" energy="1" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">polling-91</span><span class="chip hollow st-waiting">ended waiting</span><span class="ago">14m</span></div>
+<div class="gbub">Allow rm -rf dist?</div>
+<div class="flags"><span class="tk">P-12</span><span class="flag">uncommitted</span><span class="flag">P-12 left doing</span><span class="flag">no Pack Up</span></div>
+</div>
+</button>
+<button class="crow">
+<div class="pcol"><peep-bot state="idle" color="green" accessory="chef" size="32" energy="1" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">peep-this-6c</span><span class="chip hollow st-success">success</span><span class="ago">1h</span></div>
+<div class="gbub">AV-70: mood emotes · packed up</div>
+<div class="flags"><span class="tk">AV-70</span></div>
+</div>
+</button>
+<button class="crow">
+<div class="pcol"><peep-bot state="idle" color="yellow" accessory="party" size="32" energy="1" hover="off"></peep-bot><span class="plank" style="width: 32px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">datamapuk-3d</span><span class="chip hollow st-success">success</span><span class="ago">3h</span></div>
+<div class="gbub">S-308: sitemap index · packed up</div>
+<div class="flags"><span class="tk">S-308</span></div>
+</div>
+</button>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }] };
+  }
+}
+</script>
+</body>
+</html>

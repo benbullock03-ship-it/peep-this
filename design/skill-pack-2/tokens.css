@@ -1,0 +1,23 @@
+/* Peep This tokens, skill pack 2 additions. Load after design/skill-pack/tokens.css. */
+:root {
+  /* Floppies */
+  --fl-unpack: #3FD0D8;
+  --fl-walk: #B6E04A;
+  --fl-reel: #F2A65E;
+  /* Rate-limit pressure and meters */
+  --lim-warn: var(--st-waiting);
+  --lim-out: var(--st-error);
+  --bar-amber: var(--st-waiting);
+  --bar-red: var(--st-error);
+  /* Closed shelf */
+  --cl-dim: .5;
+  --cl-flag: var(--ps-accent);
+  /* Arc line */
+  --arc-star: var(--ps-accent);
+}
+:root[data-theme="light"] {
+  --fl-unpack: #13959E;
+  --fl-walk: #76A01A;
+  --fl-reel: #B8702E;
+  --cl-dim: .55;
+}

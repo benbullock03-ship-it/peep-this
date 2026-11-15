@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Limit bubble and toasts</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1260px; background: #141218;">
+<div class="board-h">
+<h1>04 · Limit bubble and toasts</h1>
+<p>At 80% every peep sweats and the limit takes the verb slot. An attention state keeps the bubble. At 95% and 100% a Windows toast fires once each.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · 5h at 82%</p>
+<div class="win">
+<div class="head p80">
+<span class="title">Peep This</span>
+<span class="usage"><span class="meter amb"><span class="k">5h</span><span class="blocks"><b style="--n: 8;"></b></span><span class="v">82%</span></span><span class="meter"><span class="k">7d</span><span class="blocks"><b style="--n: 3;"></b></span><span class="v">27%</span></span></span>
+<button class="ibtn" aria-label="Collapse to strip">›</button>
+</div>
+<div class="list">
+<div class="row st-waiting">
+<div class="pcol"><peep-bot state="waiting" color="pink" accessory="bow" size="48"></peep-bot><span class="plank" style="width: 48px; margin: 0;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">datamapuk-3e</span><span class="chip">waiting</span></div>
+<div class="bub att"><span class="idtab">S-309</span><span class="t">Allow edit to schema.ts?</span><span class="em mono em-startled" aria-hidden="true"></span></div>
+</div>
+</div>
+<div class="row st-working">
+<div class="pcol"><peep-bot state="working" color="yellow" accessory="headphones" size="48"></peep-bot><span class="plank" style="width: 48px; margin: 0;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">peep-this-7a</span><span class="chip">working</span></div>
+<div class="bub"><span class="t"><span class="id">AV-81:</span> rate-limit warning <span class="vb">· 5h 82%</span></span><span class="em em-sweat" aria-hidden="true"></span></div>
+</div>
+</div>
+<div class="row st-idle">
+<div class="pcol"><peep-bot state="idle" color="green" accessory="chef" size="48"></peep-bot><span class="plank" style="width: 48px; margin: 0;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">scratch-01</span><span class="chip">idle</span></div>
+<div class="bub"><span class="t">5h limit 82%</span><span class="em em-sweat" aria-hidden="true"></span></div>
+</div>
+</div>
+</div>
+</div>
+<p class="note">Top: waiting keeps its ask, no sweat. Middle: ticket kept, limit in the verb slot. Bottom: no ticket, the limit is the line.</p>
+
+<p class="cap">Toast · 95%</p>
+<div class="toast" role="img" aria-label="Windows toast at 95 percent">
+<div class="app"><span class="ico"></span>Peep This</div>
+<div class="tb"><peep-bot state="stuck" color="yellow" size="48" hover="off"></peep-bot>
+<div><strong>5-hour limit at 95%</strong><span>Resets at 14:20. Anything you start now may stop partway.</span></div></div>
+</div>
+
+<p class="cap">Toast · 100%</p>
+<div class="toast" role="img" aria-label="Windows toast at 100 percent">
+<div class="app"><span class="ico"></span>Peep This</div>
+<div class="tb"><peep-bot state="error" color="yellow" size="48" hover="off"></peep-bot>
+<div><strong>5-hour limit reached</strong><span>New prompts wait until it resets at 14:20, in 1h 12m.</span></div></div>
+</div>
+
+<p class="cap">Toast · reset time unknown</p>
+<div class="toast" role="img" aria-label="Windows toast without reset time">
+<div class="app"><span class="ico"></span>Peep This</div>
+<div class="tb"><peep-bot state="error" color="yellow" size="48" hover="off"></peep-bot>
+<div><strong>7-day limit reached</strong><span class="dim">Reset time not known yet.</span></div></div>
+</div>
+<p class="note">Toasts use the house peep (yellow, no accessory). No buttons: clicking opens the widget.</p>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1260}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }] };
+  }
+}
+</script>
+</body>
+</html>

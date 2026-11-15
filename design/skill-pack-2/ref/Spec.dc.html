@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skill pack 2 spec</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1200px; height: 1500px; background: #141218;">
+<div class="board-h">
+<h1>Skill pack 2 · spec and rulings</h1>
+<p>Extends design/shell and design/skill-pack. Peeps are the real &lt;peep-bot&gt; from design/peep.js, unchanged. Sizes stay 48 / 96 / 40 / 32; floppies stay one 16 px sprite at 16 / 32 / 48 / 96.</p>
+</div>
+<div class="spec" style="flex: 1; align-content: start;">
+<div style="display: flex; flex-direction: column; gap: 22px;">
+<section>
+<h2>01 Closed shelf</h2>
+<ol>
+<li>Sits under the last live row, inside the same scroll, behind a striped header: "Closed · last 8h · N" and, when any, "N to check" in accent.</li>
+<li>Row: 32 px peep, idle at energy 1, opacity 0.5 dark / 0.55 light, 60% greyscale. Ghost bubble (1 px line outline, muted) with the last bubble text. Name in Plex Mono, hollow end-state chip, time since end.</li>
+<li>Third line: ticket stub, then up to four flags in this order: uncommitted, &lt;id&gt; left doing, no Pack Up, ended waiting / ended error (the last one is the chip, not a flag).</li>
+<li>Flags: 1 px accent outline, 4 px accent dot, text colour. A flagged row adds a 2 px accent edge to its ghost bubble. No fills, no red, no reorder: newest first always.</li>
+<li>Empty: one line, "Nothing ended in the last 8 hours." Collapsed by default when empty.</li>
+<li>Over five rows: scroll inside with "N more below · N to check · show all".</li>
+<li>Click or Enter copies claude --resume &lt;id&gt;. Reuses Jump: row gets the accent outline, the peep wakes and waves, bubble "On your clipboard!", hint bar with Ctrl+V cap, 6 s.</li>
+</ol>
+</section>
+<section>
+<h2>02 Title pressure</h2>
+<ol>
+<li>Driven by the higher of 5h and 7d.</li>
+<li>&lt; 80: as today. 80: 2 px amber inset on the plate, amber stripes at 40%. 95: plate filled amber, ink text, stripes at 2 px pitch. 100: plate filled red, "· full", 45° hatch.</li>
+<li>Crossing 95 plays one 4-frame nudge, 40 ms each (0, −2, +2, 0 px). Nothing loops. Reduced motion: frame 1.</li>
+</ol>
+</section>
+<section>
+<h2>03 Meters with numbers</h2>
+<ol>
+<li>10 blocks of 3 px + 1 px gap, then the % in 11 px Plex Mono 600, tabular, min 3ch.</li>
+<li>Number and blocks: text colour / accent below 70, amber from 70, red from 90.</li>
+<li>Reset time stays in the hover tooltip.</li>
+</ol>
+</section>
+</div>
+<div style="display: flex; flex-direction: column; gap: 22px;">
+<section>
+<h2>04 Limit bubble</h2>
+<ol>
+<li>At 80%: every non-attention peep shows sweat. The limit takes the verb slot: "AV-81: rate-limit warning · 5h 82%". With no ticket, the whole line: "5h limit 82%".</li>
+<li>An attention state takes the bubble first: the ask, filled, no sweat, no limit text.</li>
+<li>Toasts at 95% and 100%, once each per window. Reset time when known, else "Reset time not known yet."</li>
+</ol>
+</section>
+<section>
+<h2>05 Arc line</h2>
+<ol>
+<li>One 26 px line on the open row between tray and tags: star, north star (ellipsis), "N closed · N open · N parked", tick + last closed id.</li>
+<li>Closed count in accent and first, so it is the number that grows. On a close it steps up with a 4-frame pop.</li>
+<li>No north star: "No north star yet" muted, then a Jump "The Reel" underlined in the Reel colour.</li>
+</ol>
+</section>
+<section>
+<h2>06 Floppies</h2>
+<ol>
+<li>Unpack teal, Walk Through lime, The Reel caramel. Each sits apart from the six in hue and lightness in both themes.</li>
+<li>Glyphs: Unpack an arrow up out of a box, Walk Through footprints, The Reel the north star.</li>
+</ol>
+</section>
+<section>
+<h2>tokens.css addition</h2>
+<pre>:root {
+  --fl-unpack: #3FD0D8;  --fl-walk: #B6E04A;  --fl-reel: #F2A65E;
+  --lim-warn: var(--st-waiting);  --lim-out: var(--st-error);
+  --bar-amber: var(--st-waiting); --bar-red: var(--st-error);
+  --cl-dim: .5;  --cl-flag: var(--ps-accent);  --arc-star: var(--ps-accent);
+}
+:root[data-theme="light"] {
+  --fl-unpack: #13959E;  --fl-walk: #76A01A;  --fl-reel: #B8702E;
+  --cl-dim: .55;
+}</pre>
+</section>
+<section>
+<h2>Sprites</h2>
+<p class="m" style="margin: 0;">floppy-unpack|walk|reel-dark|light(-disabled).png, rendered with the BODY grid and palette rules from skill-pack/sprites.py.</p>
+</section>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1200,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
