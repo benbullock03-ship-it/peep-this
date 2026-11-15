@@ -38,6 +38,11 @@ pub fn reduced_motion() -> bool {
     false
 }
 
+/// Stops a running `animate` before its next frame.
+pub fn cancel() {
+    GENERATION.fetch_add(1, Ordering::SeqCst);
+}
+
 /// Steps the window from `from` to `to` on a worker thread, one `SetWindowPos` per frame (AV-34:
 /// a single call per frame does not jump). `after` runs with each applied rect, e.g. to reapply the
 /// hit region. A newer call cancels a running one.

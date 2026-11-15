@@ -101,6 +101,9 @@ body {
 /* The right and bottom margin hold the hard shadow; window.rs SHADOW must match. */
 .ps {
   flex: 0 1 auto;
+  box-sizing: border-box;
+  /* Fixed, so the card is clipped rather than reflowed while the window steps open (AV-39). */
+  width: 354px;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -114,8 +117,141 @@ body {
 
 .ps *,
 .ps *::before,
-.ps *::after {
+.ps *::after,
+.ps-strip *,
+.ps-strip *::before,
+.ps-strip *::after {
   box-sizing: border-box;
+}
+
+/* The card stays on its anchored side of the window, so an unfold grows away from that edge. */
+body[data-anchor$="right"] {
+  align-items: flex-end;
+}
+
+body:not([data-anchor$="right"]) {
+  align-items: flex-start;
+}
+
+body[data-anchor^="bottom"] {
+  justify-content: flex-end;
+}
+
+/* ---------- peep strip (AV-39, design/shell .ps-strip) ---------- */
+/* 62px matches window.rs STRIP. */
+.ps-strip {
+  flex: none;
+  box-sizing: border-box;
+  width: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0 6px 6px 0;
+  padding: 6px 0 10px;
+  background: var(--ps-panel);
+  color: var(--ps-text);
+  border: 2px solid var(--ps-text);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.45);
+  font: 13px/1.4 var(--mono);
+  user-select: none;
+  cursor: pointer;
+}
+
+.ps-strip[data-layout="row"] {
+  flex-direction: row;
+  width: max-content;
+  height: 62px;
+  padding: 0 10px 0 6px;
+}
+
+/* No border on the docked edge. */
+body[data-anchor$="right"] .ps-strip[data-layout="column"] {
+  border-right: 0;
+}
+
+body[data-anchor$="left"] .ps-strip[data-layout="column"] {
+  border-left: 0;
+}
+
+body[data-anchor="top"] .ps-strip {
+  border-top: 0;
+}
+
+body[data-anchor="bottom"] .ps-strip {
+  border-bottom: 0;
+}
+
+.ps-strip-btn {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 54px;
+  display: grid;
+  place-items: end center;
+  padding: 0 0 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ps-strip-btn:hover {
+  background: var(--ps-panel-2);
+}
+
+.ps-strip-btn:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: -2px;
+}
+
+.ps-strip-btn.is-att {
+  background: color-mix(in srgb, var(--st) 20%, transparent);
+  box-shadow: inset 0 0 0 2px var(--st);
+}
+
+.ps-strip-btn[data-alive="false"] {
+  opacity: 0.55;
+}
+
+.ps-strip-btn::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
+  height: 5px;
+  background: repeating-linear-gradient(90deg, var(--ps-shelf) 0 4px, var(--ps-shelf-top) 4px 8px);
+}
+
+.ps-strip-btn .ps-dot {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  box-shadow: 0 0 0 2px var(--ps-panel);
+}
+
+/* A failed shell on this session (AV-30 fills it in). */
+.ps-strip-fail {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  background: var(--st-error);
+  box-shadow: 0 0 0 2px var(--ps-panel);
+}
+
+.ps-strip-more {
+  flex: none;
+  width: 52px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--ps-panel-2);
+  color: var(--ps-muted);
+  font: 500 12px var(--mono);
+  letter-spacing: 0.04em;
 }
 
 .ps-row,

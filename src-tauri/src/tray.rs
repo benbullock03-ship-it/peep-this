@@ -61,7 +61,7 @@ fn run_integration<R: Runtime>(app: &AppHandle<R>, action: &'static str) {
         let result = if action == "install" { it.install(&store) } else { it.uninstall(&store) };
         let error = result.err();
         if error.is_some() {
-            window::set_hidden(&app, false);
+            window::set_mode(&app, window::Mode::Panel);
         }
         let _ = app.emit("integration-result", TrayResult { action, error });
     });
@@ -72,6 +72,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     apply_autostart_default(handle);
 
     let show_hide = MenuItem::with_id(app, "toggle", "Show/Hide", true, None::<&str>)?;
+    let strip = MenuItem::with_id(app, "strip", "Collapse to strip", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Decision log and settings", true, None::<&str>)?;
     let install = MenuItem::with_id(app, "install", "Install integration", true, None::<&str>)?;
     let uninstall = MenuItem::with_id(app, "uninstall", "Uninstall integration", true, None::<&str>)?;
@@ -79,7 +80,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, autostart_on, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
-    let menu = Menu::with_items(app, &[&show_hide, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &sep()?, &quit])?;
+    let menu = Menu::with_items(app, &[&show_hide, &strip, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &sep()?, &quit])?;
 
     let autostart_item = autostart.clone();
     TrayIconBuilder::with_id("main")
@@ -89,8 +90,9 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "toggle" => toggle(app),
+            "strip" => window::set_mode(app, window::Mode::Strip),
             "settings" => {
-                window::set_hidden(app, false);
+                window::set_mode(app, window::Mode::Panel);
                 let _ = app.emit("open-settings", ());
             }
             "install" => run_integration(app, "install"),

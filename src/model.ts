@@ -21,6 +21,7 @@ export type Session = {
   /** Running count from the backend; the UI renders `agents` instead. */
   subagents: number;
   agents?: Agent[];
+  shells?: Shell[];
   contextPct?: number;
   alive: boolean;
   endedAt?: number;
@@ -41,6 +42,9 @@ export type Agent = {
   toolCount: number;
   result?: string;
 };
+
+/** A background shell (state.rs `Shell`); only what the strip's failed dot reads until AV-30. */
+export type Shell = { id: string; state: "running" | "quiet" | "serving" | "exited" | "failed" };
 
 export type RiskTier = "safe" | "shell" | "destructive";
 

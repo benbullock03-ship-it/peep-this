@@ -3,7 +3,6 @@ mod focus;
 mod hotkey;
 mod ingest;
 mod install;
-#[allow(dead_code)] // AV-38/39/41 call `animate`.
 mod motion;
 mod notify;
 mod risk;
@@ -193,6 +192,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
             window::fit_window,
+            window::get_mode,
+            window::switch_mode,
             focus::focus_session,
             install::install_integration,
             install::uninstall_integration,

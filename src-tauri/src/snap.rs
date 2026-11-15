@@ -60,11 +60,6 @@ impl Anchor {
             Anchor::BottomRight => (Some(High), Some(High)),
         }
     }
-
-    /// Height changes grow upward.
-    pub fn is_bottom(self) -> bool {
-        self.sides().1 == Some(Side::High)
-    }
 }
 
 /// One axis: the offset that puts the card `margin` inside the nearer edge it is within `magnet`
@@ -158,6 +153,5 @@ mod tests {
     fn anchor_serialises_kebab_case_and_defaults_to_float() {
         assert_eq!(serde_json::to_string(&Anchor::TopRight).unwrap(), "\"top-right\"");
         assert_eq!(Anchor::default(), Anchor::Float);
-        assert!(Anchor::BottomLeft.is_bottom() && Anchor::Bottom.is_bottom() && !Anchor::Right.is_bottom());
     }
 }

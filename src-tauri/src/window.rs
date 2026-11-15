@@ -20,6 +20,8 @@ pub const MARGIN: f64 = 12.0;
 /// Hard shadow offset (logical); matches `.ps` box-shadow and its right/bottom margin.
 pub const SHADOW: f64 = 6.0;
 pub const MAX_HEIGHT_FRACTION: f64 = 0.7;
+/// Strip plate thickness (logical); matches `.ps-strip` in styles.css.
+pub const STRIP: f64 = 62.0;
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(500);
 const SHOW_FALLBACK: Duration = Duration::from_secs(2);
 const LABEL: &str = "main";
@@ -68,13 +70,60 @@ pub struct Saved {
     pub y: i32,
 }
 
-/// `window.json`: the position plus, since AV-38, the anchor. Files without one still parse.
+/// `window.json`: the position plus the anchor (AV-38) and mode (AV-39). Files without them still parse.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 struct Stored {
     #[serde(flatten)]
     at: Saved,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     anchor: Option<Anchor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    mode: Option<Mode>,
+}
+
+/// Spec §12.5. `Hidden` keeps the last visible shape underneath.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Mode {
+    Panel,
+    Strip,
+    Hidden,
+}
+
+/// What the window is shaped like: the panel, or the strip as a column or a row.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Layout {
+    Panel,
+    Column,
+    Row,
+}
+
+impl Layout {
+    /// The strip is a row only on the top and bottom edges; corners and floating are columns.
+    pub fn of(strip: bool, anchor: Anchor) -> Layout {
+        match (strip, anchor) {
+            (false, _) => Layout::Panel,
+            (true, Anchor::Top | Anchor::Bottom) => Layout::Row,
+            (true, _) => Layout::Column,
+        }
+    }
+
+    /// Logical window size before the first fit; only the fixed axis matters.
+    fn initial_size(self, length: f64) -> (f64, f64) {
+        match self {
+            Layout::Panel => (WIDTH, length),
+            Layout::Column => (STRIP + SHADOW, length),
+            Layout::Row => (length, STRIP + SHADOW),
+        }
+    }
+}
+
+#[derive(Serialize, Clone, Copy, Debug, PartialEq)]
+pub struct ModeView {
+    pub mode: Mode,
+    pub layout: Layout,
+    pub anchor: Anchor,
 }
 
 fn to_phys(logical: f64, scale: f64) -> i32 {
@@ -136,26 +185,28 @@ pub fn place_anchored(
     Some((default_dock(m, w, h), Anchor::TopRight))
 }
 
-/// Logical window height for `content` logical px (shadow included), capped at 70% of the work
-/// area, and the outer top (physical) moved up if the card would cross the work area's bottom.
-#[cfg(test)]
-pub fn fit(content: f64, top: i32, m: &MonitorInfo) -> (f64, i32) {
-    fit_anchored(content, top, m, Anchor::Float)
+/// Logical panel height for `content` logical px (shadow included), capped at 70% of the work area.
+pub fn panel_height(content: f64, m: &MonitorInfo) -> f64 {
+    let cap = (MAX_HEIGHT_FRACTION * m.work.h as f64 / m.scale).floor().max(MIN_HEIGHT);
+    content.ceil().clamp(MIN_HEIGHT, cap)
 }
 
-/// `fit`, but a bottom-anchored card keeps its bottom on the margin and grows upward.
-pub fn fit_anchored(content: f64, top: i32, m: &MonitorInfo, anchor: Anchor) -> (f64, i32) {
-    let cap = (MAX_HEIGHT_FRACTION * m.work.h as f64 / m.scale).floor().max(MIN_HEIGHT);
-    let h = content.ceil().clamp(MIN_HEIGHT, cap);
-    let card = to_phys(h - SHADOW, m.scale);
-    let y = if anchor.is_bottom() {
-        m.work.bottom() - to_phys(MARGIN, m.scale) - card
-    } else if top + card > m.work.bottom() {
-        m.work.bottom() - card
-    } else {
-        top
+/// The window rect (physical, shadow included) for `layout` holding `content` logical px along its
+/// free axis, and whether the content overflows it. Anchored edges stay on their margin, so a
+/// bottom- or right-anchored card grows up or left; free axes keep `base` and are clamped inside.
+pub fn target(layout: Layout, content: f64, base: (i32, i32), m: &MonitorInfo, anchor: Anchor) -> (Rect, bool) {
+    let thick = STRIP + SHADOW;
+    let strip_len = |work: i32| content.ceil().clamp(thick, (work as f64 / m.scale).floor().max(thick));
+    let (lw, lh) = match layout {
+        Layout::Panel => (WIDTH, panel_height(content, m)),
+        Layout::Column => (thick, strip_len(m.work.h)),
+        Layout::Row => (strip_len(m.work.w), thick),
     };
-    (h, y.max(m.work.y))
+    let (cw, ch) = (to_phys(lw - SHADOW, m.scale), to_phys(lh - SHADOW, m.scale));
+    let (x, y) = anchored_origin(anchor, m.work, to_phys(MARGIN, m.scale), (cw, ch), base);
+    let (x, y) = clamp_into(&m.work, x, y, cw, ch);
+    let overflow = layout == Layout::Panel && content.ceil() > lh;
+    (Rect { x, y, w: to_phys(lw, m.scale), h: to_phys(lh, m.scale) }, overflow)
 }
 
 /// Card and shadow rects in window-relative physical px; their union is the hit-test region,
@@ -259,6 +310,8 @@ mod sys {
                 *GRAB.lock().unwrap() = None;
                 if let Some(a) = DRAG_ANCHOR.lock().unwrap().take() {
                     *ANCHOR.lock().unwrap() = a;
+                    *TARGET.lock().unwrap() = None;
+                    *HOME.lock().unwrap() = None;
                     // Dropped part-way over a taskbar or off the edge: pull the card back inside.
                     let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
                     unsafe { GetWindowRect(hwnd, &mut rc) };
@@ -268,6 +321,10 @@ mod sys {
                         set_rect(hwnd as isize, Rect { x, y, w: rc.right - rc.left, h: rc.bottom - rc.top });
                     }
                     request_save();
+                    // The strip turns between column and row with the anchor.
+                    if let Some(f) = ANCHOR_MOVED.get() {
+                        f();
+                    }
                 }
             }
             _ => {}
@@ -319,7 +376,7 @@ fn store(saved: &Stored) -> std::io::Result<()> {
 fn save_now<R: Runtime>(app: &AppHandle<R>) {
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let (Ok(pos), Ok(Some(mon))) = (w.outer_position(), w.current_monitor()) else { return };
-    let saved = Stored { at: Saved { monitor: info(&mon).id, x: pos.x, y: pos.y }, anchor: Some(anchor()) };
+    let saved = Stored { at: Saved { monitor: info(&mon).id, x: pos.x, y: pos.y }, anchor: Some(anchor()), mode: Some(mode()) };
     if let Err(e) = store(&saved) {
         eprintln!("peepthis: saving window position failed: {e}");
     }
@@ -328,7 +385,16 @@ fn save_now<R: Runtime>(app: &AppHandle<R>) {
 static SAVE_TX: OnceLock<Sender<()>> = OnceLock::new();
 /// Hidden from the tray; content-height fits must not re-show the window.
 static USER_HIDDEN: AtomicBool = AtomicBool::new(false);
-static LAST_CONTENT: Mutex<Option<f64>> = Mutex::new(None);
+static LAST_CONTENT: Mutex<Option<(Layout, f64)>> = Mutex::new(None);
+/// The visible shape; `USER_HIDDEN` sits on top of it. The app launches in the strip.
+static STRIP_SHAPE: AtomicBool = AtomicBool::new(true);
+/// The next fit is a mode switch and steps there.
+static UNFOLD: AtomicBool = AtomicBool::new(false);
+/// Where the strip was before it unfolded; folding goes back there even if the panel was clamped.
+static HOME: Mutex<Option<(i32, i32)>> = Mutex::new(None);
+/// The rect last asked for, which a running stepped move has not reached yet.
+static TARGET: Mutex<Option<Rect>> = Mutex::new(None);
+static ANCHOR_MOVED: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static FOCUSED: AtomicBool = AtomicBool::new(false);
 /// Content is taller than the capped window, so the list scrolls.
 static OVERFLOWING: AtomicBool = AtomicBool::new(false);
@@ -336,6 +402,26 @@ static ANCHOR: Mutex<Anchor> = Mutex::new(Anchor::TopRight);
 
 pub fn anchor() -> Anchor {
     *ANCHOR.lock().unwrap()
+}
+
+pub fn mode() -> Mode {
+    match (USER_HIDDEN.load(Ordering::SeqCst), STRIP_SHAPE.load(Ordering::SeqCst)) {
+        (true, _) => Mode::Hidden,
+        (false, true) => Mode::Strip,
+        (false, false) => Mode::Panel,
+    }
+}
+
+fn layout() -> Layout {
+    Layout::of(STRIP_SHAPE.load(Ordering::SeqCst), anchor())
+}
+
+pub fn mode_view() -> ModeView {
+    ModeView { mode: mode(), layout: layout(), anchor: anchor() }
+}
+
+fn emit_mode<R: Runtime>(app: &AppHandle<R>) {
+    let _ = app.emit("mode", mode_view());
 }
 
 fn request_save() {
@@ -371,7 +457,11 @@ fn spawn_saver<R: Runtime>(app: AppHandle<R>) {
     });
 }
 
-fn apply_fit<R: Runtime>(w: &tauri::Window<R>, content: f64) -> tauri::Result<()> {
+fn apply_fit<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<()> {
+    // A measurement of the shape just left; the new one follows.
+    if layout != self::layout() {
+        return Ok(());
+    }
     let mon = match w.current_monitor()? {
         Some(m) => m,
         None => match w.primary_monitor()? {
@@ -379,22 +469,34 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, content: f64) -> tauri::Result<()
             None => return Ok(()),
         },
     };
-    let pos = w.outer_position()?;
+    let (pos, size) = (w.outer_position()?, w.outer_size()?);
+    let now = Rect { x: pos.x, y: pos.y, w: size.width as i32, h: size.height as i32 };
     let m = info(&mon);
-    let (h, y) = fit_anchored(content, pos.y, &m, anchor());
-    OVERFLOWING.store(content.ceil() > h, Ordering::SeqCst);
-    let (pw, ph) = (to_phys(WIDTH, m.scale), to_phys(h, m.scale));
+    let home = if layout == Layout::Panel { None } else { HOME.lock().unwrap().take() };
+    let from = TARGET.lock().unwrap().unwrap_or(now);
+    let (to, overflow) = target(layout, content, home.unwrap_or((from.x, from.y)), &m, anchor());
+    // In the strip no row is in view, so alerts treat it like an overflowing list.
+    OVERFLOWING.store(overflow || layout != Layout::Panel, Ordering::SeqCst);
+    *TARGET.lock().unwrap() = Some(to);
+    let unfold = UNFOLD.swap(false, Ordering::SeqCst) && w.is_visible()?;
     #[cfg(windows)]
     {
-        // One call: size then position separately shows a frame at the wrong spot (AV-34).
         let hwnd = w.hwnd()?.0 as isize;
-        sys::set_rect(hwnd, Rect { x: pos.x, y, w: pw, h: ph });
-        set_region(hwnd, hit_region(pw, ph, m.scale));
+        let scale = m.scale;
+        if unfold {
+            crate::motion::animate(hwnd, now, to, move |r| set_region(hwnd, hit_region(r.w, r.h, scale)));
+        } else {
+            crate::motion::cancel();
+            // One call: size then position separately shows a frame at the wrong spot (AV-34).
+            sys::set_rect(hwnd, to);
+            set_region(hwnd, hit_region(to.w, to.h, scale));
+        }
     }
     #[cfg(not(windows))]
     {
-        w.set_size(tauri::PhysicalSize::new(pw as u32, ph as u32))?;
-        w.set_position(PhysicalPosition::new(pos.x, y))?;
+        let _ = unfold;
+        w.set_size(tauri::PhysicalSize::new(to.w as u32, to.h as u32))?;
+        w.set_position(PhysicalPosition::new(to.x, to.y))?;
     }
     if !USER_HIDDEN.load(Ordering::SeqCst) && !w.is_visible()? {
         w.show()?;
@@ -411,6 +513,8 @@ pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
     USER_HIDDEN.store(hidden, Ordering::SeqCst);
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let _ = app.emit("widget-hidden", hidden);
+    emit_mode(app);
+    request_save();
     let result = if hidden {
         w.hide()
     } else {
@@ -419,6 +523,41 @@ pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
     if let Err(e) = result {
         eprintln!("peepthis: show/hide failed: {e}");
     }
+}
+
+/// Switches between strip and panel (shown if it was hidden), or hides. The frontend re-lays out
+/// on the `mode` event and its next fit steps the window to the new shape.
+pub fn set_mode<R: Runtime>(app: &AppHandle<R>, to: Mode) {
+    if to == Mode::Hidden {
+        return set_hidden(app, true);
+    }
+    let strip = to == Mode::Strip;
+    if STRIP_SHAPE.swap(strip, Ordering::SeqCst) != strip {
+        UNFOLD.store(true, Ordering::SeqCst);
+        let at = app.get_webview_window(LABEL).and_then(|w| w.outer_position().ok());
+        *HOME.lock().unwrap() = at.filter(|_| !strip).map(|p| (p.x, p.y));
+    }
+    if is_hidden() {
+        set_hidden(app, false);
+    } else {
+        emit_mode(app);
+        request_save();
+    }
+}
+
+#[tauri::command]
+pub fn get_mode() -> ModeView {
+    mode_view()
+}
+
+/// The strip's click; `hidden` is the tray's alone.
+#[tauri::command]
+pub fn switch_mode(app: AppHandle, mode: Mode) -> Result<(), String> {
+    if mode == Mode::Hidden {
+        return Err("the widget hides from the tray".into());
+    }
+    set_mode(&app, mode);
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -431,9 +570,9 @@ pub fn hwnd<R: Runtime>(_app: &AppHandle<R>) -> Option<isize> {
     None
 }
 
-/// Shows the widget and takes the keyboard (AV-24 inbox).
+/// Shows the panel and takes the keyboard (AV-24 inbox).
 pub fn summon<R: Runtime>(app: &AppHandle<R>) {
-    set_hidden(app, false);
+    set_mode(app, Mode::Panel);
     if let Some(h) = hwnd(app) {
         if crate::focus::foreground_window() != Some(h) {
             if let Err(e) = crate::focus::raise(h) {
@@ -453,13 +592,19 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let stored = load();
     let saved = stored.as_ref().map(|s| &s.at);
     let anchor = stored.as_ref().and_then(|s| s.anchor);
-    if let Some(((x, y), a)) = place_anchored(saved, anchor, &monitors, primary.as_ref(), (WIDTH, size.height)) {
+    // A saved `hidden` comes back as the strip: a launch always shows something.
+    let strip = stored.as_ref().and_then(|s| s.mode) != Some(Mode::Panel);
+    STRIP_SHAPE.store(strip, Ordering::SeqCst);
+    let start = Layout::of(strip, anchor.unwrap_or(Anchor::TopRight)).initial_size(size.height);
+    if let Some(((x, y), a)) = place_anchored(saved, anchor, &monitors, primary.as_ref(), start) {
         *ANCHOR.lock().unwrap() = a;
         w.set_position(PhysicalPosition::new(x, y))?;
     }
     #[cfg(windows)]
     sys::subclass(w.hwnd()?.0 as isize);
     spawn_saver(app.handle().clone());
+    let moved = app.handle().clone();
+    let _ = ANCHOR_MOVED.set(Box::new(move || emit_mode(&moved)));
     // Shown on the first fit_window call; this covers a frontend that never calls it.
     let handle = app.handle().clone();
     std::thread::spawn(move || {
@@ -479,23 +624,25 @@ pub fn on_event<R: Runtime>(w: &tauri::Window<R>, event: &WindowEvent) {
         WindowEvent::Focused(f) => FOCUSED.store(*f, Ordering::SeqCst),
         WindowEvent::Moved(_) => request_save(),
         WindowEvent::ScaleFactorChanged { .. } => {
+            *TARGET.lock().unwrap() = None;
             let last = *LAST_CONTENT.lock().unwrap();
-            if let Some(h) = last {
-                let _ = apply_fit(w, h);
+            if let Some((layout, len)) = last {
+                let _ = apply_fit(w, layout, len);
             }
         }
         _ => {}
     }
 }
 
-/// Frontend reports its natural content height (CSS px); the window follows it up to the cap.
+/// Frontend reports the natural length of what it shows (CSS px): the panel's or column's height,
+/// or the row's width. The window follows it up to the cap.
 #[tauri::command]
-pub fn fit_window(window: tauri::Window, height: f64) -> Result<(), String> {
+pub fn fit_window(window: tauri::Window, height: f64, layout: Layout) -> Result<(), String> {
     if !height.is_finite() {
         return Err("height must be finite".into());
     }
-    *LAST_CONTENT.lock().unwrap() = Some(height);
-    apply_fit(&window, height).map_err(|e| e.to_string())
+    *LAST_CONTENT.lock().unwrap() = Some((layout, height));
+    apply_fit(&window, layout, height).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -511,6 +658,67 @@ mod tests {
     }
 
     const SIZE: (f64, f64) = (WIDTH, 200.0);
+
+    fn fit(content: f64, top: i32, m: &MonitorInfo) -> (Rect, bool) {
+        target(Layout::Panel, content, (100, top), m, Anchor::Float)
+    }
+
+    #[test]
+    fn strip_layout_follows_the_anchor() {
+        use Anchor::*;
+        for a in [Top, Bottom] {
+            assert_eq!(Layout::of(true, a), Layout::Row);
+        }
+        for a in [Left, Right, TopLeft, TopRight, BottomLeft, BottomRight, Float] {
+            assert_eq!(Layout::of(true, a), Layout::Column);
+            assert_eq!(Layout::of(false, a), Layout::Panel);
+        }
+    }
+
+    #[test]
+    fn strip_and_panel_share_the_anchored_edge() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
+        let (margin, shadow) = (18, 9);
+        let strip = target(Layout::Column, 300.0, (0, 0), &m, Anchor::BottomRight).0;
+        let panel = target(Layout::Panel, 420.0, (strip.x, strip.y), &m, Anchor::BottomRight).0;
+        assert_eq!(strip.w, to_phys(STRIP + SHADOW, 1.5));
+        for r in [strip, panel] {
+            assert_eq!((r.right() - shadow, r.bottom() - shadow), (1920 - margin, 1008 - margin));
+        }
+        let strip = target(Layout::Column, 300.0, (0, 200), &m, Anchor::Left).0;
+        let panel = target(Layout::Panel, 420.0, (strip.x, strip.y), &m, Anchor::Left).0;
+        assert_eq!((strip.x, strip.y), (margin, 200));
+        assert_eq!((panel.x, panel.y), (margin, 200));
+    }
+
+    #[test]
+    fn strip_row_sits_on_top_and_bottom_edges() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let top = target(Layout::Row, 420.0, (700, 500), &m, Anchor::Top).0;
+        assert_eq!(top, Rect { x: 700, y: 12, w: 420, h: 68 });
+        let bottom = target(Layout::Row, 420.0, (700, 0), &m, Anchor::Bottom).0;
+        assert_eq!(bottom.bottom() - 6, 1040 - 12);
+    }
+
+    #[test]
+    fn strip_floating_unfolds_from_its_corner_and_folds_back_home() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let home = (1800, 300);
+        let strip = target(Layout::Column, 300.0, home, &m, Anchor::Float).0;
+        assert_eq!((strip.x, strip.y), home);
+        // The panel does not fit to the right of the strip, so it is pushed back inside.
+        let panel = target(Layout::Panel, 420.0, home, &m, Anchor::Float).0;
+        assert_eq!(panel.x, 1920 - 354);
+        assert_eq!(target(Layout::Column, 300.0, home, &m, Anchor::Float).0, strip);
+    }
+
+    #[test]
+    fn strip_length_is_floored_and_capped_by_the_work_area() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
+        assert_eq!(target(Layout::Column, 10.0, (0, 0), &m, Anchor::Float).0.h, to_phys(STRIP + SHADOW, 1.5));
+        assert_eq!(target(Layout::Column, 5000.0, (0, 0), &m, Anchor::Float).0.h, 1008);
+        assert!(!target(Layout::Column, 5000.0, (0, 0), &m, Anchor::Float).1);
+    }
 
     #[test]
     fn window_default_dock_respects_scale_and_taskbar() {
@@ -630,8 +838,9 @@ mod tests {
     fn window_fit_caps_at_seventy_percent_of_work_area() {
         for scale in [1.0, 1.25, 1.5] {
             let m = mon("D1", 0, 0, 1920, 1080, scale, 48);
-            let (h, _) = fit(5000.0, 0, &m);
+            let h = panel_height(5000.0, &m);
             assert_eq!(h, (0.7 * 1032.0 / scale).floor(), "scale {scale}");
+            assert!(fit(5000.0, 0, &m).1);
             assert!(to_phys(h, scale) <= (0.7 * 1032.0) as i32 + 1);
         }
     }
@@ -639,16 +848,18 @@ mod tests {
     #[test]
     fn window_fit_follows_content_with_floor() {
         let m = mon("D1", 0, 0, 1920, 1080, 1.25, 48);
-        assert_eq!(fit(180.4, 12, &m), (181.0, 12));
-        assert_eq!(fit(10.0, 12, &m).0, MIN_HEIGHT);
+        assert_eq!(panel_height(180.4, &m), 181.0);
+        assert_eq!(panel_height(10.0, &m), MIN_HEIGHT);
+        let (r, over) = fit(180.4, 12, &m);
+        assert_eq!((r.y, r.h, r.w, over), (12, to_phys(181.0, 1.25), to_phys(WIDTH, 1.25), false));
     }
 
     #[test]
     fn window_fit_moves_up_to_stay_above_taskbar() {
         let m = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
-        let (h, y) = fit(400.0, 900, &m);
-        assert_eq!(y, 1008 - to_phys(h - SHADOW, 1.5));
-        assert!(y >= 0);
+        let (r, _) = fit(400.0, 900, &m);
+        assert_eq!(r.y, 1008 - to_phys(400.0 - SHADOW, 1.5));
+        assert!(r.y >= 0);
     }
 
     #[test]
@@ -683,14 +894,14 @@ mod tests {
     #[test]
     fn window_bottom_anchored_card_grows_upward() {
         let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
-        let bottom = |(h, y): (f64, i32)| y + to_phys(h - SHADOW, 1.0);
-        let short = fit_anchored(150.0, 500, &m, Anchor::BottomRight);
-        let tall = fit_anchored(450.0, short.1, &m, Anchor::BottomRight);
-        assert_eq!(bottom(short), 1040 - 12);
-        assert_eq!(bottom(tall), 1040 - 12);
-        assert!(tall.1 < short.1);
+        let card_bottom = |r: Rect| r.bottom() - 6;
+        let short = target(Layout::Panel, 150.0, (1554, 500), &m, Anchor::BottomRight).0;
+        let tall = target(Layout::Panel, 450.0, (short.x, short.y), &m, Anchor::BottomRight).0;
+        assert_eq!(card_bottom(short), 1040 - 12);
+        assert_eq!(card_bottom(tall), 1040 - 12);
+        assert!(tall.y < short.y);
         // Top-anchored keeps its top.
-        assert_eq!(fit_anchored(450.0, 12, &m, Anchor::TopRight).1, 12);
+        assert_eq!(target(Layout::Panel, 450.0, (1554, 12), &m, Anchor::TopRight).0.y, 12);
     }
 
     #[test]
@@ -698,9 +909,10 @@ mod tests {
         let old = r#"{"monitor":{"name":"D1","x":0,"y":0,"width":1920,"height":1080},"x":5,"y":6}"#;
         let s: Stored = serde_json::from_str(old).unwrap();
         assert_eq!((s.at.x, s.at.y, s.anchor), (5, 6, None));
-        let new = Stored { anchor: Some(Anchor::Bottom), ..s };
+        assert_eq!(s.mode, None);
+        let new = Stored { anchor: Some(Anchor::Bottom), mode: Some(Mode::Strip), ..s };
         let text = serde_json::to_string(&new).unwrap();
-        assert!(text.contains(r#""anchor":"bottom""#), "{text}");
+        assert!(text.contains(r#""anchor":"bottom""#) && text.contains(r#""mode":"strip""#), "{text}");
         assert_eq!(serde_json::from_str::<Stored>(&text).unwrap(), new);
     }
 

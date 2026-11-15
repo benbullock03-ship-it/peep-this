@@ -7,12 +7,32 @@ import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
 import { createList } from "./rows";
 import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
+import { createStrip, type StripActions } from "./stripPlate";
 import { initTheme } from "./theme";
 import { ROW_TRAIL } from "./trail";
-import { watchContentHeight } from "./windowFit";
+import { watchContent } from "./windowFit";
 
 const DEMO_STEP_MS = 3200;
 const theme = initTheme();
+
+/** Mirrors `ModeView` in src-tauri/src/window.rs. `layout` is the visible shape even while hidden. */
+type ModeView = { mode: "panel" | "strip" | "hidden"; layout: "panel" | "column" | "row"; anchor: string };
+
+const shellEl = document.querySelector<HTMLElement>("#shell")!;
+const stripEl = document.querySelector<HTMLElement>("#strip")!;
+let view: ModeView = { mode: "panel", layout: "panel", anchor: "float" };
+let remeasure = () => {};
+const stripActions: StripActions = { open: () => applyMode({ ...view, mode: "panel", layout: "panel" }) };
+
+function applyMode(v: ModeView) {
+  view = v;
+  shellEl.hidden = v.layout !== "panel";
+  stripEl.hidden = v.layout === "panel";
+  stripEl.dataset.layout = v.layout;
+  // styles.css pins the card to the anchored side, so an unfold grows away from it.
+  document.body.dataset.anchor = v.anchor;
+  remeasure();
+}
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
 const limitsEl = document.querySelector<HTMLElement>("#limits")!;
@@ -24,6 +44,8 @@ const scroller = document.querySelector<HTMLElement>("#scroller")!;
 function setPeepsAttached(attached: boolean) {
   if (attached && !root.isConnected) scroller.appendChild(root);
   else if (!attached && root.isConnected) root.remove();
+  if (attached && !stripEl.isConnected) document.body.appendChild(stripEl);
+  else if (!attached && stripEl.isConnected) stripEl.remove();
 }
 
 function showNotice(text: string) {
@@ -82,6 +104,7 @@ function runDemo() {
     inbox?.sync(snap.sessions);
     return true;
   });
+  const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
   let trailOn = true;
   let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
   const settings = mountSettings({
@@ -101,11 +124,13 @@ function runDemo() {
   });
   const renderLimits = createLimits(limitsEl);
   render(snap.sessions);
+  renderStrip(snap.sessions);
   inbox.sync(snap.sessions);
   renderLimits(snap.rateLimits);
   setInterval(() => {
     snap = demoStep(snap, Date.now());
     render(snap.sessions);
+    renderStrip(snap.sessions);
     inbox?.sync(snap.sessions);
     renderLimits(snap.rateLimits);
   }, DEMO_STEP_MS);
@@ -114,6 +139,7 @@ function runDemo() {
 async function runLive() {
   if (!("__TAURI_INTERNALS__" in window)) {
     createList(root)([]);
+    createStrip(stripEl, stripActions)([]);
     showNotice("Not running inside Tauri. Add ?demo to the URL for mock sessions.");
     return;
   }
@@ -127,6 +153,7 @@ async function runLive() {
     (requestId, decision, reason) => invoke<boolean>("decide_approval", { requestId, decision, reason }),
     (id) => recent[id],
   );
+  const renderStrip = createStrip(stripEl, stripActions);
   const settings = mountSettings({
     log: () => invoke<TrailEntry[]>("trail_log"),
     enabled: () => invoke<boolean>("trail_enabled"),
@@ -175,6 +202,7 @@ async function runLive() {
   const render = (snap: Snapshot) => {
     sessions = snap.sessions;
     renderList(snap.sessions);
+    renderStrip(snap.sessions);
     inbox.sync(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);
@@ -194,29 +222,53 @@ async function runLive() {
   }
 }
 
-async function startWindowFit() {
-  if (!("__TAURI_INTERNALS__" in window)) return;
-  const { invoke } = await import("@tauri-apps/api/core");
+/** Mode and window size belong to the backend: follow its `mode`, report what the current shape needs. */
+async function startSurface() {
+  if (!("__TAURI_INTERNALS__" in window)) {
+    // In a browser `?strip` or `?strip=row` shows the plate; a click opens the panel.
+    const strip = params.get("strip");
+    if (strip !== null) applyMode({ mode: "strip", layout: strip === "row" ? "row" : "column", anchor: params.get("anchor") ?? "float" });
+    return;
+  }
+  const [{ invoke }, { listen }, { getCurrentWindow }] = await Promise.all([
+    import("@tauri-apps/api/core"),
+    import("@tauri-apps/api/event"),
+    import("@tauri-apps/api/window"),
+  ]);
+  stripActions.open = () => void invoke("switch_mode", { mode: "panel" }).catch((err) => console.error("peepthis: switch_mode failed", err));
+  stripActions.drag = () => void getCurrentWindow().startDragging().catch((err) => console.error("peepthis: drag failed", err));
+  await listen<ModeView>("mode", (e) => applyMode(e.payload));
+  applyMode(await invoke<ModeView>("get_mode"));
+
   const header = document.querySelector<HTMLElement>("#header")!;
-  const shell = getComputedStyle(document.querySelector<HTMLElement>("#shell")!);
+  const px = (el: HTMLElement, keys: string[]) => {
+    const cs = getComputedStyle(el) as unknown as Record<string, string>;
+    return keys.reduce((sum, k) => sum + (parseFloat(cs[k]) || 0), 0);
+  };
   // The card's border and the margin that holds its hard shadow sit outside the measured parts.
-  const chrome = ["borderTopWidth", "borderBottomWidth", "marginTop", "marginBottom"].reduce(
-    (sum, k) => sum + (parseFloat(shell[k as keyof CSSStyleDeclaration] as string) || 0),
-    0,
-  );
-  watchContentHeight(
-    [header, root, settingsEl],
-    (height) => {
-      if (!root.isConnected) return;
-      invoke("fit_window", { height }).catch((err) => console.error("peepthis: fit_window failed", err));
+  const chrome = px(shellEl, ["borderTopWidth", "borderBottomWidth", "marginTop", "marginBottom"]);
+  const shadow = px(stripEl, ["marginBottom"]);
+  remeasure = watchContent(
+    [header, root, settingsEl, stripEl],
+    () => {
+      if (view.mode === "hidden") return null;
+      if (view.layout === "panel") {
+        const height = [header, root, settingsEl].reduce((sum, el) => sum + el.getBoundingClientRect().height, chrome);
+        return { length: height, tag: "panel" };
+      }
+      const r = stripEl.getBoundingClientRect();
+      return { length: (view.layout === "row" ? r.width : r.height) + shadow, tag: view.layout };
     },
-    chrome,
+    (height, layout) => {
+      invoke("fit_window", { height, layout }).catch((err) => console.error("peepthis: fit_window failed", err));
+    },
   );
+  remeasure();
 }
 
-startWindowFit().catch((err) => console.error("peepthis: window fit failed", err));
-
 const params = new URLSearchParams(location.search);
+startSurface().catch((err) => console.error("peepthis: surface failed", err));
+
 if (params.has("accessories")) renderAccessoryCheck(root);
 else if (params.has("demo")) runDemo();
 else runLive().catch((err) => {

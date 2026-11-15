@@ -12,6 +12,16 @@ describe("createHeightReporter", () => {
     expect(seen).toEqual([121, 200]);
   });
 
+  it("reports the same length again under a new tag", () => {
+    const seen: [number, string][] = [];
+    const report = createHeightReporter((h, tag) => seen.push([h, tag]));
+    report(300, "column");
+    report(300, "column");
+    report(300, "row");
+    report(300, "column");
+    expect(seen).toEqual([[300, "column"], [300, "row"], [300, "column"]]);
+  });
+
   it("ignores zero and non-finite heights", () => {
     const seen: number[] = [];
     const report = createHeightReporter((h) => seen.push(h));
