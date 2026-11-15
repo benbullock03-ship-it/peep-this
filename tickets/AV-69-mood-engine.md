@@ -10,7 +10,7 @@ attended: false
 
 **What to build:** Each session in the snapshot carries at most one mood, derived purely from inputs.
 
-- [ ] Tired: context used from 70% (sweat), from 90% (yawn); this is the context nudge
+- [ ] Tired (owner ruling 2026-11-15): sweat from 70% while below the nudge setting; yawn from the nudge setting (AV-70: 50 to 95, default 80), which is the context nudge; the second nudge once at 95%
 - [ ] Worry: a `Bash` whose command matches the repo setup's test command and failed. Per AV-54, a failed Bash fires `PostToolUseFailure`, not `PostToolUse`: `tool_input.command` plus `error` (`"Exit code N\n<stderr>"`) and `is_interrupt`; there is no numeric exit code field, so failure is the event itself (fixture `post_tool_use_failure_bash.json`). Successful `PostToolUse` has `tool_response.stdout/stderr/interrupted`, no exit code
 - [ ] Cheer: a ticket in that repo moved to closed (AV-65); the other sessions cheer briefly
 - [ ] Greet: a new session appeared; the sessions already open wave briefly

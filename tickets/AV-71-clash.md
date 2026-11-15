@@ -8,6 +8,8 @@ attended: true
 
 # AV-71 — Clash
 
+Owner ruling 2026-11-15: ADR 0002 stands over FLOPPY-SPEC ruling 2. Clash is an ambient mood: startled emote, file name and bolt tag on both bubbles, dotted bracket only when the rows are already adjacent; no pin, re-sort or attention fill.
+
 **What to build:** The ambient clash mood from ADR 0002.
 
 - [ ] Backend: two different sessions edit the same absolute path within 5 minutes (from AV-54's edit payloads); both get the startled mood with the file name; expires after a short hold
