@@ -46,7 +46,7 @@
   --ps-line: rgba(42, 34, 51, 0.16);
   --ps-text: #2a2233;
   --ps-muted: #645c70;
-  --ps-accent: #8a5a00;
+  --ps-accent: #805300;
   --ps-on-st: #ffffff;
   --ps-shelf: #c9b48e;
   --ps-shelf-top: #e2d2b0;
@@ -55,11 +55,11 @@
   --st-working: #0b7391;
   --st-waiting: #a85b00;
   --st-success: #1f7a3d;
-  --st-error: #c22f2f;
+  --st-error: #b82d2d;
   --st-stuck: #5a6477;
 
-  --ps-dim: #776f82;
-  --amber: 168, 91, 0;
+  --ps-dim: #665f70;
+  --amber: 150, 81, 0;
   --scroll: rgba(42, 34, 51, 0.24);
   --risk-text: #9e1f1f;
   --diff-add-bg: rgba(31, 122, 61, 0.1);
