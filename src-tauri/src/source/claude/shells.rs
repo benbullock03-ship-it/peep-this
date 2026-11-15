@@ -137,11 +137,19 @@ pub fn output_file(tmp: &Path, session_id: &str, shell_id: &str) -> Option<PathB
     if !safe(session_id) || !safe(shell_id) {
         return None;
     }
-    std::fs::read_dir(tmp)
-        .ok()?
-        .flatten()
-        .map(|e| e.path().join(session_id).join("tasks").join(format!("{shell_id}.output")))
-        .find(|p| p.is_file())
+    let name = format!("{shell_id}.output");
+    let hashes: Vec<PathBuf> = std::fs::read_dir(tmp).ok()?.flatten().map(|e| e.path()).collect();
+    let own = hashes.iter().map(|h| h.join(session_id).join("tasks").join(&name)).find(|p| p.is_file());
+    // A session run by an agent, or one that has been cleared, writes under another session's
+    // folder (AV-49); task ids are random, so the id alone finds it.
+    own.or_else(|| {
+        hashes
+            .iter()
+            .filter_map(|h| std::fs::read_dir(h).ok())
+            .flat_map(|d| d.flatten())
+            .map(|e| e.path().join("tasks").join(&name))
+            .find(|p| p.is_file())
+    })
 }
 
 fn modified_ms(path: &Path) -> Option<u64> {
@@ -263,6 +271,28 @@ mod tests {
         let now = crate::store::now_ms();
         assert!(obs[1].last_output_at.is_some_and(|t| t <= now && now - t < 60_000));
         assert_eq!(obs[2], ShellObservation::default());
+        let _ = std::fs::remove_dir_all(tmp);
+    }
+
+    #[test]
+    fn output_file_under_another_sessions_folder_still_ends_the_shell() {
+        // Layout seen 2026-11-15: hook session id `s1`, files under the parent's id.
+        let tmp = temp_dir();
+        let parent = tmp.join("30a9097ea8fcfb1f").join("parent-id").join("tasks");
+        let own = tmp.join("30a9097ea8fcfb1f").join("s1").join("tasks");
+        std::fs::create_dir_all(&parent).unwrap();
+        std::fs::create_dir_all(&own).unwrap();
+        std::fs::write(parent.join("bfail0001.output"), "error TS2304\n\n[exited with code 1]\n").unwrap();
+        std::fs::write(parent.join("bclean001.output"), "done\n\n[exited with code 0]\n").unwrap();
+        std::fs::write(parent.join("bboth0001.output"), "theirs\n").unwrap();
+        std::fs::write(own.join("bboth0001.output"), "mine\n").unwrap();
+        let empty = HashMap::new();
+        let os = Os { parents: &empty, ports: &[], started: &|_| None, command_line: &|_| None };
+        let obs = probe_with(&[q(0, "bfail0001", "x"), q(0, "bclean001", "y"), q(0, "bboth0001", "z"), q(0, "bnone0001", "w")], &os, &tmp);
+        assert_eq!((obs[0].last_line.as_deref(), obs[0].exit), (Some("error TS2304"), Some(ShellExit::Code(1))));
+        assert_eq!(obs[1].exit, Some(ShellExit::Code(0)));
+        assert_eq!(obs[2].last_line.as_deref(), Some("mine"), "the session's own folder wins");
+        assert_eq!(obs[3], ShellObservation::default());
         let _ = std::fs::remove_dir_all(tmp);
     }
 
