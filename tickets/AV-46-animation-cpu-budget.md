@@ -1,7 +1,7 @@
 ---
 id: AV-46
 title: Peep animation CPU against the §8 budget
-status: in-progress
+status: doing
 depends: []
 attended: true
 ---
