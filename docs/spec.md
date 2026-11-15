@@ -1,6 +1,6 @@
 # Peep This spec
 
-Status: draft 2026-11-13, revised 2026-11-14. Decisions come from the design grills recorded in `CLAUDE.md`. §1 to §10 describe what is built; §11 is the mission-control direction from the second grill and §12 the surface direction from the third, both planned and not yet built. Items marked **Verify** are assumptions about Claude Code internals that the ticket implementing them must confirm against a live session before building on them.
+Status: draft 2026-11-13, revised 2026-11-15. Decisions come from the design grills recorded in `CLAUDE.md` and the 2026-11-15 domain-modelling session (`CONTEXT.md`, the glossary, and `docs/adr/`). §1 to §10 describe what is built; §11 is the mission-control direction from the second grill, §12 the surface direction from the third and §13 the skill pack and moods, all planned and not yet built. Items marked **Verify** are assumptions about Claude Code internals that the ticket implementing them must confirm against a live session before building on them.
 
 ## 1. Goal
 
@@ -12,10 +12,12 @@ A glanceable Windows desktop widget that answers three questions without switchi
 
 From 2026-11-14 a fourth: can I deal with what needs me from here, without opening the terminal? (§11)
 
+From 2026-11-15 Peep This is the widget plus the `peep` skill pack, for new Claude Code users, and a fifth: what should this session do next? (§13, ADR 0001)
+
 ## 2. Non-goals (v1)
 
 - Agents other than Claude Code (the adapter seam exists, no second adapter ships).
-- Acting on sessions beyond permission decisions (§11.1): no replying, answering questions, killing, or starting sessions.
+- Acting on sessions beyond permission decisions (§11.1) and Jump (§13.3): no typing into a session, replying, answering questions, killing, or starting sessions.
 - Token counts, cost, history of ended sessions.
 - macOS/Linux. Code should not gratuitously block them, but nothing is tested there.
 - Changing the peep art. `design/peep.js` is the user's; new poses are a request to the user.
@@ -295,7 +297,7 @@ Built (AV-32): `away.rs` polls once a second: `GetLastInputInfo` for idle, `Open
 
 ### 11.10 Considered and not taken
 
-Collision radar (two sessions on one file or branch), usage forecasts, phone remote, orphan shell tracking, a per-session trust dial, a global pause switch, launching sessions.
+Collision radar (two sessions on one file or branch; overturned in part by ADR 0002: a clash on one file is an ambient mood, §13.6), usage forecasts, phone remote, orphan shell tracking, a per-session trust dial, a global pause switch, launching sessions.
 
 ## 12. Surface (planned, surface grill 2026-11-14)
 
@@ -303,7 +305,7 @@ How the widget looks, collapses and docks. Nothing here is built; §3.1 describe
 
 ### 12.0 Pixel desktop shell (AV-44, owner design 2026-11-14)
 
-The owner's "Pixel desktop" design (`design/shell/`) replaces the row and header look: a 90s desktop-pet window, striped title bar, square speech bubbles, each peep on a striped shelf plank. Rows: 48px peep, a bubble saying what the session is doing, name and an outlined state chip. Attention states (`waiting`, `error`, `stuck`) fill the bubble with the state colour and sort first. Clicking a row opens it in place on a 96px stage. 5h/7d sit small in the header as AV-36 block bars. Peep sizes 48 (rows), 96 (detail), 40 (strip) are the owner's ruling over the multiples-of-32 rule. Light theme is AV-45; the strip look folds into AV-39.
+The owner's "Pixel desktop" design (`design/shell/`) replaces the row and header look: a 90s desktop window, striped title bar, square speech bubbles, each peep on a striped shelf plank. Rows: 48px peep, a bubble saying what the session is doing, name and an outlined state chip. Attention states (`waiting`, `error`, `stuck`) fill the bubble with the state colour and sort first. Clicking a row opens it in place on a 96px stage. 5h/7d sit small in the header as AV-36 block bars. Peep sizes 48 (rows), 96 (detail), 40 (strip) are the owner's ruling over the multiples-of-32 rule. Light theme is AV-45; the strip look folds into AV-39.
 
 ### 12.1 Pixel chrome (AV-34, AV-35)
 
@@ -357,3 +359,42 @@ With no sessions, one house peep: `idle`, yellow, no accessory. 40px in the stri
 ### 12.9 Considered and not taken
 
 Single pill, edge tab, Mica/Acrylic backdrop, perch card, floating chips, state-tinted or accent shadow, ghost snap outline, auto-collapse on idle, auto-expand on waiting, `Esc` to dismiss.
+
+## 13. Skill pack, floppies and moods (planned, domain modelling 2026-11-15)
+
+Terms are defined in `CONTEXT.md` and used here exactly; it wins over older wording. Decisions: ADR 0001 (widget plus skill pack) and ADR 0002 (clash as an ambient mood). Visual reference: `design/skill-pack/` (`FLOPPY-SPEC.md`, AV-63), adapted, not restyled. Nothing here is built; each ticket that builds a part moves it into §3 to §9. Build order: pack (AV-55 to AV-62), widget (AV-64 to AV-68), moods (AV-69 to AV-71). AV-54 first verifies that hook payloads carry the `/peep:` prompt, absolute edit paths and Bash exit codes.
+
+### 13.1 Skill pack (AV-55 to AV-62)
+
+- One Claude Code plugin, `peep`, source in `plugin/`, shipped with the widget release. The integration install (§7) adds it through Claude Code's own plugin path and uninstall removes it, leaving the owner's own skills and plugins alone (AV-62).
+- Peep skills, invoked as `/peep:<name>`: `ticket` (work one ticket end to end; `close` and `park`), `ducks` (Ducks), `qt` (Question Time), `packup` (Pack Up), `shoot` (Shoot, web UIs only), `coderot` (Coderot). Each `SKILL.md` stays under about 80 lines, detail in `references/`.
+- Repo setup: the per-repo record of ticket prefix, tickets folder, build and test commands, and areas. Every Peep skill reads it; Ducks writes it on first run (AV-56).
+- Tickets: frontmatter `id`, `title`, `status`, `depends`, plus `reason` and `wake` on a parked ticket. Ticket statuses: `open`, `doing`, `blocked`, `deferred`, `done`, `closed`. `done` is Claude's claim, `closed` the owner's confirmation and the only status that archives. A parked ticket (`blocked` or `deferred`) always has a reason and a wake-up condition: another ticket closing, a date passing, or a free-text note. Ducks wakes tickets whose condition is met and lists free-text ones for the owner.
+- Area notes in `kb/<area>.md`: how it works now, watch out, why. Closing a ticket edits its area note rather than appending.
+- Question Time and Ducks end in a read-back; nothing is written until the owner confirms or corrects it. Pack Up saves its note to `.peep/handoff.md` and copies it to the clipboard; Ducks reads it next run. Coderot reports survivors from rot in a throwaway worktree.
+
+### 13.2 Skill and ticket per session (AV-64, AV-65)
+
+- The snapshot gains, per session, the Peep skill it is running (from a `/peep:<skill> [args]` prompt; cleared on `Stop`) and the linked ticket (id from the arguments, title from the repo's tickets folder; kept until the next `/peep:` prompt or the session ends). Parsing stays in `source/claude/`, the link in `state.rs` as pure inputs.
+- Per repo, the snapshot carries its open and parked tickets, frontmatter only, archive skipped, one read shared by sessions in the same repo. The archive is watched only to notice a ticket closing.
+
+### 13.3 Floppies, tray and Jump (AV-66, AV-67)
+
+- A floppy is the pixel disk for one Peep skill, labelled with its name (sizes and colours per `FLOPPY-SPEC.md`). The strip shows no floppy.
+- Inserted floppy: the floppy sticker on a row's plank while that session runs the skill; it comes out (eject frames) when the turn stops, or after 60s if a Jump was never picked up. The bubble reads `ID: title · verb` per the design's truncation rules; attention states take it over as today.
+- Floppy tray: the floppies on an open row, between the stage and the tags. Clicking one Jumps its command to that session. Every open row also has a Pack Up action that Jumps `/peep:packup`.
+- Jump: copy the command to the clipboard, focus that session's terminal (`focus_session`, §6.6), show the "copied, paste in terminal" moment. The widget never types into the terminal.
+
+### 13.4 Ticket shelf (AV-68)
+
+The repo's open and parked tickets on an open row. Status chips are hollow and distinct from the seven filled session state chips; parked rows are dimmed with their reason and wake-up condition. Clicking a ticket Jumps `/peep:ticket <id>` to that session. Empty and long shelves per the design.
+
+### 13.5 Moods and emotes (AV-69, AV-70)
+
+- A mood is a short-lived feeling shown as an emote in the speech bubble on top of the state. At most one per session, derived in the backend from pure inputs, priority fixed in one place. A mood never changes the session's state, and an attention state (`waiting`, `error`, `stuck`) always takes the bubble first. Each mood can be switched off in settings; that hides the emote only.
+- Tired: sweat drop as context fills, then yawn at the nudge threshold. Worried: the repo setup's test command failed. Cheering: a ticket in that repo closed; the other sessions cheer briefly. Greeting: a new session appeared; open ones wave. Napping (zzz): idle past a threshold; clears on the next prompt. Startled: a clash (§13.6).
+- Context nudge: at the threshold (setting 50 to 95 in steps of 5, default 80) the tired peep's bubble suggests Pack Up, then `/clear`, with a Pack Up Jump and "Not yet"; once more at 95%.
+
+### 13.6 Clash (AV-71, ADR 0002)
+
+Two different sessions editing the same absolute path within 5 minutes. Both peeps get the startled mood for a short hold, look at each other, and the bubbles name the file; the design's bolt tag (and dotted bracket when the rows happen to be adjacent) links them. Ambient only: no warning, no toast, no blocking, no trail entry, no state change and no re-sort. This overrules `FLOPPY-SPEC.md` ruling 2, which treats clash as an attention state.

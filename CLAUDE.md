@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Tauri 2 + Vite + TS; core backend (state engine, session files, event server, transcripts) in place, UI surfaces in progress. Full behaviour is in `docs/spec.md`; work is in `tickets/` (`AV-NN-*.md`, frontmatter `status`/`depends`/`attended`). A ticket moves to `tickets/archive/` (`git mv`) once its status is `done`; `npm run tickets` indexes both folders. The decisions below come from the design grills on 2026-11-13 and 2026-11-14 (mission control, then surface) and stand until the user overrides them.
+Tauri 2 + Vite + TS; core backend (state engine, session files, event server, transcripts) in place, UI surfaces in progress. Full behaviour is in `docs/spec.md`; work is in `tickets/` (`AV-NN-*.md`, frontmatter `status`/`depends`/`attended`). Ticket statuses are `open`, `doing`, `blocked`, `deferred`, `done`, `closed`: `done` is Claude's claim, `closed` the owner's confirmation and the only status that moves a ticket to `tickets/archive/` (`git mv`); `npm run tickets` indexes both folders. The decisions below come from the design grills on 2026-11-13 and 2026-11-14 (mission control, then surface) and the domain-modelling session on 2026-11-15 (`CONTEXT.md`, `docs/adr/`), and stand until the user overrides them.
 
 ## Commands
 
@@ -25,7 +25,7 @@ First `cargo` build takes ~5 min; later ones are incremental.
 
 ## What this is
 
-Peep This: an always-on-top Windows desktop widget that lists the Claude Code sessions running on this machine. Each row has a "peep", a pixel marshmallow desktop pet that shows the session's state. The widget alerts the user when a session needs input and shows context-window and rate-limit usage.
+Peep This: an always-on-top desktop companion for new Claude Code users, the widget and the `peep` skill pack installed as one (ADR 0001). The widget is a Windows window that lists the Claude Code sessions running on this machine. Each row has a peep, a pixel marshmallow that shows the session's state. The widget alerts the user when a session needs input and shows context-window and rate-limit usage. The skill pack teaches a working rhythm. `CONTEXT.md` is the glossary; use its terms.
 
 ## Design (`design/`)
 
@@ -59,7 +59,7 @@ Peep This: an always-on-top Windows desktop widget that lists the Claude Code se
 - **Size:** 48px peep in rows, 96px on the open row's stage, 40px in the strip, 32px for subagent children. 48 and 40 are the owner's ruling over the old multiples-of-32 rule; don't introduce other sizes.
 - **Rows:** peep on a plank, a speech bubble saying what the session is doing, session name (mono) and an outlined state chip. Attention states (`waiting`, `error`, `stuck`) fill the bubble with the state colour and sort first. Click opens the row in place: stage, tags (time in state, model, kind), last tool, context bar, cwd, decision trail.
 - **Alerts:** on entering `waiting`, show a Windows toast and pulse the row. Clicking either focuses that session's terminal window.
-- **Actions:** focus, plus permission decisions once AV-20 to AV-26 land (see Mission control). It never answers questions, sends replies, kills or starts sessions.
+- **Actions:** focus, permission decisions (see Mission control) and Jump: copy a command (a floppy's `/peep:<skill>`, `/peep:ticket <id>` from the ticket shelf, `/peep:packup`) and focus that session's terminal for the user to paste. It never types into a session, answers questions, sends replies, kills or starts sessions.
 - **Usage shown:** per-session context % and account 5-hour/7-day rate-limit %. No token counts or cost.
 - **Lifecycle:** when a session's PID dies, show a done state, then fade it out after about 1 minute.
 
@@ -76,7 +76,15 @@ Planned, not built. This overturns the earlier "read-only, focus only" rule. Bui
 - **Shells:** chip rows under the parent with five states: running, quiet, serving (port shown), exited, failed. Failed bubbles a red dot to the parent.
 - **Rules:** suggested after three identical-shaped allows, confirmed by the user, stored in the widget, revocable from the trail.
 - **Digest:** while-you-were-away card from events; model summary via `claude -p` is opt-in.
-- **Not taken:** collision radar, forecasts, phone remote, trust dial, global pause, orphan shells, launching sessions.
+- **Not taken:** collision radar (except clash as an ambient mood, ADR 0002), forecasts, phone remote, trust dial, global pause, orphan shells, launching sessions.
+
+## Skill pack (domain modelling 2026-11-15, `CONTEXT.md`, ADRs 0001 and 0002, spec §13, tickets AV-53 to AV-71)
+
+Planned, not built. `CONTEXT.md` is the glossary and wins over older wording here or in the spec. Build order: pack (AV-55 to AV-62), widget (AV-64 to AV-68), moods (AV-69 to AV-71); AV-54 verifies hook payloads before the widget phase.
+
+- **Pack:** one Claude Code plugin `peep` in `plugin/`, installed with the integration: `/peep:ticket`, `/peep:ducks`, `/peep:qt` (Question Time), `/peep:packup` (Pack Up), `/peep:shoot`, `/peep:coderot`. Every Peep skill reads the repo setup instead of guessing.
+- **Widget:** a floppy per Peep skill; inserted floppy on the plank while it runs; floppy tray and ticket shelf on the open row, each item a Jump. `design/skill-pack/` is the reference, like `design/shell/`.
+- **Moods:** at most one per peep, shown as an emote in the bubble; never changes the state; an attention state takes the bubble first. Clash is a mood: no warning, no blocking, no trail entry.
 
 ## Surface (surface grill 2026-11-14, spec §12, tickets AV-34 to AV-43)
 
