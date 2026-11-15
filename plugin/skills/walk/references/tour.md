@@ -1,19 +1,21 @@
-# Walk: the rhythm tour
+# Walk: the tour
 
-Printed after the setup is written, as one block, in this order. One line per skill: command, then what it is for in plain words. Drop a line only when `skills.off` names that skill; every other line prints, Reel included.
+Printed after the setup is written: the Core block, then the Extras block, in this order. One line per skill: command, then when to reach for it. Drop a line only when `skills.off` names that skill; every other line prints, Reel included.
 
 ```
-Rhythm: why, what, build, prove, carry on, check in.
-1 why       /peep:reel     pin down who it is for and why it exists
-2 what      /peep:qt       questions about an idea, then tickets
-2 what      /peep:sneak    2 or 3 UI variants side by side, pick one
-3 build     /peep:goose    map what calls what before changing it
-3 build     /peep:ticket   work one ticket, commit it, mark it done
-4 prove     /peep:shoot    check a web UI change in a real browser
-4 prove     /peep:coderot  break code on purpose to see if tests fail
-5 carry on  /peep:packup   write the note that opens the next session
-5 carry on  /peep:unpack   open from that note, after a repo check
-6 check in  /peep:ducks    what is loose, what to pick up next
+Core: the everyday rhythm. Why, what, build, carry on, check in.
+1 why       /peep:reel     use when starting a project, or unsure why it is worth finishing
+2 what      /peep:qt       use when an idea or problem is still fuzzy; ends in tickets
+3 build     /peep:ticket   use when a ticket is ready to work, close or park
+4 carry on  /peep:packup   use when stopping, or context is filling up
+4 carry on  /peep:unpack   use when starting a session after a Pack Up
+5 check in  /peep:ducks    use when sitting down to work, or unsure what to pick up next
+
+Extras: reach for these when the moment comes.
+/peep:sneak    use when you want to compare 2 or 3 UI directions before building
+/peep:goose    use when you need to know what calls what before changing it
+/peep:shoot    use after a web UI change, before calling it done
+/peep:coderot  use between tickets, to check the tests can actually fail
 When you need it: /peep:hello (install check)
 ```
 

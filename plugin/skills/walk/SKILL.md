@@ -28,13 +28,13 @@ Exactly per F§4, groups and rules in `references/setup.md`. "yes": step 4. A co
 
 ## 5. Tour
 
-Print the rhythm block in `references/tour.md`, then the next step. Do not run any skill.
+Print the Core and Extras blocks in `references/tour.md`, then the next step. Do not run any skill.
 
 ## Output
 
 ```
 peep walk: setup written (.peep/setup.md new, uncommitted)
-<the tour block>
+<the Core and Extras blocks>
 next: <command>
 ```
 
