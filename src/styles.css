@@ -164,6 +164,15 @@ body[data-fold] > .ps-strip {
   box-shadow: none;
 }
 
+/* Watched for on screen by cover.rs; the colour is its BEACON. */
+.fold-beacon {
+  position: fixed;
+  z-index: 10;
+  width: 2px;
+  height: 2px;
+  background: rgb(249, 213, 73);
+}
+
 .ps-fold-frame {
   position: absolute;
   box-sizing: border-box;

@@ -243,6 +243,9 @@ pub struct FoldView {
     pub win: [f64; 2],
     pub from: [f64; 4],
     pub to: [f64; 4],
+    /// The resize is under a frozen picture of `from`: the frontend draws its beacon at `from`'s
+    /// bottom-right corner and holds the animation until `uncovered`.
+    pub covered: bool,
 }
 
 /// The window rect that holds both shapes, and what the frontend needs to animate inside it.
@@ -250,7 +253,7 @@ pub fn fold_view(from: Rect, to: Rect, scale: f64) -> (Rect, FoldView) {
     let u = union(from, to);
     let css = |v: i32| v as f64 / scale;
     let inside = |r: Rect| [css(r.x - u.x), css(r.y - u.y), css(r.w), css(r.h)];
-    (u, FoldView { win: [css(u.w), css(u.h)], from: inside(from), to: inside(to) })
+    (u, FoldView { win: [css(u.w), css(u.h)], from: inside(from), to: inside(to), covered: false })
 }
 
 /// A CSS-px rect as physical px, rounded outward so the region never clips what it covers.
@@ -526,32 +529,45 @@ fn plan<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri
 }
 
 /// Ends the switch in flight (only `id`'s, if given): one `SetWindowPos` to the final rect.
-/// `covered` freezes the final rect on screen over the resize; the frontend then calls `uncover`.
-fn finish_fold(id: Option<u64>, covered: bool) {
+/// With `painted`, a resize is hidden under a frozen picture of the final rect until the frontend's
+/// beacon shows there; `painted` then runs. True when that picture went up.
+fn finish_fold(id: Option<u64>, painted: Option<Painted>) -> bool {
     let fold = {
         let mut slot = FOLD.lock().unwrap();
         if id.is_some() && slot.as_ref().map(|f| f.id) != id {
-            return;
+            return false;
         }
         slot.take()
     };
     // The lock is released first: SetWindowPos from a worker waits on the window's thread.
-    let Some(f) = fold else { return };
+    let Some(f) = fold else { return false };
     crate::motion::cancel();
+    let covered = cfg!(windows) && f.on != f.to && painted.is_some();
+    if let Some(then) = painted.filter(|_| covered) {
+        crate::cover::show_until_painted(f.to, then);
+    }
     #[cfg(windows)]
     {
-        if covered && f.on != f.to {
-            crate::cover::show(f.to);
-        }
         sys::set_rect(f.hwnd, f.to);
         set_region(f.hwnd, &hit_region(f.to.w, f.to.h, f.scale));
     }
     #[cfg(not(windows))]
-    let _ = (f.hwnd, f.on, f.to, f.scale, covered);
+    let _ = (f.hwnd, f.scale);
+    covered
+}
+
+type Painted = Box<dyn FnOnce() + Send>;
+
+/// Tells the frontend the frozen picture is off and its own pixels are on screen.
+fn painted_signal<R: Runtime>(app: &AppHandle<R>) -> Painted {
+    let app = app.clone();
+    Box::new(move || {
+        let _ = app.emit("uncovered", ());
+    })
 }
 
 fn apply_fit<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<()> {
-    finish_fold(None, false);
+    finish_fold(None, None);
     // A measurement of the shape just left; the new one follows.
     if layout != self::layout() {
         return Ok(());
@@ -580,7 +596,7 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> 
 /// one `layout` needs, with the hit region left on the card still showing. None when there is
 /// nothing to animate (hidden, reduced motion); the frontend then swaps and fits as usual.
 fn start_fold<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<Option<FoldView>> {
-    finish_fold(None, false);
+    finish_fold(None, None);
     if cfg!(not(windows)) || layout != self::layout() || crate::motion::reduced_motion() || !w.is_visible()? {
         return Ok(None);
     }
@@ -591,10 +607,11 @@ fn start_fold<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) ->
     #[cfg(windows)]
     {
         let hwnd = w.hwnd()?.0 as isize;
-        let (u, view) = fold_view(p.now, p.to, p.scale);
+        let (u, mut view) = fold_view(p.now, p.to, p.scale);
         let (dx, dy) = (p.now.x - u.x, p.now.y - u.y);
-        if u != p.now {
-            crate::cover::show(p.now);
+        view.covered = u != p.now;
+        if view.covered {
+            crate::cover::show_until_painted(p.now, painted_signal(w.app_handle()));
         }
         sys::set_rect(hwnd, u);
         set_region(hwnd, &hit_region(p.now.w, p.now.h, p.scale).map(|r| Rect { x: r.x + dx, y: r.y + dy, ..r }));
@@ -602,7 +619,7 @@ fn start_fold<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) ->
         *FOLD.lock().unwrap() = Some(Fold { id, hwnd, on: u, to: p.to, scale: p.scale });
         std::thread::spawn(move || {
             std::thread::sleep(FOLD_TIMEOUT);
-            finish_fold(Some(id), false);
+            finish_fold(Some(id), None);
         });
         return Ok(Some(view));
     }
@@ -616,7 +633,7 @@ pub fn is_hidden() -> bool {
 
 /// Shows or hides the widget and tells the frontend, which detaches its peeps while hidden.
 pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
-    finish_fold(None, false);
+    finish_fold(None, None);
     USER_HIDDEN.store(hidden, Ordering::SeqCst);
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let _ = app.emit("widget-hidden", hidden);
@@ -641,7 +658,7 @@ pub fn set_mode<R: Runtime>(app: &AppHandle<R>, to: Mode) {
     let strip = to == Mode::Strip;
     if STRIP_SHAPE.swap(strip, Ordering::SeqCst) != strip {
         // HOME is read from the strip's own spot, not from a union still on screen.
-        finish_fold(None, false);
+        finish_fold(None, None);
         let at = app.get_webview_window(LABEL).and_then(|w| w.outer_position().ok());
         *HOME.lock().unwrap() = at.filter(|_| !strip).map(|p| (p.x, p.y));
     }
@@ -774,15 +791,11 @@ pub fn play_region(rects: Vec<[f64; 4]>, gap_ms: u32) {
     let _ = (hwnd, steps, gap_ms);
 }
 
+/// True when the final resize is under a frozen picture: the frontend draws its beacon at the
+/// window's bottom-right corner and waits for `uncovered`.
 #[tauri::command]
-pub fn end_switch() {
-    finish_fold(None, true);
-}
-
-/// The frontend has painted at the window's new size; the frozen picture can go.
-#[tauri::command]
-pub fn uncover() {
-    crate::cover::hide();
+pub fn end_switch(app: AppHandle) -> bool {
+    finish_fold(None, Some(painted_signal(&app)))
 }
 
 #[cfg(test)]

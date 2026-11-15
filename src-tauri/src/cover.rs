@@ -49,12 +49,63 @@ pub fn hide() {
     }
 }
 
+/// The colour of the 2px beacon the frontend draws once it has laid out at the new size
+/// (`.fold-beacon` in styles.css). Seeing it on screen means the blank frames are over.
+pub const BEACON: (u8, u8, u8) = (249, 213, 73);
+const BEACON_WAIT: Duration = Duration::from_millis(450);
+
+/// The cover leaves this pixel of `r` bare so the beacon under it can be seen.
+pub fn beacon_pixel(r: Rect) -> (i32, i32) {
+    (r.x + r.w - 1, r.y + r.h - 1)
+}
+
+pub fn is_beacon(rgb: (u8, u8, u8)) -> bool {
+    // Loose: the display's colour profile shifts what the screen reads back (f3d75f was seen).
+    let near = |a: u8, b: u8| a.abs_diff(b) <= 40;
+    near(rgb.0, BEACON.0) && near(rgb.1, BEACON.1) && near(rgb.2, BEACON.2)
+}
+
+/// Freezes `r` on screen, then takes the picture down once the beacon shows at `r`'s last pixel
+/// (or after `BEACON_WAIT`) and calls `then`.
+#[cfg(windows)]
+pub fn show_until_painted(r: Rect, then: impl FnOnce() + Send + 'static) {
+    show(Rect { h: r.h - 1, ..r });
+    let (x, y) = beacon_pixel(r);
+    std::thread::spawn(move || {
+        let start = std::time::Instant::now();
+        while start.elapsed() < BEACON_WAIT && !is_beacon(sys::pixel(x, y)) {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        hide();
+        then();
+    });
+}
+
+#[cfg(not(windows))]
+pub fn show_until_painted(_r: Rect, then: impl FnOnce() + Send + 'static) {
+    then();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cover_beacon_is_the_last_pixel_and_matches_loosely() {
+        assert_eq!(beacon_pixel(Rect { x: 100, y: 200, w: 68, h: 170 }), (167, 369));
+        assert!(is_beacon(BEACON));
+        assert!(is_beacon((243, 215, 95)));
+        assert!(!is_beacon((27, 25, 33)));
+        assert!(!is_beacon((255, 255, 255)));
+    }
+}
+
 #[cfg(windows)]
 mod sys {
     use super::Rect;
     use windows_sys::Win32::Foundation::{HWND, POINT, SIZE};
     use windows_sys::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
+        BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, GetPixel, ReleaseDC, SelectObject,
         AC_SRC_ALPHA, AC_SRC_OVER, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP, HDC,
         SRCCOPY,
     };
@@ -122,6 +173,16 @@ mod sys {
             ReleaseDC(std::ptr::null_mut(), screen);
             ShowWindow(hwnd, SW_SHOWNOACTIVATE);
             Some(cover)
+        }
+    }
+
+    pub fn pixel(x: i32, y: i32) -> (u8, u8, u8) {
+        unsafe {
+            let screen = GetDC(std::ptr::null_mut());
+            let c = GetPixel(screen, x, y);
+            ReleaseDC(std::ptr::null_mut(), screen);
+            // COLORREF is 0x00BBGGRR.
+            (c as u8, (c >> 8) as u8, (c >> 16) as u8)
         }
     }
 

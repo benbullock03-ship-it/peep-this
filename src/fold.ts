@@ -2,7 +2,7 @@
 
 export type Box = { x: number; y: number; w: number; h: number };
 /** Mirrors `FoldView` in src-tauri/src/window.rs: CSS px, window rects with the shadow included. */
-export type FoldGeometry = { win: [number, number]; from: Box; to: Box };
+export type FoldGeometry = { win: [number, number]; from: Box; to: Box; covered?: boolean };
 
 /** Owner's choice 2026-11-15: 12 steps over 240ms, an exception to the 4 to 6 frame / 160ms rule. */
 export const FOLD_MS = 240;
@@ -68,7 +68,20 @@ export type FoldRun = {
   g: FoldGeometry;
   /** Plays the hit region beside the animation; absent in a browser. */
   region?: (rects: Box[], gapMs: number) => void;
+  /** The first frame is drawn at once; the card moves only after this settles. */
+  hold?: Promise<void>;
 };
+
+/** A 2px mark in the bottom-right corner of `win` (its shadow). The backend watches the screen for it
+ *  to learn that this layout has really been presented (cover.rs BEACON). */
+export function showBeacon(win: Box): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "fold-beacon";
+  el.style.left = `${win.x + win.w - 2}px`;
+  el.style.top = `${win.y + win.h - 2}px`;
+  document.body.append(el);
+  return el;
+}
 
 const PLACED = ["left", "top", "height", "clip-path", "opacity"] as const;
 let stop: (() => void) | null = null;
@@ -80,7 +93,7 @@ export function clearFold(shell: HTMLElement, strip: HTMLElement) {
     el.classList.remove("fold-measure");
     PLACED.forEach((k) => el.style.removeProperty(k));
   }
-  document.querySelectorAll(".ps-fold-frame").forEach((el) => el.remove());
+  document.querySelectorAll(".ps-fold-frame, .fold-beacon").forEach((el) => el.remove());
   delete document.body.dataset.fold;
 }
 
@@ -130,6 +143,7 @@ export function playFold(run: FoldRun): Promise<void> {
   return new Promise((resolve) => {
     let raf = 0;
     let t0 = -1;
+    let stopped = false;
     const tick = (now: number) => {
       if (t0 < 0) {
         t0 = now;
@@ -146,11 +160,14 @@ export function playFold(run: FoldRun): Promise<void> {
     };
     // An interrupting switch stops the loop; the caller has moved on by then.
     stop = () => {
+      stopped = true;
       cancelAnimationFrame(raf);
       stop = null;
       resolve();
     };
-    raf = requestAnimationFrame(tick);
+    void (run.hold ?? Promise.resolve()).then(() => {
+      if (!stopped) raf = requestAnimationFrame(tick);
+    });
   });
 }
 

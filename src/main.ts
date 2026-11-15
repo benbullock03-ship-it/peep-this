@@ -2,7 +2,7 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
-import { boxOf, clearFold, painted, playFold, viewportIs, type Box, type FoldGeometry } from "./fold";
+import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
@@ -58,9 +58,10 @@ let surface = {
     return { win: [window.innerWidth, window.innerHeight], from, to };
   },
   settle: (_w: number, _h: number): Promise<void> => Promise.resolve(),
-  end: (): Promise<void> => Promise.resolve(),
-  /** Drops the frozen picture the backend holds over a window resize. */
-  uncover: () => {},
+  /** True when the backend holds a frozen picture over the final resize. */
+  end: (): Promise<boolean> => Promise.resolve(false),
+  /** Draws the beacon in `win`'s corner; settles when the backend has seen it and dropped its picture. */
+  shown: (_win: Box): Promise<void> => Promise.resolve(),
   region: undefined as ((rects: Box[], gapMs: number) => void) | undefined,
 };
 
@@ -85,7 +86,7 @@ function applyMode(v: ModeView) {
     folding = false;
     clearFold(shellEl, stripEl);
     setShape(v);
-    void surface.end().then(surface.uncover);
+    void surface.end();
   });
 }
 
@@ -103,25 +104,24 @@ async function fold(v: ModeView, token: number) {
     clearFold(shellEl, stripEl);
     setShape(v);
   };
-  // WebView2 goes blank for a frame when its window resizes. The backend freezes a picture of the
-  // card over each resize; it comes off once this side has painted at the new size.
+  // WebView2 goes blank for a few frames when its window resizes. The backend freezes a picture of
+  // the card over each resize and drops it when it sees this side's beacon on screen.
   const g = await surface.begin(v);
-  if (token !== foldToken) return surface.uncover();
+  if (token !== foldToken) return;
   if (!g) return land();
   await surface.settle(g.win[0], g.win[1]);
-  // Not awaited: the card starts moving at once and the picture hides only its first two frames.
-  void painted().then(surface.uncover);
   if (token !== foldToken) return;
-  await playFold({ shell: shellEl, strip: stripEl, toPanel, g, region: surface.region });
+  const hold = g.covered ? surface.shown(g.from) : undefined;
+  await playFold({ shell: shellEl, strip: stripEl, toPanel, g, region: surface.region, hold });
   if (token !== foldToken) return;
   // The last step must be on screen before the backend takes its picture of it.
   await painted();
   if (token !== foldToken) return;
-  await surface.end();
+  const covered = await surface.end();
   await surface.settle(g.to.w, g.to.h);
-  if (token === foldToken) land();
-  await painted();
-  surface.uncover();
+  if (token !== foldToken) return;
+  land();
+  if (covered) await surface.shown({ x: 0, y: 0, w: g.to.w, h: g.to.h });
 }
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
@@ -330,6 +330,8 @@ async function startSurface() {
   stripActions.open = () => void invoke("switch_mode", { mode: "panel" }).catch((err) => console.error("peepthis: switch_mode failed", err));
   collapse = () => void invoke("switch_mode", { mode: "strip" }).catch((err) => console.error("peepthis: switch_mode failed", err));
   stripActions.drag =() => void getCurrentWindow().startDragging().catch((err) => console.error("peepthis: drag failed", err));
+  let uncovered: (() => void) | null = null;
+  await listen("uncovered", () => uncovered?.());
   await listen<ModeView>("mode", (e) => applyMode(e.payload));
   applyMode(await invoke<ModeView>("get_mode"));
 
@@ -346,15 +348,27 @@ async function startSurface() {
     const r = stripEl.getBoundingClientRect();
     return (layout === "row" ? r.width : r.height) + shadow;
   };
-  type FoldView = { win: [number, number]; from: number[]; to: number[] };
+  type FoldView = { win: [number, number]; from: number[]; to: number[]; covered: boolean };
   surface = {
     begin: async (v) => {
       const f = await invoke<FoldView | null>("begin_switch", { height: Math.ceil(lengthOf(v.layout)), layout: v.layout });
-      return f && { win: f.win, from: boxOf(f.from), to: boxOf(f.to) };
+      return f && { win: f.win, from: boxOf(f.from), to: boxOf(f.to), covered: f.covered };
     },
     settle: viewportIs,
-    end: () => invoke<void>("end_switch"),
-    uncover: () => void invoke("uncover").catch((err) => console.error("peepthis: uncover failed", err)),
+    shown: (win) =>
+      new Promise<void>((resolve) => {
+        const el = showBeacon(win);
+        const done = () => {
+          clearTimeout(timer);
+          uncovered = null;
+          el.remove();
+          resolve();
+        };
+        // The backend gives up on its own after 450ms.
+        const timer = setTimeout(done, 600);
+        uncovered = done;
+      }),
+    end: () => invoke<boolean>("end_switch"),
     region: (rects, gapMs) =>
       void invoke("play_region", { rects: rects.map((b) => [b.x, b.y, b.w, b.h]), gapMs: Math.round(gapMs) }).catch((err) =>
         console.error("peepthis: play_region failed", err),
