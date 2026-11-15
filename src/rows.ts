@@ -2,7 +2,7 @@ import { createCards, type Decide } from "./approvalCard";
 import { fillBubble, FLOPPIES } from "./bubble";
 import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
-import { EMOTES, type Emote } from "./emote";
+import { clashLinks, clashTags, EMOTES, type Emote } from "./emote";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
 import type { Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
@@ -244,7 +244,7 @@ function updateRow(r: Row, v: RowView) {
     }
   }
   if (l.label !== v.label) for (const x of r.labels) x.textContent = v.label;
-  if (l.say !== v.say || l.bubble?.tab !== v.bubble.tab) for (const x of r.says) fillBubble(x, v.bubble);
+  if (l.say !== v.say || l.bubble?.tab !== v.bubble.tab || l.bubble?.bolt !== v.bubble.bolt) for (const x of r.says) fillBubble(x, v.bubble);
   if (l.emote !== v.emote) setEmote(r, v.emote);
   if (l.nudge !== v.nudge) {
     r.el.classList.toggle("is-nudge", !!v.nudge);
@@ -412,11 +412,19 @@ export function createList(
     ticker = 0;
   }
 
+  let bracketed: Row[] = [];
+  /** ADR 0002: the bracket runs plank to plank, so it follows each plank's offset. */
+  const placeBrackets = () => {
+    for (const r of bracketed) r.el.style.setProperty("--plank-y", `${r.plank.offsetTop}px`);
+  };
+
   function toggle(r: Row) {
     const wasOpen = open === r;
     close(wasOpen && r.head.contains(document.activeElement));
+    placeBrackets();
     if (wasOpen) return;
     expand(r, trailOf?.(r.session.id), rules);
+    placeBrackets();
     open = r;
     if (r.closed.contains(document.activeElement) || document.activeElement === document.body) r.head.focus();
     ticker = window.setInterval(() => open && fillFacts(open, Date.now()), TICK_MS);
@@ -477,6 +485,7 @@ export function createList(
   function render(sessions: readonly Session[], nextRepos?: readonly Repo[]) {
     if (nextRepos) repos = nextRepos;
     const sorted = sortSessions(sessions);
+    const tags = clashTags(sorted);
     const seen = new Set<string>();
     const now = Date.now();
     let foldAt: number | null = null;
@@ -496,7 +505,7 @@ export function createList(
         r.el.classList.remove("leaving");
       }
       if (s.mood !== "yawn") snoozed.delete(s.id);
-      const view = toRowView(s, identityOf, now, snoozed.has(s.id));
+      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id));
       updateRow(r, view);
       const kids = r.kids(s, view.color, now);
       const shellFold = r.shells(s, now).foldAt;
@@ -525,6 +534,16 @@ export function createList(
         }, motionMs()),
       );
     }
+    const down = clashLinks(sorted, tags);
+    bracketed = [];
+    sorted.forEach((s, i) => {
+      const r = rows.get(s.id)!;
+      const up = i > 0 && down[i - 1];
+      r.el.classList.toggle("clash-down", down[i]);
+      r.el.classList.toggle("clash-up", up);
+      if (down[i] || up) bracketed.push(r);
+    });
+    placeBrackets();
     current = sessions;
     syncEmpty();
     if (sorted.length > 0) firstRender = false;

@@ -11,8 +11,11 @@ export const FLOPPIES: Record<string, { col: number; verb: string }> = {
 };
 export const BLANK_COL = 6;
 
-/** `id` is the ticket id; `tab` shows it as the attention tab instead of `id:`. */
-export type Bubble = { id?: string; text: string; verb?: string; tab?: boolean };
+/** `id` is the ticket id; `tab` shows it as the attention tab instead of `id:`; `bolt` is a clash's tag letter. */
+export type Bubble = { id?: string; text: string; verb?: string; tab?: boolean; bolt?: string };
+
+/** A 4 x 6 pixel bolt drawn at 2px per cell. */
+const BOLT_PATH = "M2 0h2v1h-2zM1 1h2v1h-2zM0 2h4v1h-4zM1 3h2v1h-2zM0 4h2v1h-2zM0 5h1v1h-1z";
 
 /** FLOPPY-SPEC §05: `ID: title · verb`; an attention state's ask replaces the title and drops the verb. */
 export function bubbleFor(s: Pick<Session, "alive" | "skill" | "ticket">, say: string, attention: boolean): Bubble {
@@ -28,7 +31,7 @@ export const bubbleLine = (b: Bubble) => `${b.id ? `${b.id}: ` : ""}${b.text}${b
 /** Fills the `.ps-bubble > span`; a bubble without ticket or verb stays plain text as before AV-66. */
 export function fillBubble(span: HTMLElement, b: Bubble) {
   span.parentElement!.title = bubbleLine(b);
-  if (!b.id && !b.verb) {
+  if (!b.id && !b.verb && !b.bolt) {
     span.className = "";
     span.textContent = b.text;
     return;
@@ -40,7 +43,18 @@ export function fillBubble(span: HTMLElement, b: Bubble) {
     e.className = cls;
     e.textContent = text;
     span.appendChild(e);
+    return e;
   };
+  if (b.bolt) {
+    const tag = part("bb-bolt", b.bolt);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 4 6");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", BOLT_PATH);
+    svg.appendChild(path);
+    tag.prepend(svg);
+  }
   if (b.id) part("bb-id", b.id);
   part("bb-text", b.text);
   if (b.verb) part("bb-verb", b.verb);

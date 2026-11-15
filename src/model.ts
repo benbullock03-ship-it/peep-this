@@ -29,12 +29,14 @@ export type Session = {
   contextPct?: number;
   /** mood.rs: at most one, still set during attention states (the bubble hides it there). */
   mood?: Mood;
+  /** Absolute path of the clashed file while `mood` is startled. */
+  clash?: string;
   alive: boolean;
   endedAt?: number;
   pending?: PendingApproval[];
 };
 
-export type Mood = "cheer" | "greet" | "worry" | "yawn" | "sweat" | "nap";
+export type Mood = "startled" | "cheer" | "greet" | "worry" | "yawn" | "sweat" | "nap";
 
 /** A subagent of a session (state.rs `Agent`); finished once `endedAt` is set. */
 export type Agent = {

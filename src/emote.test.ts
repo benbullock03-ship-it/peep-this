@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emoteFor, MOOD_EMOTE, nudgeFor, nudgeText } from "./emote";
+import { clashLinks, clashTags, clashText, emoteFor, MOOD_EMOTE, nudgeFor, nudgeText } from "./emote";
 import type { Session } from "./model";
 import { toRowView } from "./rowView";
 
@@ -7,7 +7,7 @@ const base: Session = { id: "s", pid: 1, name: "n", cwd: "C:/x", kind: "interact
 
 describe("emoteFor", () => {
   it("maps each mood to its emote-sheet row", () => {
-    expect(MOOD_EMOTE).toEqual({ cheer: "sparkle", greet: "wave", worry: "worry", yawn: "yawn", sweat: "sweat", nap: "zzz" });
+    expect(MOOD_EMOTE).toEqual({ startled: "startled", cheer: "sparkle", greet: "wave", worry: "worry", yawn: "yawn", sweat: "sweat", nap: "zzz" });
     expect(emoteFor({ ...base, mood: "nap" }, "idle")).toBe("zzz");
     expect(emoteFor(base, "thinking")).toBeNull();
   });
@@ -17,6 +17,45 @@ describe("emoteFor", () => {
     expect(emoteFor({ ...base, mood: "worry", alive: false }, "idle")).toBeNull();
     expect(toRowView({ ...base, state: "error", mood: "worry" }).emote).toBeNull();
     expect(toRowView({ ...base, mood: "greet" }).emote).toBe("wave");
+  });
+});
+
+describe("clash", () => {
+  const startled = (id: string, clash: string, extra: Partial<Session> = {}): Session => ({ ...base, id, mood: "startled", clash, ...extra });
+  const css = "F:\\p\\src\\shell.css";
+
+  it("tags each clashed file A, B in list order and names the file", () => {
+    const list = [startled("a", css), startled("b", "F:/p/x.ts"), startled("c", css), base];
+    const tags = clashTags(list);
+    expect(tags.get("a")).toEqual({ tag: "A", file: "shell.css", count: 2 });
+    expect(tags.get("b")).toEqual({ tag: "B", file: "x.ts", count: 1 });
+    expect(tags.get("c")?.tag).toBe("A");
+    expect(tags.has("s")).toBe(false);
+    expect(clashText({ tag: "A", file: "shell.css", count: 2 })).toBe("Both in shell.css");
+    expect(clashText({ tag: "A", file: "shell.css", count: 3 })).toBe("All 3 in shell.css");
+  });
+
+  it("brackets only rows that already sit together", () => {
+    const apart = [startled("a", css), base, startled("c", css)];
+    expect(clashLinks(apart, clashTags(apart))).toEqual([false, false, false]);
+    const together = [base, startled("a", css), startled("c", css)];
+    expect(clashLinks(together, clashTags(together))).toEqual([false, true, false]);
+  });
+
+  it("an attention state keeps its bubble and drops out of the tags and the bracket", () => {
+    const list = [startled("a", css), startled("b", css, { state: "waiting" })];
+    const tags = clashTags(list);
+    expect(tags.has("b")).toBe(false);
+    expect(tags.get("a")?.count).toBe(2);
+    expect(clashLinks(list, tags)).toEqual([false, false]);
+    expect(toRowView(list[1], undefined, 0, false, tags.get("b")).bubble.bolt).toBeUndefined();
+  });
+
+  it("puts the bolt tag, file name and startled emote in the bubble without the attention fill", () => {
+    const s = startled("a", css, { state: "working" });
+    const v = toRowView(s, undefined, 0, false, clashTags([s, startled("b", css)]).get("a"));
+    expect(v).toMatchObject({ emote: "startled", attention: false, say: "Both in shell.css", bubble: { text: "Both in shell.css", bolt: "A" } });
+    expect(toRowView(s).bubble.bolt).toBeUndefined();
   });
 });
 

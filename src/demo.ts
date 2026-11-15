@@ -173,7 +173,8 @@ const REPOS: Repo[] = [
 ];
 
 // AV-70: one row per mood, both nudges, plus sync-05 (error) holding a worry the bubble must hide. They sit out demoStep.
-const MOODY: { name: string; identity: Identity; state: State; mood: Mood; task: string; contextPct?: number; agoS?: number; ticket?: Session["ticket"] }[] = [
+// AV-71: shell-14 and shell-15 clash on one file; equal stateSince keeps them adjacent, so the bracket shows.
+const MOODY: { name: string; identity: Identity; state: State; mood: Mood; task: string; contextPct?: number; agoS?: number; ticket?: Session["ticket"]; clash?: string }[] = [
   { name: "docs-07", identity: { color: "blue", accessory: "glasses" }, state: "working", mood: "sweat", task: "Write docs/api.md", contextPct: 76 },
   { name: "billing-08", identity: { color: "pink", accessory: "beanie" }, state: "thinking", mood: "yawn", task: "Checking the invoice totals", contextPct: 82 },
   { name: "ledger-09", identity: { color: "lavender", accessory: "wizard" }, state: "working", mood: "yawn", task: "Edit src/ledger.ts", contextPct: 96 },
@@ -181,6 +182,8 @@ const MOODY: { name: string; identity: Identity; state: State; mood: Mood; task:
   { name: "infra-11", identity: { color: "yellow", accessory: "crown" }, state: "thinking", mood: "greet", task: "Reading the deploy script" },
   { name: "tests-12", identity: { color: "blue", accessory: "headphones" }, state: "thinking", mood: "worry", task: "Reading the failing test" },
   { name: "notes-13", identity: { color: "green", accessory: "flowers" }, state: "idle", mood: "nap", task: "Idle", agoS: 900 },
+  { name: "shell-14", identity: { color: "yellow", accessory: "beanie" }, state: "working", mood: "startled", task: "Edit src/shell.css", agoS: 20, clash: "C:/demo/peep-this/src/shell.css" },
+  { name: "shell-15", identity: { color: "lavender", accessory: "glasses" }, state: "working", mood: "startled", task: "Edit src/shell.css", agoS: 20, clash: "C:/demo/peep-this/src/shell.css" },
 ];
 const MOOD_FROM = AGENTS.length;
 const ATTENTION_MOOD: Record<number, Mood> = { 4: "worry" };
@@ -200,6 +203,7 @@ function moodySessions(now: number): Session[] {
     subagents: 0,
     contextPct: m.contextPct ?? 20 + k * 3,
     mood: m.mood,
+    clash: m.clash,
     ticket: m.ticket,
     alive: true,
   }));

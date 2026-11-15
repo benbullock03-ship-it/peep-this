@@ -21,10 +21,15 @@ pub const GREET_MS: u64 = 5 * 1000;
 /// A session must predate the newcomer by this much to greet it, so sessions found in one startup scan don't greet each other.
 pub const GREET_GAP_MS: u64 = 2 * 1000;
 pub const NAP_AFTER_MS: u64 = 10 * 60 * 1000;
+/// Two sessions' edits of one file this close together clash (ADR 0002).
+pub const CLASH_WINDOW_MS: u64 = 5 * 60 * 1000;
+/// Startled lasts this long after the second edit.
+pub const CLASH_HOLD_MS: u64 = 30 * 1000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mood {
+    Startled,
     Cheer,
     Greet,
     Worry,
@@ -51,6 +56,7 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
     let pct = s.context_pct.unwrap_or(0.0);
     let nap = matches!(s.state, State::Idle | State::Success) && now.saturating_sub(s.state_since) >= NAP_AFTER_MS;
     [
+        (clash(s, sessions, now).is_some(), Mood::Startled),
         (cheer, Mood::Cheer),
         (greet, Mood::Greet),
         (worry, Mood::Worry),
@@ -60,6 +66,34 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
     ]
     .into_iter()
     .find_map(|(on, m)| on.then_some(m))
+}
+
+/// Windows paths: one file may arrive with either slash or another letter case.
+pub fn same_path(a: &str, b: &str) -> bool {
+    let sep = |c: char| c == '/' || c == '\\';
+    a.len() == b.len() && a.chars().zip(b.chars()).all(|(x, y)| x.eq_ignore_ascii_case(&y) || (sep(x) && sep(y)))
+}
+
+/// The file `s` most recently clashed on, while the hold lasts. Named by the least spelling any session used, so every party groups alike.
+pub fn clash(s: &Session, sessions: &[&Session], now: u64) -> Option<String> {
+    if !s.alive {
+        return None;
+    }
+    let others = || sessions.iter().filter(|o| o.id != s.id && o.alive);
+    let (_, path) = s
+        .edits
+        .iter()
+        .filter_map(|(p, at)| {
+            let when = others()
+                .flat_map(|o| o.edits.iter())
+                .filter(|(q, bt)| same_path(p, q) && at.abs_diff(*bt) <= CLASH_WINDOW_MS)
+                .map(|(_, bt)| (*at).max(*bt))
+                .max()?;
+            (now.saturating_sub(when) < CLASH_HOLD_MS).then_some((when, p))
+        })
+        .max_by_key(|(when, _)| *when)?;
+    let name = others().flat_map(|o| o.edits.iter()).map(|(q, _)| q).filter(|q| same_path(path, q)).chain([path]).min()?;
+    Some(name.clone())
 }
 
 pub fn valid_nudge(pct: u64) -> bool {
@@ -193,12 +227,64 @@ mod tests {
     }
 
     #[test]
-    fn priority_is_cheer_greet_worry_yawn_sweat_nap() {
+    fn priority_is_startled_cheer_greet_worry_yawn_sweat_nap() {
         let tired = test_run(with_pct(90.0), false, T0);
         assert_eq!(mood(&tired, T0 + 1), Some(Mood::Worry), "worry beats yawn");
         let new = session("b", T0 + MIN);
         assert_eq!(derive(&tired, &[&tired, &new], &[], NUDGE_PCT_DEFAULT, T0 + MIN), Some(Mood::Greet));
         assert_eq!(mood(&with_pct(75.0), T0 + NAP_AFTER_MS), Some(Mood::Sweat), "sweat beats nap");
+        let a = edit(tired, "F:/p/a.ts", T0 + MIN + 1);
+        let b = edit(new, "F:/p/a.ts", T0 + MIN + 2);
+        assert_eq!(derive(&a, &[&a, &b], &[], NUDGE_PCT_DEFAULT, T0 + MIN + 3), Some(Mood::Startled), "startled beats greet");
+    }
+
+    fn edit(s: Session, path: &str, now: u64) -> Session {
+        apply(s, Event::Edited { path: path.into(), event: Box::new(Event::PostToolUse) }, now)
+    }
+
+    fn clashes(all: &[&Session], now: u64) -> Vec<Option<String>> {
+        all.iter().map(|s| clash(s, all, now)).collect()
+    }
+
+    #[test]
+    fn two_sessions_editing_one_file_within_5_min_clash_for_the_hold() {
+        let a = edit(session("a", T0), "F:\\p\\src\\shell.css", T0);
+        let b = edit(session("b", T0), "f:/p/src/shell.css", T0 + 4 * MIN);
+        let both = Some("F:\\p\\src\\shell.css".to_string());
+        assert_eq!(clashes(&[&a, &b], T0 + 4 * MIN), vec![both.clone(), both.clone()], "one file, either spelling");
+        assert_eq!(derive(&a, &[&a, &b], &[], NUDGE_PCT_DEFAULT, T0 + 4 * MIN), Some(Mood::Startled));
+        assert_eq!(clashes(&[&a, &b], T0 + 4 * MIN + CLASH_HOLD_MS - 1), vec![both.clone(), both]);
+        assert_eq!(clashes(&[&a, &b], T0 + 4 * MIN + CLASH_HOLD_MS), vec![None, None], "the hold expired");
+        let elsewhere = edit(session("c", T0), "F:/p/src/other.css", T0 + 4 * MIN);
+        assert_eq!(clash(&a, &[&a, &elsewhere], T0 + 4 * MIN), None);
+    }
+
+    #[test]
+    fn edits_further_apart_than_the_window_do_not_clash() {
+        let a = edit(session("a", T0), "F:/p/a.ts", T0);
+        let b = edit(session("b", T0), "F:/p/a.ts", T0 + CLASH_WINDOW_MS + 1);
+        assert_eq!(clashes(&[&a, &b], T0 + CLASH_WINDOW_MS + 2), vec![None, None]);
+    }
+
+    #[test]
+    fn one_session_editing_a_file_twice_does_not_clash() {
+        let a = edit(edit(session("a", T0), "F:/p/a.ts", T0), "F:/p/a.ts", T0 + MIN);
+        assert_eq!(a.edits.len(), 1, "a repeat edit replaces the earlier one");
+        let idle = session("b", T0);
+        assert_eq!(clashes(&[&a, &idle], T0 + MIN), vec![None, None]);
+        assert_eq!(mood(&a, T0 + MIN), None);
+    }
+
+    #[test]
+    fn three_sessions_on_one_file_are_all_startled_and_ended_ones_drop_out() {
+        let a = edit(session("a", T0), "F:/p/a.ts", T0);
+        let b = edit(session("b", T0), "F:/p/a.ts", T0 + MIN);
+        let c = edit(session("c", T0), "F:/p/a.ts", T0 + 2 * MIN);
+        let file = Some("F:/p/a.ts".to_string());
+        assert_eq!(clashes(&[&a, &b, &c], T0 + 2 * MIN), vec![file.clone(), file.clone(), file.clone()]);
+        let gone = apply(c.clone(), Event::Ended, T0 + 2 * MIN);
+        assert_eq!(clashes(&[&a, &b, &gone], T0 + 2 * MIN + CLASH_HOLD_MS - 1), vec![None, None, None], "a and b's own clash ended at T0+1min");
+        assert_eq!(clashes(&[&a, &c], T0 + 2 * MIN), vec![file.clone(), file]);
     }
 
     #[test]

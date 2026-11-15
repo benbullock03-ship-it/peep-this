@@ -74,6 +74,9 @@ pub struct Session {
     /// Set by the mood engine in the store, never by `apply`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mood: Option<Mood>,
+    /// Absolute path of the clashed file while `mood` is startled; set by the mood engine with `mood`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
     pub alive: bool,
@@ -101,6 +104,9 @@ pub struct Session {
     /// Last failed run of the repo setup's test command; cleared when one passes.
     #[serde(skip)]
     pub worried_at: Option<u64>,
+    /// (absolute path, last edit) within the clash window, for the clash mood.
+    #[serde(skip)]
+    pub edits: Vec<(String, u64)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -232,6 +238,8 @@ pub enum Event {
     Skill { skill: String, ticket: Option<TicketLink>, event: Box<Event> },
     /// A finished Bash/PowerShell call that ran the repo setup's test command; `event` is applied as usual afterwards.
     TestRun { passed: bool, event: Box<Event> },
+    /// A successful Edit/Write/MultiEdit/NotebookEdit with the file's absolute path; `event` is applied as usual afterwards.
+    Edited { path: String, event: Box<Event> },
     /// OS probe result for one shell; never resets the stuck timer.
     ShellProbe { id: String, obs: ShellObservation },
     /// The widget answered a held permission request, or the terminal took it (spec §11.1).
@@ -271,6 +279,7 @@ impl Session {
             skill: None,
             ticket: None,
             mood: None,
+            clash: None,
             context_pct: None,
             alive: true,
             ended_at: None,
@@ -282,6 +291,7 @@ impl Session {
             waiting_on_agent: None,
             born_at: now,
             worried_at: None,
+            edits: Vec::new(),
         }
     }
 
@@ -636,6 +646,11 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         s.worried_at = (!passed).then_some(now);
         return apply(s, *event, now);
     }
+    if let Event::Edited { path, event } = event {
+        s.edits.retain(|(p, at)| !crate::mood::same_path(p, &path) && now.saturating_sub(*at) <= crate::mood::CLASH_WINDOW_MS);
+        s.edits.push((path, now));
+        return apply(s, *event, now);
+    }
     if let Event::Skill { skill, ticket, event } = event {
         // A prompt replaces the ticket link; a Skill tool call mid-turn only adds one.
         let from_prompt = *event == Event::UserPromptSubmit;
@@ -882,6 +897,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         | Event::Shell { .. }
         | Event::Skill { .. }
         | Event::TestRun { .. }
+        | Event::Edited { .. }
         | Event::ShellProbe { .. }
         | Event::Ended
         | Event::Tick => unreachable!("handled above"),

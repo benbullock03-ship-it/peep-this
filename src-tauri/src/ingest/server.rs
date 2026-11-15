@@ -255,6 +255,10 @@ pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
                     Some(passed) => Event::TestRun { passed, event: Box::new(e) },
                     None => e,
                 };
+                let e = match edited_path(name, &v) {
+                    Some(path) => Event::Edited { path, event: Box::new(e) },
+                    None => e,
+                };
                 match shell_update(name, &v) {
                     Some(update) => Event::Shell { update, event: Box::new(e) },
                     None => e,
@@ -351,6 +355,19 @@ fn test_run(name: &str, v: &Value, cwd: Option<&str>) -> Option<bool> {
     let command = str_at(v, "/tool_input/command")?;
     let setup = tickets::setup_test(cwd.filter(|c| !c.is_empty())?)?;
     mood::is_test_run(&command, &setup).then_some(passed)
+}
+
+/// Absolute path of a file a finished edit changed (AV-54); a `PostToolUseFailure` changed nothing.
+fn edited_path(name: &str, v: &Value) -> Option<String> {
+    if name != "PostToolUse" {
+        return None;
+    }
+    let key = match str_at(v, "/tool_name")?.as_str() {
+        "Edit" | "Write" | "MultiEdit" => "/tool_input/file_path",
+        "NotebookEdit" => "/tool_input/notebook_path",
+        _ => return None,
+    };
+    str_at(v, key).filter(|p| !p.trim().is_empty())
 }
 
 fn agent_id(v: &Value) -> Option<String> {
@@ -1304,6 +1321,38 @@ mod tests {
         assert_eq!(store.snapshot().sessions[0].mood, Some(Mood::Worry));
         dispatch(&store, passed, 3_000);
         assert_eq!(store.snapshot().sessions[0].mood, None);
+    }
+
+    #[test]
+    fn edit_fixtures_carry_the_absolute_path_and_two_sessions_on_one_file_startle_both() {
+        let routed = |name: &str, file: &str, sid: &str| {
+            let mut v: Value = serde_json::from_str(&fixture(file)).unwrap();
+            v["session_id"] = Value::String(sid.into());
+            parse_value(&Route::Hook(name.into()), &v).unwrap()
+        };
+        let edited = |path: &str| Some(Event::Edited { path: path.into(), event: Box::new(Event::PostToolUse) });
+        let a = routed("PostToolUse", "post_tool_use_edit.json", "a");
+        assert_eq!(a.event, edited("C:\\work\\demo\\a.txt"));
+        assert_eq!(routed("PostToolUse", "pre_tool_use_notebook_edit.json", "a").event, edited("C:\\work\\demo\\n.ipynb"));
+        assert_eq!(routed("PostToolUseFailure", "post_tool_use_edit.json", "a").event, Some(Event::PostToolUse), "a failed edit changed nothing");
+        assert_eq!(routed("PreToolUse", "pre_tool_use_edit.json", "a").event.map(|e| matches!(e, Event::Edited { .. })), Some(false));
+
+        let store = quiet_store();
+        let mood_of = |id: &str| {
+            let s = store.snapshot().sessions.into_iter().find(|s| s.id == id).unwrap();
+            (s.mood, s.clash)
+        };
+        dispatch(&store, a, 1_000);
+        dispatch(&store, routed("PostToolUse", "post_tool_use_write.json", "a"), 2_000);
+        assert_eq!(mood_of("a"), (None, None), "the same session twice");
+        dispatch(&store, routed("PostToolUse", "post_tool_use_write.json", "b"), 3_000);
+        let startled = (Some(Mood::Startled), Some("C:\\work\\demo\\a.txt".to_string()));
+        assert_eq!((mood_of("a"), mood_of("b")), (startled.clone(), startled));
+        assert_eq!(store.snapshot().sessions[0].state, State::Thinking, "a clash never changes state");
+        let v = serde_json::to_value(store.snapshot()).unwrap();
+        assert_eq!((v["sessions"][0]["mood"].as_str(), v["sessions"][0]["clash"].as_str()), (Some("startled"), Some("C:\\work\\demo\\a.txt")));
+        store.tick(3_000 + mood::CLASH_HOLD_MS);
+        assert_eq!((mood_of("a"), mood_of("b")), ((None, None), (None, None)));
     }
 
     #[test]

@@ -336,14 +336,19 @@ impl Store {
 /// Rederives every session's mood; true if any changed.
 fn refresh_moods(inner: &mut Inner, now: u64) -> bool {
     let all: Vec<&Session> = inner.sessions.values().collect();
-    let moods: Vec<(String, Option<Mood>)> = all
+    let moods: Vec<(String, Option<Mood>, Option<String>)> = all
         .iter()
-        .map(|s| (s.id.clone(), mood::derive(s, &all, &inner.repos, inner.nudge_pct, now)))
+        .map(|s| {
+            let m = mood::derive(s, &all, &inner.repos, inner.nudge_pct, now);
+            let clash = (m == Some(Mood::Startled)).then(|| mood::clash(s, &all, now)).flatten();
+            (s.id.clone(), m, clash)
+        })
         .collect();
     let mut changed = false;
-    for (id, m) in moods {
-        if let Some(s) = inner.sessions.get_mut(&id).filter(|s| s.mood != m) {
+    for (id, m, clash) in moods {
+        if let Some(s) = inner.sessions.get_mut(&id).filter(|s| s.mood != m || s.clash != clash) {
             s.mood = m;
+            s.clash = clash;
             changed = true;
         }
     }

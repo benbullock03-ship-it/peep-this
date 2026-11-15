@@ -737,6 +737,16 @@ body[data-fold] > .ps-strip {
   animation: em-frames 500ms steps(4, end) 2, em-hide 1ms 1000ms forwards;
 }
 
+.ps-bubble > .em[data-play="twice-hold"] {
+  animation: em-frames 500ms steps(4, end) 2, em-hold 1ms 1000ms forwards;
+}
+
+@keyframes em-hold {
+  to {
+    background-position-x: -16px;
+  }
+}
+
 @keyframes em-frames {
   to {
     background-position-x: -64px;
@@ -755,6 +765,49 @@ body[data-fold] > .ps-strip {
     animation: none;
     background-position-x: -16px;
   }
+}
+
+/* AV-63 clash, ADR 0002: the bolt tag on an unfilled bubble, so it takes the clash colour itself. */
+.bb > .bb-bolt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  align-self: center;
+  margin-right: 6px;
+  padding: 1px 4px;
+  background: var(--st-waiting);
+  color: var(--ps-on-st);
+  font: 600 10px/1.2 var(--mono);
+}
+
+.bb-bolt > svg {
+  width: 8px;
+  height: 12px;
+  fill: currentColor;
+  shape-rendering: crispEdges;
+}
+
+/* Adjacent clash rows only: a dotted bracket in the gutter from plank to plank; never pins or moves a row. */
+.ps-item.clash-down::after,
+.ps-item.clash-up::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  width: 7px;
+  border-left: 2px dotted var(--st-waiting);
+  pointer-events: none;
+}
+
+.ps-item.clash-down::after {
+  top: calc(var(--plank-y, 0px) + 2px);
+  bottom: 0;
+  border-top: 2px dotted var(--st-waiting);
+}
+
+.ps-item.clash-up::before {
+  top: 0;
+  height: calc(var(--plank-y, 0px) + 4px);
+  border-bottom: 2px dotted var(--st-waiting);
 }
 
 /* FLOPPY-SPEC §09: a suggestion, so a dashed accent outline and never an attention fill. */

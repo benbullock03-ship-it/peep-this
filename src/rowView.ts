@@ -1,5 +1,5 @@
 import { BLANK_COL, bubbleFor, bubbleLine, FLOPPIES, type Bubble } from "./bubble";
-import { emoteFor, nudgeFor, nudgeText, type Emote, type Nudge } from "./emote";
+import { clashText, emoteFor, nudgeFor, nudgeText, type ClashTag, type Emote, type Nudge } from "./emote";
 import { identityFor, type Identity } from "./identity";
 import { STATES, type Session, type State } from "./model";
 import { sayFor } from "./say";
@@ -46,13 +46,24 @@ export async function requestFocus(onFocus: OnFocus, id: string, flash: () => vo
   if (!ok) flash();
 }
 
-/** `snoozed`: "Not yet" was pressed on this session's first nudge. */
-export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFor(x.cwd), now = Date.now(), snoozed = false): RowView {
+/** `snoozed`: "Not yet" was pressed on this session's first nudge. `clash`: this row's entry from `clashTags`. */
+export function toRowView(
+  s: Session,
+  identityOf: IdentityOf = (x) => identityFor(x.cwd),
+  now = Date.now(),
+  snoozed = false,
+  clash?: ClashTag,
+): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
   const { color, accessory } = identityOf(s);
   const attention = isAttention(state);
   const nudge = nudgeFor(s, state, snoozed);
-  const bubble: Bubble = nudge ? { text: nudgeText(nudge, s.contextPct) } : bubbleFor(s, sayFor({ ...s, state }, now), attention);
+  const emote = emoteFor(s, state);
+  const bubble: Bubble = nudge
+    ? { text: nudgeText(nudge, s.contextPct) }
+    : clash && emote === "startled"
+      ? { text: clashText(clash), bolt: clash.tag }
+      : bubbleFor(s, sayFor({ ...s, state }, now), attention);
   return {
     id: s.id,
     name: s.name || s.id.slice(0, 8),
@@ -67,7 +78,7 @@ export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFo
     contextPct: contextFill(s.contextPct),
     alive: s.alive,
     shellNote: failNote(s.shells),
-    emote: emoteFor(s, state),
+    emote,
     nudge,
   };
 }
