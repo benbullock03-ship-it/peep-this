@@ -1,7 +1,7 @@
 ---
 id: AV-77
 title: Walk Through skill - first run, rhythm tour, per-skill preferences
-status: done
+status: closed
 depends: [AV-74, AV-75]
 ---
 
