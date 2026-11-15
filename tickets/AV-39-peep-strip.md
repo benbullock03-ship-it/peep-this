@@ -28,7 +28,7 @@ attended: false
 
 ## Decisions taken without a ruling
 
-- "Persisted" and "launches in `strip`" read together: the saved mode is restored, a first run or a file without a mode is `strip`, and a saved `hidden` comes back as `strip` so a launch always shows something. If the owner meant every launch is `strip`, it is one line in `window::setup`.
+- "Persisted" and "launches in `strip`" read together: the saved mode is restored, a first run or a file without a mode is `strip`, and a saved `hidden` comes back as `strip` so a launch always shows something. If the owner meant every launch is `strip`, it is one line in `window::setup`. **Owner ruling 2026-11-15: keep restore.**
 - The strip keeps the 12px margin on its snapped edge, the same line the panel sits on, because the anchored edge must not move. The design drew it flush with no border there.
 - Owner 2026-11-15: "because of the magnetic nature of the peep strip the side on which the panel is anchored looks off". The plate dropped its border on the snapped edge while sitting 12px off it, so the open side faced a gap. Taken without a ruling: the plate now has its border on all four sides at every anchor (the four `body[data-anchor…] .ps-strip` rules are deleted); the margin, anchor and fold are untouched. The alternative, for the owner to pick instead: sit flush on the screen edge with no border there as `design/shell` drew it, which then needs a ruling on whether the panel goes flush too (if not, the anchored edge moves 12px on a switch).
 - Floating, the panel unfolds right and down from the strip's top-left and is pushed back inside the work area if it does not fit. Folding returns the strip to where it was before the unfold, unless the widget was dragged in between.

@@ -213,7 +213,7 @@ Triggered from the tray or a first-run banner. Never automatic.
 
 ## 8. Performance and robustness budgets
 
-- Idle: under 1% CPU, under 80MB RAM with 10 sessions.
+- Idle, meaning no session busy: under 1% CPU, under 80MB RAM with 10 sessions. Busy sessions animate and are outside this number.
 - Peep animation runs only for visible rows (peep's own IntersectionObserver) and pauses entirely while the widget is hidden.
 - File watching uses OS notifications, with a 5s poll as a safety net.
 - Any malformed input (session file, hook body, transcript line) is skipped and logged, never fatal.
