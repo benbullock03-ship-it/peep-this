@@ -10,6 +10,8 @@ use serde_json::Value;
 use super::http;
 use crate::approve::{self, Broker, TcpResponder};
 use crate::away::Note;
+use crate::source::claude::skill;
+use crate::tickets;
 use crate::state::{Event, ShellEvent, ShellExit};
 use crate::store::{self, Store};
 
@@ -242,6 +244,12 @@ pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
             label: format!("hook {name}"),
             event: hook_event(name, &v, cwd.as_deref()).map(|e| {
                 let e = scope_to_agent(e, &v);
+                let e = match skill::peep_call(name, &v) {
+                    Some((skill, args)) => {
+                        Event::Skill { ticket: tickets::link(&args, cwd.as_deref()), skill, event: Box::new(e) }
+                    }
+                    None => e,
+                };
                 match shell_update(name, &v) {
                     Some(update) => Event::Shell { update, event: Box::new(e) },
                     None => e,
@@ -695,6 +703,24 @@ mod tests {
             assert_eq!(r.event, Some(want), "{file}");
             assert!(!format!("{r:?}").contains("SECRET"), "{file} leaked payload content");
         }
+    }
+
+    #[test]
+    fn peep_skill_calls_wrap_their_hook_event_and_other_plugins_do_not() {
+        assert_eq!(hook("UserPromptSubmit", "user_prompt_submit_slash_command.json").event, Some(Event::UserPromptSubmit));
+        let caveman = hook("PreToolUse", "pre_tool_use_skill.json").event.unwrap();
+        assert!(matches!(caveman, Event::PreToolUse { ref tool, .. } if tool == "Skill"));
+        assert_eq!(hook("PostToolUse", "post_tool_use_skill.json").event, Some(Event::PostToolUse));
+
+        let mut v: Value = serde_json::from_str(&fixture("user_prompt_submit_slash_command.json")).unwrap();
+        v["prompt"] = "/peep:ticket AV-64".into();
+        let r = parse(&Route::Hook("UserPromptSubmit".into()), v.to_string().as_bytes()).unwrap();
+        let want = Event::Skill {
+            skill: "ticket".into(),
+            ticket: Some(crate::state::TicketLink { id: "AV-64".into(), title: None }),
+            event: Box::new(Event::UserPromptSubmit),
+        };
+        assert_eq!(r.event, Some(want));
     }
 
     #[test]

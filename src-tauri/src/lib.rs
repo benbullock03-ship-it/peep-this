@@ -21,6 +21,7 @@ mod state;
 mod store;
 mod summary;
 mod ticker;
+mod tickets;
 mod trail;
 
 use std::sync::Arc;

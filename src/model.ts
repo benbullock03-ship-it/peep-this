@@ -22,6 +22,10 @@ export type Session = {
   subagents: number;
   agents?: Agent[];
   shells?: Shell[];
+  /** Running Peep skill without the `peep:` namespace, e.g. "ticket"; cleared on Stop. */
+  skill?: string;
+  /** Linked ticket; `title` is absent when the ticket file was not found. */
+  ticket?: { id: string; title?: string };
   contextPct?: number;
   alive: boolean;
   endedAt?: number;

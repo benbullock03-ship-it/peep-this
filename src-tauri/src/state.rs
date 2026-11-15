@@ -11,6 +11,8 @@ const PENDING_AGENTS_MAX: usize = 8;
 /// A running shell whose output file has not changed for this long is `quiet`.
 pub const SHELL_QUIET_MS: u64 = 2 * 60 * 1000;
 pub const FINISHED_SHELLS_KEPT: usize = 20;
+/// Peep skills that link a session (spec §13.1); any other `peep:` name is ignored.
+pub const PEEP_SKILLS: [&str; 6] = ["ticket", "ducks", "qt", "packup", "shoot", "coderot"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -34,6 +36,13 @@ pub struct LastTool {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TicketLink {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
@@ -55,6 +64,12 @@ pub struct Session {
     pub shells: Vec<Shell>,
     /// Held permission requests; owned by the approval broker, never touched by `apply`.
     pub pending: Vec<PendingApproval>,
+    /// Peep skill running this turn, without the `peep:` namespace; cleared on `Stop`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skill: Option<String>,
+    /// Kept across turns until the next `/peep:` prompt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket: Option<TicketLink>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
     pub alive: bool,
@@ -204,6 +219,8 @@ pub enum Event {
     Statusline { model: Option<String>, context_pct: Option<f64> },
     /// A hook event that also carries a background shell update; `event` is applied as usual afterwards.
     Shell { update: ShellEvent, event: Box<Event> },
+    /// A `/peep:<skill>` prompt or `Skill` tool call; `event` is applied as usual first.
+    Skill { skill: String, ticket: Option<TicketLink>, event: Box<Event> },
     /// OS probe result for one shell; never resets the stuck timer.
     ShellProbe { id: String, obs: ShellObservation },
     /// The widget answered a held permission request, or the terminal took it (spec §11.1).
@@ -240,6 +257,8 @@ impl Session {
             agents: Vec::new(),
             shells: Vec::new(),
             pending: Vec::new(),
+            skill: None,
+            ticket: None,
             context_pct: None,
             alive: true,
             ended_at: None,
@@ -599,6 +618,18 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         s.apply_shell(update, now);
         return apply(s, *event, now);
     }
+    if let Event::Skill { skill, ticket, event } = event {
+        // A prompt replaces the ticket link; a Skill tool call mid-turn only adds one.
+        let from_prompt = *event == Event::UserPromptSubmit;
+        let mut s = apply(s, *event, now);
+        if s.alive && PEEP_SKILLS.contains(&skill.as_str()) {
+            if from_prompt || ticket.is_some() {
+                s.ticket = ticket;
+            }
+            s.skill = Some(skill);
+        }
+        return s;
+    }
 
     // Restores the pre-stuck state for events that define no transition of their own.
     let unstick = |s: &mut Session| {
@@ -654,6 +685,8 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             s.enter(st, task.into(), now);
             s.alive = false;
             s.ended_at = Some(now);
+            s.skill = None;
+            s.ticket = None;
             for a in s.agents.iter_mut().filter(|a| a.ended_at.is_none()) {
                 a.enter(State::Idle, "Idle".into(), now);
                 a.ended_at = Some(now);
@@ -710,7 +743,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
 
     match event {
         Event::SessionStart => s.enter(State::Idle, "Idle".into(), now),
-        Event::UserPromptSubmit => s.enter(State::Thinking, "Thinking".into(), now),
+        Event::UserPromptSubmit => {
+            s.skill = None;
+            s.enter(State::Thinking, "Thinking".into(), now);
+        }
         Event::PreToolUse { .. } | Event::TranscriptToolUse { .. } => {
             let (tool, target, description) = match event {
                 Event::PreToolUse { tool, target, description } => (tool, target, description),
@@ -743,6 +779,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             // Background agents outlive the turn, so `agents` is left alone.
             s.subagents = 0;
             s.pending_agents.clear();
+            s.skill = None;
             s.enter(State::Success, "Done".into(), now);
         }
         Event::StopFailure { summary } | Event::TranscriptApiError { summary } => {
@@ -825,6 +862,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         | Event::Statusline { .. }
         | Event::TranscriptModel { .. }
         | Event::Shell { .. }
+        | Event::Skill { .. }
         | Event::ShellProbe { .. }
         | Event::Ended
         | Event::Tick => unreachable!("handled above"),
@@ -1751,5 +1789,63 @@ mod tests {
             states,
             ["idle", "thinking", "working", "waiting", "success", "error", "stuck"]
         );
+    }
+
+    // --- skill and ticket link (§13.2) ---
+
+    fn ticket(id: &str, title: Option<&str>) -> Option<TicketLink> {
+        Some(TicketLink { id: id.into(), title: title.map(Into::into) })
+    }
+
+    fn skill(name: &str, t: Option<TicketLink>, e: Event) -> Event {
+        Event::Skill { skill: name.into(), ticket: t, event: Box::new(e) }
+    }
+
+    #[test]
+    fn slash_prompt_links_skill_and_ticket_and_serialises() {
+        let s = run(vec![(skill("ticket", ticket("AV-64", Some("Link it")), Event::UserPromptSubmit), T0 + 1)]);
+        assert_eq!(s.state, State::Thinking);
+        assert_eq!((s.skill.as_deref(), s.ticket.clone()), (Some("ticket"), ticket("AV-64", Some("Link it"))));
+        let v = serde_json::to_value(&s).unwrap();
+        assert_eq!(v["skill"], "ticket");
+        assert_eq!(v["ticket"], serde_json::json!({ "id": "AV-64", "title": "Link it" }));
+        assert!(serde_json::to_value(fresh()).unwrap().get("ticket").is_none());
+    }
+
+    #[test]
+    fn skill_tool_pre_tool_use_links_and_keeps_ticket_without_id() {
+        let s = run(vec![
+            (skill("ticket", ticket("AV-7", None), Event::UserPromptSubmit), T0 + 1),
+            (skill("shoot", None, pre("Skill", Some("peep:shoot"))), T0 + 2),
+        ]);
+        assert_eq!(s.state, State::Working);
+        assert_eq!((s.skill.as_deref(), s.ticket.clone()), (Some("shoot"), ticket("AV-7", None)));
+        let s = apply(s, skill("ticket", ticket("AV-8", None), pre("Skill", None)), T0 + 3);
+        assert_eq!(s.ticket, ticket("AV-8", None));
+    }
+
+    #[test]
+    fn stop_ejects_skill_and_ticket_survives_turns_until_next_peep_prompt() {
+        let s = run(vec![
+            (skill("ticket", ticket("AV-64", None), Event::UserPromptSubmit), T0 + 1),
+            (Event::Stop, T0 + 2),
+        ]);
+        assert_eq!((s.skill.clone(), s.ticket.clone()), (None, ticket("AV-64", None)));
+        let s = apply(apply(s, Event::UserPromptSubmit, T0 + 3), Event::Stop, T0 + 4);
+        assert_eq!(s.ticket, ticket("AV-64", None), "plain turns keep the ticket");
+        let s = apply(s, skill("packup", None, Event::UserPromptSubmit), T0 + 5);
+        assert_eq!((s.skill.as_deref(), s.ticket.clone()), (Some("packup"), None));
+        let s = apply(s, Event::Ended, T0 + 6);
+        assert_eq!((s.skill.clone(), s.ticket.clone()), (None, None));
+    }
+
+    #[test]
+    fn unknown_peep_skill_links_nothing() {
+        let s = run(vec![
+            (skill("ticket", ticket("AV-1", None), Event::UserPromptSubmit), T0 + 1),
+            (skill("bogus", ticket("AV-2", None), pre("Skill", None)), T0 + 2),
+        ]);
+        assert_eq!((s.skill.as_deref(), s.ticket.clone()), (Some("ticket"), ticket("AV-1", None)));
+        assert_eq!(s.state, State::Working, "the wrapped event still applies");
     }
 }
