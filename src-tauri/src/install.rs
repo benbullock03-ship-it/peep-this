@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{Map, Value};
 
 use crate::ingest::hooks;
-use crate::ingest::server::{self, Endpoint, DEFAULT_PORT, TOKEN_HEADER};
+use crate::ingest::server::{self, Endpoint};
 use crate::statusline_original;
 use crate::store::{Integration, Store};
 
@@ -77,11 +77,14 @@ pub fn status_line_command(exe: &Path) -> String {
     if s.contains(' ') { format!("\"{s}\"") } else { s }
 }
 
+/// Ours: a relay command hook, or a loopback http entry from installs before AV-73.
 fn is_our_hook(h: &Value) -> bool {
-    h.get("type").and_then(Value::as_str) == Some("http")
-        && h.get("url")
-            .and_then(Value::as_str)
-            .is_some_and(|u| u.starts_with("http://127.0.0.1:") && u.contains("/hook/"))
+    let field = |k| h.get(k).and_then(Value::as_str);
+    match field("type") {
+        Some("http") => field("url").is_some_and(|u| u.starts_with("http://127.0.0.1:") && u.contains("/hook/")),
+        Some("command") => field("command").is_some_and(|c| c.contains(WRAPPER_MARK) && c.contains(" hook ")),
+        _ => false,
+    }
 }
 
 fn is_our_status_line(v: &Value) -> bool {
@@ -115,11 +118,12 @@ fn strip_hooks(root: &mut Map<String, Value>, prune_root: bool) -> bool {
 }
 
 /// Applies an install to `root`; returns the `statusLine` value to record as the original, or `None` to keep the record.
-fn apply_install(root: &mut Map<String, Value>, ep: &Endpoint, command: &str) -> Result<Option<Value>, String> {
+/// `command` is the quoted relay, used bare for the statusLine and with `hook <Event>` for each hook.
+fn apply_install(root: &mut Map<String, Value>, command: &str) -> Result<Option<Value>, String> {
     strip_hooks(root, false);
     let events = root.entry("hooks").or_insert_with(|| Value::Object(Map::new()));
     let Value::Object(events) = events else { return Err("settings.json: `hooks` is not an object".into()) };
-    let ours = hooks::settings_hooks(ep.port, &ep.token);
+    let ours = hooks::settings_hooks(command);
     for (event, groups) in ours.as_object().into_iter().flatten() {
         let slot = events.entry(event.clone()).or_insert_with(|| Value::Array(Vec::new()));
         let Value::Array(list) = slot else { return Err(format!("settings.json: `hooks.{event}` is not an array")) };
@@ -326,7 +330,7 @@ fn report(step: &PluginStep) {
 }
 
 /// Hooks first; the plugin step never fails the install, it reports `Skipped`.
-pub fn install(paths: &Paths, ep: &Endpoint, cli: &ClaudeCli) -> Result<PluginStep, String> {
+pub fn install(paths: &Paths, cli: &ClaudeCli) -> Result<PluginStep, String> {
     let existing = read_settings(&paths.settings)?;
     if !paths.wrapper_src.is_file() {
         return Err(format!(
@@ -338,7 +342,7 @@ pub fn install(paths: &Paths, ep: &Endpoint, cli: &ClaudeCli) -> Result<PluginSt
         Some((raw, root)) => (Some(raw), root),
         None => (None, Map::new()),
     };
-    let record = apply_install(&mut root, ep, &status_line_command(&paths.wrapper_dest()))?;
+    let record = apply_install(&mut root, &status_line_command(&paths.wrapper_dest()))?;
     let text = to_pretty(root)?;
 
     if let Some(raw) = &raw {
@@ -395,7 +399,7 @@ fn remove_all(paths: &Paths, cli: &ClaudeCli) -> Result<(), String> {
     Ok(())
 }
 
-pub fn integration_status(paths: &Paths, ep: &Endpoint) -> Integration {
+pub fn integration_status(paths: &Paths) -> Integration {
     let Ok(Some((_, root))) = read_settings(&paths.settings) else { return Integration::Missing };
     let ours: Vec<(&str, &Value)> = root
         .get("hooks")
@@ -417,20 +421,19 @@ pub fn integration_status(paths: &Paths, ep: &Endpoint) -> Integration {
     if ours.is_empty() && status_line.is_none() {
         return Integration::Missing;
     }
+    let dest = paths.wrapper_dest();
+    let relay = status_line_command(&dest);
     let hooks_current = ours.len() == hooks::EVENTS.len()
         && hooks::EVENTS.iter().all(|event| {
             ours.iter().any(|(e, h)| {
                 e == event
-                    && h.get("url").and_then(Value::as_str) == Some(hooks::hook_url(ep.port, event).as_str())
-                    && h.pointer(&format!("/headers/{TOKEN_HEADER}")).and_then(Value::as_str) == Some(ep.token.as_str())
+                    && h.get("type").and_then(Value::as_str) == Some("command")
+                    && h.get("command").and_then(Value::as_str) == Some(hooks::hook_command(&relay, event).as_str())
                     && h.get("timeout").and_then(Value::as_u64) == Some(hooks::timeout_secs(event))
             })
         });
-    let dest = paths.wrapper_dest();
-    let command_current = status_line
-        .and_then(|sl| sl.get("command"))
-        .and_then(Value::as_str)
-        .is_some_and(|c| c == status_line_command(&dest));
+    let command_current =
+        status_line.and_then(|sl| sl.get("command")).and_then(Value::as_str).is_some_and(|c| c == relay);
     let exe_current = matches!((fs::read(&paths.wrapper_src), fs::read(&dest)), (Ok(a), Ok(b)) if a == b);
     if hooks_current && command_current && exe_current { Integration::Installed } else { Integration::Outdated }
 }
@@ -448,19 +451,16 @@ impl Integrator {
     }
 
     pub fn refresh(&self, store: &Store) {
-        if let Some(ep) = &self.endpoint {
-            store.set_integration(integration_status(&self.paths, ep));
+        if self.endpoint.is_some() {
+            store.set_integration(integration_status(&self.paths));
         }
     }
 
     pub fn install(&self, store: &Store) -> Result<(), String> {
         let _guard = self.busy.lock().unwrap_or_else(|e| e.into_inner());
-        let ep = self.endpoint.as_ref().ok_or("the event server is not running")?;
-        // Hooks hold the port literally; one installed against a fallback port breaks on the next restart.
-        if ep.port != DEFAULT_PORT {
-            return Err(format!("port {DEFAULT_PORT} is taken by another program; free it and restart Peep This"));
-        }
-        let result = install(&self.paths, ep, &run_claude);
+        // The relay reads the live port and token from endpoint.json, so a fallback port is fine.
+        self.endpoint.as_ref().ok_or("the event server is not running")?;
+        let result = install(&self.paths, &run_claude);
         self.refresh(store);
         result.map(drop).inspect_err(|e| eprintln!("peepthis: install failed: {e}"))
     }
@@ -489,12 +489,7 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::Duration;
 
-    const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     const ROUND_TRIP: [&str; 4] = ["empty.json", "statusline_only.json", "user_hooks.json", "hooks_and_padded_statusline.json"];
-
-    fn ep() -> Endpoint {
-        Endpoint { port: DEFAULT_PORT, token: TOKEN.into() }
-    }
 
     fn no_claude(_: &[&str]) -> io::Result<()> {
         Err(io::ErrorKind::NotFound.into())
@@ -563,7 +558,7 @@ mod tests {
         }
 
         fn status(&self) -> Integration {
-            integration_status(&self.paths, &ep())
+            integration_status(&self.paths)
         }
     }
 
@@ -582,7 +577,7 @@ mod tests {
             let env = Env::new(Some(name));
             let original = env.settings();
             assert_eq!(env.status(), Integration::Missing, "{name}");
-            install(&env.paths, &ep(), &no_claude).unwrap();
+            install(&env.paths,&no_claude).unwrap();
             assert_eq!(env.status(), Integration::Installed, "{name}");
             let backups = env.backups();
             assert_eq!(backups.len(), 1, "{name}");
@@ -602,7 +597,7 @@ mod tests {
     fn app_uninstall_restores_settings_and_removes_the_wrapper_copy() {
         let env = Env::new(Some(ROUND_TRIP[0]));
         let original = env.settings();
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         assert!(env.paths.wrapper_dest().exists());
 
         remove_all(&env.paths, &no_claude).unwrap();
@@ -616,9 +611,9 @@ mod tests {
     fn reinstall_is_idempotent_and_keeps_the_real_original() {
         for name in ROUND_TRIP {
             let env = Env::new(Some(name));
-            install(&env.paths, &ep(), &no_claude).unwrap();
+            install(&env.paths,&no_claude).unwrap();
             let (once, record) = (env.settings(), env.record());
-            install(&env.paths, &ep(), &no_claude).unwrap();
+            install(&env.paths,&no_claude).unwrap();
             assert_eq!(env.settings(), once, "{name}");
             assert_eq!(env.record(), record, "{name}");
             assert!(!is_our_status_line(&record.unwrap()["statusLine"]), "{name}");
@@ -629,7 +624,7 @@ mod tests {
     fn install_keeps_user_hooks_and_statusline_extras() {
         let env = Env::new(Some("hooks_and_padded_statusline.json"));
         let before = env.json();
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         let after = env.json();
         let pre = after["hooks"]["PreToolUse"].as_array().unwrap();
         let orig_pre = before["hooks"]["PreToolUse"].as_array().unwrap();
@@ -640,16 +635,17 @@ mod tests {
         assert_eq!(after["statusLine"]["command"], status_line_command(&env.paths.wrapper_dest()));
         assert_eq!(env.record().unwrap()["statusLine"], before["statusLine"]);
         assert_eq!(fs::read(env.paths.wrapper_dest()).unwrap(), b"wrapper v1");
+        let relay = status_line_command(&env.paths.wrapper_dest());
         for event in hooks::EVENTS {
             let last = after["hooks"][event].as_array().unwrap().last().unwrap();
-            assert_eq!(last["hooks"][0]["url"], hooks::hook_url(DEFAULT_PORT, event));
+            assert_eq!(last["hooks"][0]["command"], hooks::hook_command(&relay, event));
         }
     }
 
     #[test]
     fn missing_settings_file_is_created_and_uninstalls_to_empty() {
         let env = Env::new(None);
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         assert!(env.backups().is_empty());
         assert_eq!(env.record(), Some(serde_json::json!({ "statusLine": null })));
         assert_eq!(env.status(), Integration::Installed);
@@ -665,7 +661,7 @@ mod tests {
         fs::write(statusline_original::path(&env.paths.data_dir), &original).unwrap();
         assert_eq!(env.status(), Integration::Outdated);
 
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         assert_eq!(env.status(), Integration::Installed);
         let text = String::from_utf8(env.settings()).unwrap();
         assert!(!text.contains(":47000/") && !text.contains("stale-token"), "{text}");
@@ -682,7 +678,7 @@ mod tests {
     #[test]
     fn uninstall_keeps_a_statusline_the_user_changed_since() {
         let env = Env::new(Some("statusline_only.json"));
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         let Value::Object(mut root) = env.json() else { panic!() };
         root.insert("statusLine".into(), serde_json::json!({ "type": "command", "command": "mine.sh" }));
         fs::write(&env.paths.settings, to_pretty(root).unwrap()).unwrap();
@@ -698,7 +694,7 @@ mod tests {
     fn invalid_settings_are_refused_untouched() {
         let env = Env::new(Some("invalid.json"));
         let before = env.settings();
-        let err = install(&env.paths, &ep(), &no_claude).unwrap_err();
+        let err = install(&env.paths,&no_claude).unwrap_err();
         assert!(err.contains("not valid JSON"), "{err}");
         assert!(uninstall(&env.paths, &no_claude).is_err());
         assert_eq!(env.settings(), before);
@@ -711,7 +707,7 @@ mod tests {
         let env = Env::new(Some("statusline_only.json"));
         let before = env.settings();
         fs::remove_file(&env.paths.wrapper_src).unwrap();
-        assert!(install(&env.paths, &ep(), &no_claude).unwrap_err().contains("wrapper not found"));
+        assert!(install(&env.paths,&no_claude).unwrap_err().contains("wrapper not found"));
         assert_eq!(env.settings(), before);
         assert!(env.backups().is_empty());
         assert!(!env.paths.data_dir.exists());
@@ -720,21 +716,45 @@ mod tests {
     #[test]
     fn status_outdated_cases() {
         let env = Env::new(Some("user_hooks.json"));
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         assert_eq!(env.status(), Integration::Installed);
-
-        let other_token = Endpoint { port: DEFAULT_PORT, token: "f".repeat(64) };
-        assert_eq!(integration_status(&env.paths, &other_token), Integration::Outdated);
-        let other_port = Endpoint { port: 50000, token: TOKEN.into() };
-        assert_eq!(integration_status(&env.paths, &other_port), Integration::Outdated);
 
         fs::write(&env.paths.wrapper_src, b"wrapper v2").unwrap();
         assert_eq!(env.status(), Integration::Outdated, "a rebuilt wrapper needs copying again");
-        install(&env.paths, &ep(), &no_claude).unwrap();
+        install(&env.paths,&no_claude).unwrap();
         assert_eq!(env.status(), Integration::Installed);
 
         let moved = Paths { data_dir: env.root.join("elsewhere"), ..env.paths.clone() };
-        assert_eq!(integration_status(&moved, &ep()), Integration::Outdated);
+        assert_eq!(integration_status(&moved), Integration::Outdated);
+    }
+
+    #[test]
+    fn upgrade_over_http_hooks_leaves_only_command_hooks_and_uninstall_restores() {
+        let env = Env::new(Some("user_hooks.json"));
+        let original = env.settings();
+        let Value::Object(mut root) = env.json() else { panic!() };
+        let events = root.entry("hooks").or_insert_with(|| Value::Object(Map::new())).as_object_mut().unwrap();
+        for event in hooks::EVENTS {
+            let old = serde_json::json!({ "hooks": [{
+                "type": "http",
+                "url": format!("http://127.0.0.1:47821/hook/{event}"),
+                "timeout": hooks::timeout_secs(event),
+                "headers": { "X-PeepThis-Token": "old-token" },
+            }]});
+            events.entry(event).or_insert_with(|| Value::Array(Vec::new())).as_array_mut().unwrap().push(old);
+        }
+        fs::write(&env.paths.settings, to_pretty(root).unwrap()).unwrap();
+        assert_eq!(env.status(), Integration::Outdated);
+
+        install(&env.paths, &no_claude).unwrap();
+        assert_eq!(env.status(), Integration::Installed);
+        let text = String::from_utf8(env.settings()).unwrap();
+        assert!(!text.contains("\"http\"") && !text.contains("old-token") && !text.contains("X-PeepThis-Token"), "{text}");
+        let ours = hooks::EVENTS.iter().filter(|e| text.contains(&format!(" hook {e}\""))).count();
+        assert_eq!(ours, hooks::EVENTS.len());
+
+        uninstall(&env.paths, &no_claude).unwrap();
+        assert_eq!(env.settings(), original);
     }
 
     #[test]
@@ -782,7 +802,7 @@ mod tests {
         fs::create_dir_all(cache.join("peep-this/peep")).unwrap();
         fs::create_dir_all(cache.join("owners-own/tool")).unwrap();
 
-        assert_eq!(install(&env.paths, &ep(), &fake).unwrap(), PluginStep::Done);
+        assert_eq!(install(&env.paths,&fake).unwrap(), PluginStep::Done);
         let add = format!("plugin marketplace add {}", env.paths.plugin_dir.display());
         assert_eq!(*calls.borrow(), [add.as_str(), "plugin install peep@peep-this"]);
         assert_eq!(env.status(), Integration::Installed);
@@ -800,7 +820,7 @@ mod tests {
         let env = Env::new(Some("empty.json"));
         let cache = env.root.join("claude/plugins/cache/peep-this");
         fs::create_dir_all(&cache).unwrap();
-        let PluginStep::Skipped(why) = install(&env.paths, &ep(), &no_claude).unwrap() else { panic!() };
+        let PluginStep::Skipped(why) = install(&env.paths,&no_claude).unwrap() else { panic!() };
         assert!(why.contains("not on PATH"), "{why}");
         assert_eq!(env.status(), Integration::Installed, "hooks still install");
         assert!(matches!(uninstall(&env.paths, &no_claude).unwrap(), PluginStep::Skipped(_)));
@@ -808,14 +828,16 @@ mod tests {
 
         fs::remove_dir_all(&env.paths.plugin_dir).unwrap();
         let fail = |_: &[&str]| -> io::Result<()> { panic!("claude must not be called") };
-        let PluginStep::Skipped(why) = install(&env.paths, &ep(), &fail).unwrap() else { panic!() };
+        let PluginStep::Skipped(why) = install(&env.paths,&fail).unwrap() else { panic!() };
         assert!(why.contains("plugin not found"), "{why}");
     }
 
     #[test]
-    fn only_loopback_hook_urls_count_as_ours() {
+    fn only_relay_commands_and_loopback_hook_urls_count_as_ours() {
         assert!(is_our_hook(&serde_json::json!({ "type": "http", "url": "http://127.0.0.1:47821/hook/Stop" })));
+        assert!(is_our_hook(&serde_json::json!({ "type": "command", "command": "\"C:/a b/peepthis-statusline.exe\" hook Stop" })));
         assert!(!is_our_hook(&serde_json::json!({ "type": "http", "url": "https://example.com/hook/Stop" })));
         assert!(!is_our_hook(&serde_json::json!({ "type": "command", "command": "curl http://127.0.0.1:1/hook/Stop" })));
+        assert!(!is_our_hook(&serde_json::json!({ "type": "command", "command": "C:/x/peepthis-statusline.exe" })));
     }
 }

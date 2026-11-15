@@ -85,7 +85,7 @@ fn spawn_on(store: Arc<Store>, broker: Option<Arc<Broker>>, dir: &Path, port: u1
         TcpListener::bind(("127.0.0.1", 0))
     })?;
     let port = listener.local_addr()?.port();
-    // Native HTTP hooks carry the token literally in settings.json, so it must survive restarts.
+    // Kept across restarts so http hooks from installs before AV-73 keep working until the next install.
     let token = match saved_token(dir) {
         Some(t) => t,
         None => new_token()?,

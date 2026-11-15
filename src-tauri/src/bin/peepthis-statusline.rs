@@ -1,5 +1,6 @@
 //! Statusline wrapper (spec §6.3): runs the user's original statusline with the same stdin, then forwards the
 //! payload to the widget. Every failure is silent; the original's output must always appear.
+//! `hook <Event>` mode relays a hook payload instead (AV-73): prints the widget's reply body, nothing on failure, exit 0.
 
 #[path = "../statusline_original.rs"]
 #[allow(dead_code)]
@@ -20,6 +21,8 @@ const IO_TIMEOUT: Duration = Duration::from_millis(500);
 /// Exit waits for the POST at most until this long after start; a slow original already covers it.
 const POST_DEADLINE: Duration = Duration::from_millis(25);
 const MAX_BODY: usize = 1024 * 1024;
+/// Outlasts the broker's 60s hold and stays under the hook's 75s timeout (`hooks::PERMISSION_TIMEOUT_SECS`).
+const PERMISSION_READ_TIMEOUT: Duration = Duration::from_secs(70);
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -34,6 +37,18 @@ fn main() {
     let mut payload = Vec::new();
     let _ = std::io::stdin().read_to_end(&mut payload);
     let dir = statusline_original::dir();
+
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let [mode, event] = args.as_slice() {
+        if mode == "hook" {
+            if let Some(reply) = relay_hook(&dir, event, &payload) {
+                let mut out = std::io::stdout();
+                let _ = out.write_all(&reply);
+                let _ = out.flush();
+            }
+            std::process::exit(0);
+        }
+    }
 
     let (done_tx, done_rx) = mpsc::channel();
     let body = payload.clone();
@@ -176,10 +191,30 @@ fn post(dir: &Path, body: &[u8]) -> Option<u16> {
     let mut s = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT).ok()?;
     s.set_write_timeout(Some(IO_TIMEOUT)).ok()?;
     s.set_read_timeout(Some(IO_TIMEOUT)).ok()?;
-    s.write_all(&build_request(port, &token, body)).ok()?;
+    s.write_all(&build_request("/statusline", port, &token, body)).ok()?;
     let mut head = [0u8; 32];
     let n = s.read(&mut head).ok()?;
     status_code(&head[..n])
+}
+
+/// The reply body of a 2xx answer to `/hook/<event>`, or `None` on any failure.
+fn relay_hook(dir: &Path, event: &str, body: &[u8]) -> Option<Vec<u8>> {
+    if body.is_empty() || body.len() > MAX_BODY || event.is_empty() || !event.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return None;
+    }
+    let raw = std::fs::read(dir.join("endpoint.json")).ok()?;
+    let (port, token) = parse_endpoint(&raw)?;
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let mut s = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT).ok()?;
+    let read = if event == "PermissionRequest" { PERMISSION_READ_TIMEOUT } else { IO_TIMEOUT };
+    s.set_write_timeout(Some(IO_TIMEOUT)).ok()?;
+    s.set_read_timeout(Some(read)).ok()?;
+    s.write_all(&build_request(&format!("/hook/{event}"), port, &token, body)).ok()?;
+    let mut resp = Vec::new();
+    s.take(MAX_BODY as u64).read_to_end(&mut resp).ok()?;
+    let split = resp.windows(4).position(|w| w == b"\r\n\r\n")?;
+    status_code(&resp[..split]).filter(|c| (200..300).contains(c))?;
+    Some(resp[split + 4..].to_vec())
 }
 
 fn parse_endpoint(raw: &[u8]) -> Option<(u16, String)> {
@@ -189,9 +224,9 @@ fn parse_endpoint(raw: &[u8]) -> Option<(u16, String)> {
     Some((port, token.to_owned()))
 }
 
-fn build_request(port: u16, token: &str, body: &[u8]) -> Vec<u8> {
+fn build_request(path: &str, port: u16, token: &str, body: &[u8]) -> Vec<u8> {
     let mut req = format!(
-        "POST /statusline HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n\
+        "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n\
          Content-Length: {}\r\n{TOKEN_HEADER}: {token}\r\nConnection: close\r\n\r\n",
         body.len()
     )
@@ -328,7 +363,7 @@ mod tests {
 
     #[test]
     fn request_bytes() {
-        let req = build_request(47821, "tok", br#"{"a":1}"#);
+        let req = build_request("/statusline", 47821, "tok", br#"{"a":1}"#);
         assert_eq!(
             String::from_utf8(req).unwrap(),
             "POST /statusline HTTP/1.1\r\nHost: 127.0.0.1:47821\r\nContent-Type: application/json\r\n\
@@ -372,6 +407,59 @@ mod tests {
         let got = server.join().unwrap();
         assert!(got.starts_with("POST /statusline HTTP/1.1\r\n"));
         assert!(got.contains("X-PeepThis-Token: t0k\r\n"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn one_reply_server(reply: impl AsRef<[u8]> + Send + 'static) -> (u16, std::thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut s, _) = listener.accept().unwrap();
+            let mut buf = vec![0u8; 4096];
+            let mut got = Vec::new();
+            while !got.ends_with(b"}") {
+                let n = s.read(&mut buf).unwrap();
+                assert!(n > 0);
+                got.extend_from_slice(&buf[..n]);
+            }
+            s.write_all(reply.as_ref()).unwrap();
+            String::from_utf8(got).unwrap()
+        });
+        (port, server)
+    }
+
+    #[test]
+    fn hook_relay_passes_a_2xx_body_through() {
+        let decision = r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#;
+        let reply = format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{decision}", decision.len());
+        let (port, server) = one_reply_server(reply);
+        let dir = temp_dir("hook200");
+        std::fs::write(dir.join("endpoint.json"), format!(r#"{{"port":{port},"token":"t0k"}}"#)).unwrap();
+        assert_eq!(relay_hook(&dir, "PermissionRequest", br#"{"session_id":"x"}"#), Some(decision.as_bytes().to_vec()));
+        let got = server.join().unwrap();
+        assert!(got.starts_with("POST /hook/PermissionRequest HTTP/1.1\r\n"), "{got}");
+        assert!(got.contains("X-PeepThis-Token: t0k\r\n"));
+
+        let (port, server) = one_reply_server(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
+        std::fs::write(dir.join("endpoint.json"), format!(r#"{{"port":{port},"token":"t0k"}}"#)).unwrap();
+        assert_eq!(relay_hook(&dir, "Stop", br#"{"session_id":"x"}"#), Some(Vec::new()));
+        server.join().unwrap();
+
+        let (port, server) = one_reply_server(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 2\r\n\r\nno");
+        std::fs::write(dir.join("endpoint.json"), format!(r#"{{"port":{port},"token":"t0k"}}"#)).unwrap();
+        assert_eq!(relay_hook(&dir, "Stop", br#"{"session_id":"x"}"#), None);
+        server.join().unwrap();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn hook_relay_is_silent_without_endpoint_or_with_a_refused_port() {
+        let dir = temp_dir("hooknone");
+        assert_eq!(relay_hook(&dir, "Stop", b"{}"), None);
+        let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+        std::fs::write(dir.join("endpoint.json"), format!(r#"{{"port":{port},"token":"t"}}"#)).unwrap();
+        assert_eq!(relay_hook(&dir, "Stop", b"{}"), None);
+        assert_eq!(relay_hook(&dir, "../x", b"{}"), None);
         let _ = std::fs::remove_dir_all(dir);
     }
 

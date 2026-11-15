@@ -1,10 +1,9 @@
-//! Native HTTP hook entries for `~/.claude/settings.json` (spec §6.2). The installer (AV-08) merges these.
+//! Command hook entries for `~/.claude/settings.json` (spec §6.2). The installer (AV-08) merges these.
+//! Each runs the relay (`<relay> hook <Event>`), which posts to the widget and stays silent when it is closed (AV-73).
 
 use serde_json::{json, Map, Value};
 
-use super::server::TOKEN_HEADER;
-
-/// `SessionStart` is absent: Claude Code rejects `http` hooks on it, and the sessions directory covers it.
+/// `SessionStart` is absent: the sessions directory covers it.
 pub const EVENTS: [&str; 11] = [
     "UserPromptSubmit",
     "PreToolUse",
@@ -28,21 +27,21 @@ pub fn timeout_secs(event: &str) -> u64 {
     if event == "PermissionRequest" { PERMISSION_TIMEOUT_SECS } else { TIMEOUT_SECS }
 }
 
-pub fn hook_url(port: u16, event: &str) -> String {
-    format!("http://127.0.0.1:{port}/hook/{event}")
+/// `relay` is the already-quoted relay command.
+pub fn hook_command(relay: &str, event: &str) -> String {
+    format!("{relay} hook {event}")
 }
 
-/// The `hooks` object for one endpoint. The server answers 204 with no body, which Claude Code treats as "no decision".
-pub fn settings_hooks(port: u16, token: &str) -> Value {
+/// The `hooks` object. The relay prints nothing unless the widget answers with a body (a permission decision).
+pub fn settings_hooks(relay: &str) -> Value {
     let mut hooks = Map::new();
     for event in EVENTS {
         hooks.insert(
             event.to_string(),
             json!([{ "hooks": [{
-                "type": "http",
-                "url": hook_url(port, event),
+                "type": "command",
+                "command": hook_command(relay, event),
                 "timeout": timeout_secs(event),
-                "headers": { TOKEN_HEADER: token },
             }]}]),
         );
     }
@@ -54,16 +53,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn one_http_entry_per_event_with_token_header() {
-        let v = settings_hooks(47821, "tok");
+    fn one_command_entry_per_event_without_token() {
+        let v = settings_hooks("\"C:/a b/peepthis-statusline.exe\"");
         let obj = v.as_object().unwrap();
         assert_eq!(obj.len(), EVENTS.len());
         assert!(!obj.contains_key("SessionStart"));
         let h = &v["PermissionRequest"][0]["hooks"][0];
-        assert_eq!(h["type"], "http");
-        assert_eq!(h["url"], "http://127.0.0.1:47821/hook/PermissionRequest");
+        assert_eq!(h["type"], "command");
+        assert_eq!(h["command"], "\"C:/a b/peepthis-statusline.exe\" hook PermissionRequest");
         assert_eq!(h["timeout"], 75);
-        assert_eq!(h["headers"]["X-PeepThis-Token"], "tok");
+        assert!(h.get("headers").is_none());
         assert_eq!(v["Stop"][0]["hooks"][0]["timeout"], 1);
     }
 }

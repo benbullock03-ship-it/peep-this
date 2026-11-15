@@ -178,9 +178,9 @@ type Session = {
 
 ### 6.2 Hooks
 
-Native Claude Code HTTP hooks (`"type": "http"`), verified in AV-06; there is no forwarder binary. Each entry POSTs the hook JSON to `http://127.0.0.1:<port>/hook/<EventName>` with the token as a literal `X-PeepThis-Token` header and `"timeout": 1`. Built by `ingest/hooks.rs`. An unreachable widget is a non-blocking hook error and never fails a turn. The server answers 204 with an empty body, which Claude Code treats as no decision (this matters for `PermissionRequest`).
+Command hooks run the installed relay (`peepthis-statusline.exe hook <EventName>`, AV-73; it replaced the AV-06 `"type": "http"` hooks, whose refused connections showed as hook errors whenever the widget was closed). The relay POSTs the hook JSON to `http://127.0.0.1:<port>/hook/<EventName>` with the port and `X-PeepThis-Token` read from `endpoint.json`, prints a 2xx body unchanged, and otherwise prints nothing and exits 0. `"timeout": 1`, except `PermissionRequest`. Built by `ingest/hooks.rs`. The server answers 204 with an empty body, which Claude Code treats as no decision (this matters for `PermissionRequest`).
 
-Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd`. `SessionStart` does not accept `http` hooks; the sessions directory covers it. Shell lifecycle rides on existing events: `backgroundTaskId` in `PostToolUse`, `<task-notification>` prompts in `UserPromptSubmit`, and `background_tasks` in `Stop`.
+Events: `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd`. `SessionStart` stays out; the sessions directory covers it. Shell lifecycle rides on existing events: `backgroundTaskId` in `PostToolUse`, `<task-notification>` prompts in `UserPromptSubmit`, and `background_tasks` in `Stop`.
 
 The token persists in `endpoint.json` across restarts, because settings.json holds it literally. The URL holds the port, so hooks reach the widget only on the default port 47821.
 
