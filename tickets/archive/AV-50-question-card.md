@@ -1,7 +1,7 @@
 ---
 id: AV-50
 title: Question card for AskUserQuestion
-status: in-progress
+status: done
 depends: []
 attended: true
 ---
@@ -68,7 +68,8 @@ Real interactive `claude` TUI through the AV-20 PTY driver and capture server (`
 
 Four of the decisions above, confirmed as built: Esc leaves the card until the session's next event (no silent hold, no dismiss button); the badge and hotkey count include questions; the flyout shows the question in its bubble only, no card; card tests stay on `questionOf`, no DOM environment.
 
-## Owed before done
+## Done 2026-11-15
 
-- Owner check in `npm run tauri dev` with a live `AskUserQuestion`: the card reads well, the terminal prompt is there with no delay, `Answer in terminal` and inbox `Enter` focus the session, the toast shows the question with no buttons, the card goes on answering.
-- Built and proven so far: `risk.rs` (`ask_user_question_is_a_question_not_a_risk_tier`), `approve.rs` (`question_is_released_at_once_and_its_card_stays_until_answered`, `question_shows_no_card_while_the_widget_is_hidden`), `notify.rs` (`notify_question_toast_carries_the_question_and_no_buttons`), `server.rs` (`question_fixtures_map_to_the_question_text_and_a_plain_post_tool_use`), `approval.test.ts` (`questionOf`), `inbox.test.ts`, `say.test.ts`; card seen in `?demo` in light and dark.
+Owner check on the installed release build (20:10, after `6abdab4`), with a live four-question `AskUserQuestion` from a session: the question card showed (question text, `question` chip, `1 of 4`, option chips, `Answer in terminal`), the terminal prompt appeared right away, `Answer in terminal` focused that terminal, and the toast carried the question with no buttons. The card leaving on an answer rests on the live capture above (`PostToolUse` follows the answer) and the broker test; it was not asked separately.
+
+Proven in the tree by: `risk.rs` (`ask_user_question_is_a_question_not_a_risk_tier`), `approve.rs` (`question_is_released_at_once_and_its_card_stays_until_answered`, `question_shows_no_card_while_the_widget_is_hidden`), `notify.rs` (`notify_question_toast_carries_the_question_and_no_buttons`), `server.rs` (`question_fixtures_map_to_the_question_text_and_a_plain_post_tool_use`), `approval.test.ts` (`questionOf`), `inbox.test.ts`, `say.test.ts`; card seen in `?demo` in light and dark.
