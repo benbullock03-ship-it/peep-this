@@ -13,7 +13,9 @@ Facts and survivors, not reassurance. The owner's working tree is never edited; 
 
 Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1). If it is missing, reply with exactly this and stop:
 
-`peep: no repo setup here. Run /peep:ducks first, so Coderot knows the test command and areas.`
+`peep: no repo setup here. Run /peep:walk first, so Coderot knows the test command and areas.`
+
+`skills.off` lists `coderot`: F§1 applies ("F§1" is `${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1).
 
 - No `test`: reply `peep: no test command in .peep/setup.md; Coderot needs one.` and stop.
 - Target: the first argument names an `area.<name>` (use its prefixes) or is a path prefix. No argument: reply `peep: name an area: <area names>` and stop.

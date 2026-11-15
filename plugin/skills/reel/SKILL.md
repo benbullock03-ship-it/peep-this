@@ -13,7 +13,9 @@ Gives the project a reason to finish. The project is the text after `/peep:reel`
 
 Read `.peep/setup.md` at the repo root (formats §1). If it is missing, reply with exactly this and stop:
 
-`peep: no repo setup here. Run /peep:ducks first, so Reel knows where .peep/ lives.`
+`peep: no repo setup here. Run /peep:walk first, so Reel knows where .peep/ lives.`
+
+`skills.off` lists `reel`: formats §1 applies.
 
 ## 2. Look before asking
 

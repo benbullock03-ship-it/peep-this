@@ -6,11 +6,11 @@ All frontmatter is flat: one `key: value` per line, no nesting, no multi-line va
 
 ## 1. Repo setup: `.peep/setup.md`
 
-At the repo root. Ducks writes it on first run; the owner may hand-edit it. Every Peep skill reads it instead of guessing. The `.peep/` folder also holds `handoff.md`, Pack Up's note (AV-60).
+At the repo root. Walk (`/peep:walk`) writes it on first run; the owner may hand-edit it. Every Peep skill reads it instead of guessing. The `.peep/` folder also holds `handoff.md`, Pack Up's note (AV-60).
 
 | Key | Meaning | Default |
 |---|---|---|
-| `prefix` | Ticket id prefix, e.g. `AV` | none; Ducks asks |
+| `prefix` | Ticket id prefix, e.g. `AV` | none; Walk asks |
 | `tickets` | Tickets folder, relative to the repo root | `tickets/` |
 | `archive` | Where `closed` tickets move | `<tickets>archive/` |
 | `index` | Command that regenerates a ticket index after a status change | none (skip) |
@@ -21,6 +21,12 @@ At the repo root. Ducks writes it on first run; the owner may hand-edit it. Ever
 | `themes` | Themes Shoot covers | `light, dark` |
 | `widths` | Viewport widths in px Shoot covers | `375, 1280` |
 | `area.<name>` | One area: comma-separated path prefixes | none |
+| `qt.round` | Questions per Question Time round, 2 to 4 | `4` |
+| `packup.questions` | `ask` (ask when the next step is unclear) or `never` (write straight away) | `ask` |
+| `shoot.widths` | Widths Shoot covers; wins over `widths` | `widths` |
+| `skills.off` | Pack skills to switch off, comma-separated names (`coderot, reel`) | none |
+
+- `skills.off`: a skill listed there replies `peep <name>: switched off in .peep/setup.md.` and stops, not counted as a run. Walk is never switched off.
 
 - `tickets` is read by the widget backend too: keep it on its own line, value only, trailing `/`.
 - Area names are lowercase words or hyphens; the name is also the area note's filename. A file belongs to the first area whose prefix matches.
@@ -72,7 +78,7 @@ last touched: AV-26, 2026-11-15
 - `last touched`: the last ticket that edited the note and the date.
 - `kb/INDEX.md`: heading `# Areas`, then one line per area: `- [<area>](<area>.md): <one-line summary>`, in setup order.
 
-## 4. Read-back (Question Time, Ducks, Reel, Unpack)
+## 4. Read-back (Walk, Question Time, Ducks, Reel, Unpack)
 
 What Claude now understands, given after the questions and before anything is written.
 

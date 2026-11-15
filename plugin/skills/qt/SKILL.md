@@ -14,9 +14,9 @@ The idea is the text after `/peep:qt`. If there is none, ask for it in one line 
 Read `.peep/setup.md` at the repo root (formats §1).
 If it is missing, reply with exactly this and stop:
 
-`peep: no repo setup here. Run /peep:ducks first, so Question Time knows where tickets go.`
+`peep: no repo setup here. Run /peep:walk first, so Question Time knows where tickets go.`
 
-From it take `prefix` and `tickets` (defaults per §1).
+From it take `prefix`, `tickets` and `qt.round` (defaults per §1). `skills.off` lists `qt`: §1 applies.
 
 ## 2. Look before asking
 
@@ -27,7 +27,7 @@ When the idea or an answer contradicts the code, a ticket or `CONTEXT.md`, say s
 ## 3. Rounds
 
 Work the idea as a tree of decisions. Each round asks the frontier: decisions whose prerequisites are settled.
-Ask with the AskUserQuestion tool, 4 questions per round (fewer only if the frontier is smaller). Shape and wording rules: `references/rounds.md`.
+Ask with the AskUserQuestion tool, `qt.round` questions per round, default 4 (fewer only if the frontier is smaller). Shape and wording rules: `references/rounds.md`.
 
 - Recommended option first, its label ending ` (recommended)`.
 - Each question stands on its own: no "as above", no answer that depends on another question in the same round.

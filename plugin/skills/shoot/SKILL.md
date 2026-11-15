@@ -11,7 +11,7 @@ Verdicts and facts, not impressions. No praise anywhere in the report.
 
 ## 1. Setup
 
-Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1): `url`, `dev`, `themes` (default `light, dark`), `widths` (default `375, 1280`).
+Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1): `url`, `dev`, `themes` (default `light, dark`), widths from `shoot.widths`, else `widths` (default `375, 1280`). `skills.off` lists `shoot`: F§1 applies.
 
 - **No `url`:** reply with exactly `Shoot doesn't apply: no url in .peep/setup.md (Shoot is for web UIs only).`, nothing else, and stop. Do not guess a URL or open a browser.
 - **No Playwright MCP tools** (`browser_navigate` etc.): reply `Shoot needs the Playwright MCP; it isn't connected.` and stop.

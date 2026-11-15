@@ -10,14 +10,14 @@ Any time the user ends a session, not only at high context. The note opens the n
 
 ## 1. Gather (do not print)
 
-- Repo setup `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1) for the tickets folder and `build`/`test` commands. No setup: assume `tickets/` and no commands.
+- Repo setup `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1) for the tickets folder, `build`/`test` commands and `packup.questions`. No setup: assume `tickets/`, no commands, `ask`. `skills.off` lists `packup`: §1 applies.
 - `git status --short`, `git branch --show-current`, `git log --oneline -1`.
 - The ticket in progress this session and its status; any parked tickets (`blocked`, `deferred`) touched this session, with `reason` and `wake`.
 - The last `build`/`test` run this session and its result, if any.
 
 ## 2. Ask only if the next step is unclear
 
-If the next ticket or command is obvious from the tickets and this session, write straight away. Otherwise ask 2 or 3 questions in one batch, each with the recommended answer first, e.g. "Next: carry on AV-26 (recommended) or start AV-27?". Then write.
+If the next ticket or command is obvious from the tickets and this session, or `packup.questions` is `never`, write straight away. Otherwise ask 2 or 3 questions in one batch, each with the recommended answer first, e.g. "Next: carry on AV-26 (recommended) or start AV-27?". Then write.
 
 ## 3. Write the note
 

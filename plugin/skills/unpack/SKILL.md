@@ -14,7 +14,7 @@ Read `.peep/handoff.md` (format: `${CLAUDE_PLUGIN_ROOT}/skills/packup/references
 
 ## 2. Check the repo (do not print)
 
-- Repo setup `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1) for the tickets folder. No setup: assume `tickets/`.
+- Repo setup `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1) for the tickets folder. No setup: assume `tickets/`. `skills.off` lists `unpack`: §1 applies.
 - `git branch --show-current`, `git log --oneline -1`, `git status --short`.
 - Compare with the note:
   - Branch or short hash differs: list `git log --oneline <note hash>..HEAD` (max 5) if the hash is still known.

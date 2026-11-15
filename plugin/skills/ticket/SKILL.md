@@ -12,7 +12,7 @@ One ticket per run. "F§1" to "F§3" below cite the pack's shared file `${CLAUDE
 ## 0. Repo setup
 
 1. Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` (F§1), applying its defaults.
-2. No file, or no `prefix`: print exactly `peep ticket: no repo setup here. Run /peep:ducks first.` and stop. Never guess commands, folders or a prefix.
+2. No file, or no `prefix`: print exactly `peep ticket: no repo setup here. Run /peep:walk first.` and stop. Never guess commands, folders or a prefix. `skills.off` lists `ticket`: F§1 applies.
 3. A bare number is an id: `57` means `<prefix>-57`. Ticket file: `<tickets><id>-*.md` (F§2). Not there: look in `<archive>` for that one id only. Never list or read the rest of the archive.
 
 ## 1. Sub-command

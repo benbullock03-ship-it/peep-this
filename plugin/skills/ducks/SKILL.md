@@ -1,6 +1,6 @@
 ---
 name: ducks
-description: "Ducks: get your ducks in a row. Checks where the repo stands: loose tickets, parked tickets ready to wake, failing tests, stray changes, the last Pack Up note. Asks once, reads back, acts only on a yes. On first run with no repo setup, asks for the prefix, commands and areas and writes .peep/setup.md. Use when the user runs /peep:ducks, sits down to work, or asks what to pick up next."
+description: "Ducks: get your ducks in a row. Checks where the repo stands: loose tickets, parked tickets ready to wake, failing tests, stray changes, the last Pack Up note. Asks once, reads back, acts only on a yes. With no repo setup, points to /peep:walk. Use when the user runs /peep:ducks, sits down to work, or asks what to pick up next."
 label: "Ducks: get your ducks in a row"
 ---
 
@@ -13,7 +13,7 @@ The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file 
 ## 0. Repo setup
 
 Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` (F§1), applying its defaults.
-No file, or no `prefix`: first run. Follow `references/setup.md`, then carry on from step 1 with the new setup.
+No file, or no `prefix`: reply with exactly `peep: no repo setup here. Run /peep:walk first, it sets the repo up.` and stop; write nothing. `skills.off` lists `ducks`: F§1 applies.
 
 ## 1. Pack Up note
 
