@@ -1,0 +1,81 @@
+{
+  "cell": 8,
+  "frames": 4,
+  "fps": 8,
+  "tones": [
+    "ink",
+    "tint"
+  ],
+  "emotes": [
+    {
+      "name": "startled",
+      "row": 0,
+      "tint": {
+        "onLightBubble": "#A85B00",
+        "onDarkBubble": "#FFB23E"
+      },
+      "play": "twice then hold frame 1",
+      "use": "needs you: permission or question"
+    },
+    {
+      "name": "sweat",
+      "row": 1,
+      "tint": {
+        "onLightBubble": "#0B7391",
+        "onDarkBubble": "#7FE6FF"
+      },
+      "play": "loop",
+      "use": "long run, retries"
+    },
+    {
+      "name": "yawn",
+      "row": 2,
+      "tint": {
+        "onLightBubble": "#0B7391",
+        "onDarkBubble": "#7FE6FF"
+      },
+      "play": "once then hold frame 0",
+      "use": "context past the threshold"
+    },
+    {
+      "name": "sparkle",
+      "row": 3,
+      "tint": {
+        "onLightBubble": "#9A6A00",
+        "onDarkBubble": "#F7D64A"
+      },
+      "play": "twice then hide",
+      "use": "success"
+    },
+    {
+      "name": "wave",
+      "row": 4,
+      "tint": {
+        "onLightBubble": "#6A48C8",
+        "onDarkBubble": "#C7B2FF"
+      },
+      "play": "twice then hide",
+      "use": "new session, Jump copied"
+    },
+    {
+      "name": "worry",
+      "row": 5,
+      "tint": {
+        "onLightBubble": "#5A6477",
+        "onDarkBubble": "#A9B3C6"
+      },
+      "play": "loop",
+      "use": "clash, error"
+    },
+    {
+      "name": "zzz",
+      "row": 6,
+      "tint": {
+        "onLightBubble": "#6A48C8",
+        "onDarkBubble": "#C7B2FF"
+      },
+      "play": "loop",
+      "use": "idle for a while"
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+/* Peep This tokens. Dark is default; set data-theme="light" on <html>. New in this pass: --ps-edge, --tk-*, --fl-*, --em-*, spacing, border, shadow. */
+:root {
+  /* Surfaces */
+  --ps-desk: #0E0D12;
+  --ps-panel: #1B1921;
+  --ps-panel-2: #262330;
+  --ps-edge: #4A4458;
+  --ps-bubble: #F3EFF8;
+  --ps-shelf: #4A3D5C;
+  --ps-shelf-top: #6B5A82;
+  /* Text and accent */
+  --ps-text: #EDE9F2;
+  --ps-muted: #A49FB0;
+  --ps-bubble-text: #221D2B;
+  --ps-on-st: #1B1921;
+  --ps-accent: #F7D64A;
+  /* Session states · filled */
+  --st-idle: #DDF3FF;
+  --st-thinking: #C7B2FF;
+  --st-working: #7FE6FF;
+  --st-waiting: #FFB23E;
+  --st-success: #7DFFA6;
+  --st-error: #FF7A7A;
+  --st-stuck: #A9B3C6;
+  /* Ticket statuses · hollow */
+  --tk-todo: #EDE9F2;
+  --tk-active: #F7D64A;
+  --tk-review: #8FB4FF;
+  --tk-blocked: #FF8AD1;
+  --tk-parked: #A49FB0;
+  --tk-done: #A49FB0;
+  /* Floppies */
+  --fl-ducks: #F7D64A;
+  --fl-question-time: #5FCF9A;
+  --fl-ticket: #FF8AB8;
+  --fl-shoot: #FF7350;
+  --fl-handoff: #6FA0FF;
+  --fl-coderot: #B08AF0;
+  /* Emote tints */
+  --em-startled: #A85B00;
+  --em-water: #0B7391;
+  --em-sparkle: #9A6A00;
+  --em-dream: #6A48C8;
+  --em-worry: #5A6477;
+  --ps-line: rgba(255,255,255,.1); --ps-hard: rgba(0,0,0,.45);
+  /* Scale */
+  --sp-1: 2px; --sp-2: 4px; --sp-3: 8px; --sp-4: 12px; --sp-5: 16px;
+  --bd-hard: 2px solid var(--ps-edge); --bd-line: 2px solid var(--ps-line); --radius: 0;
+  --shadow-hard: 6px 6px 0 var(--ps-hard); --shadow-lift: 2px 4px 0 var(--ps-hard);
+}
+:root[data-theme="light"] {
+  /* Surfaces */
+  --ps-desk: #E6DDCD;
+  --ps-panel: #FFFCF6;
+  --ps-panel-2: #F1E9DB;
+  --ps-edge: #2A2233;
+  --ps-bubble: #2A2233;
+  --ps-shelf: #C9B48E;
+  --ps-shelf-top: #E2D2B0;
+  /* Text and accent */
+  --ps-text: #2A2233;
+  --ps-muted: #645C70;
+  --ps-bubble-text: #FFFCF6;
+  --ps-on-st: #FFFFFF;
+  --ps-accent: #8A5A00;
+  /* Session states · filled */
+  --st-idle: #3D6E8C;
+  --st-thinking: #6A48C8;
+  --st-working: #0B7391;
+  --st-waiting: #A85B00;
+  --st-success: #1F7A3D;
+  --st-error: #C22F2F;
+  --st-stuck: #5A6477;
+  /* Ticket statuses · hollow */
+  --tk-todo: #2A2233;
+  --tk-active: #8A5A00;
+  --tk-review: #2F5FD0;
+  --tk-blocked: #B0237E;
+  --tk-parked: #645C70;
+  --tk-done: #645C70;
+  /* Floppies */
+  --fl-ducks: #E3BC2C;
+  --fl-question-time: #2FA873;
+  --fl-ticket: #E0609A;
+  --fl-shoot: #E0502F;
+  --fl-handoff: #3F74E0;
+  --fl-coderot: #8A5FD6;
+  /* Emote tints */
+  --em-startled: #FFB23E;
+  --em-water: #7FE6FF;
+  --em-sparkle: #F7D64A;
+  --em-dream: #C7B2FF;
+  --em-worry: #A9B3C6;
+  --ps-line: rgba(42,34,51,.16); --ps-hard: rgba(60,40,10,.28);
+}
+.px { image-rendering: pixelated; }
