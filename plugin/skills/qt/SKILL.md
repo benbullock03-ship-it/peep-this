@@ -7,7 +7,7 @@ label: Question Time with Peep
 # Question Time
 
 The idea is the text after `/peep:qt`. If there is none, ask for it in one line and stop.
-"formats" below is the pack's shared file `../../references/formats.md`, relative to this skill's folder.
+"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`.
 
 ## 1. Read the repo setup
 
