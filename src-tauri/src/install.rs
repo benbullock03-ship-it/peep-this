@@ -1,8 +1,10 @@
-//! Integration install and uninstall (spec §7): hook entries and the statusline wrapper in `~/.claude/settings.json`.
+//! Integration install and uninstall (spec §7): hook entries and the statusline wrapper in `~/.claude/settings.json`,
+//! plus the `peep` plugin through Claude Code's own `claude plugin` commands (AV-62).
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -18,6 +20,8 @@ const WRAPPER_MARK: &str = "peepthis-statusline";
 const BACKUP_INFIX: &str = ".peepthis-backup-";
 const TMP_SUFFIX: &str = ".peepthis-tmp";
 const BOM: &[u8] = b"\xEF\xBB\xBF";
+const MARKETPLACE: &str = "peep-this";
+const PLUGIN_ID: &str = "peep@peep-this";
 
 #[derive(Debug, Clone)]
 pub struct Paths {
@@ -25,15 +29,30 @@ pub struct Paths {
     pub data_dir: PathBuf,
     /// The freshly built or bundled wrapper, next to the main exe.
     pub wrapper_src: PathBuf,
+    /// The `peep` plugin, which is also its own marketplace.
+    pub plugin_dir: PathBuf,
 }
 
 impl Paths {
     pub fn for_this_machine() -> Paths {
-        let wrapper_src = std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().map(|d| d.join(WRAPPER_EXE)))
-            .unwrap_or_else(|| PathBuf::from(WRAPPER_EXE));
-        Paths { settings: claude_settings_path(), data_dir: server::default_dir(), wrapper_src }
+        let exe_dir = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf)).unwrap_or_default();
+        // Dev uses the repo copy so skill edits apply live; release uses the bundled resource (tauri.conf.json), which sits next to the exe on Windows.
+        let plugin_dir = if cfg!(debug_assertions) {
+            Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap_or(Path::new(".")).join("plugin")
+        } else {
+            exe_dir.join("plugin")
+        };
+        Paths {
+            settings: claude_settings_path(),
+            data_dir: server::default_dir(),
+            wrapper_src: exe_dir.join(WRAPPER_EXE),
+            plugin_dir,
+        }
+    }
+
+    /// Only ever this exact folder: `claude plugin marketplace remove` leaves it behind (AV-55).
+    fn plugin_cache(&self) -> Option<PathBuf> {
+        self.settings.parent().map(|d| d.join("plugins").join("cache").join(MARKETPLACE))
     }
 
     /// Copied here so dev rebuilds never lock it and the path survives the app moving.
@@ -234,7 +253,80 @@ fn install_wrapper(src: &Path, dest: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn install(paths: &Paths, ep: &Endpoint) -> Result<(), String> {
+/// Runs `claude <args>`; `ErrorKind::NotFound` means Claude Code is not on PATH. The seam the tests fake.
+pub type ClaudeCli<'a> = dyn Fn(&[&str]) -> io::Result<()> + 'a;
+
+pub fn run_claude(args: &[&str]) -> io::Result<()> {
+    let command = |program: &str| {
+        let mut c = Command::new(program);
+        c.args(args).stdin(Stdio::null());
+        #[cfg(windows)]
+        std::os::windows::process::CommandExt::creation_flags(&mut c, 0x0800_0000); // CREATE_NO_WINDOW
+        c
+    };
+    // `Command` only resolves `.exe`; an npm install puts `claude.cmd` on PATH instead.
+    let out = command("claude").output().or_else(|e| match e.kind() {
+        io::ErrorKind::NotFound if cfg!(windows) => command("claude.cmd").output(),
+        _ => Err(e),
+    })?;
+    if out.status.success() {
+        return Ok(());
+    }
+    let msg = [&out.stderr, &out.stdout].iter().map(|b| String::from_utf8_lossy(b).trim().to_string()).find(|s| !s.is_empty());
+    Err(io::Error::other(format!("`claude {}` failed: {}", args.join(" "), msg.unwrap_or_else(|| out.status.to_string()))))
+}
+
+#[derive(Debug, PartialEq)]
+pub enum PluginStep {
+    Done,
+    Skipped(String),
+}
+
+fn skipped(e: io::Error) -> PluginStep {
+    match e.kind() {
+        io::ErrorKind::NotFound => PluginStep::Skipped("Claude Code (`claude`) is not on PATH".into()),
+        _ => PluginStep::Skipped(e.to_string()),
+    }
+}
+
+fn install_plugin(paths: &Paths, cli: &ClaudeCli) -> PluginStep {
+    if !paths.plugin_dir.join(".claude-plugin").join("marketplace.json").is_file() {
+        return PluginStep::Skipped(format!("plugin not found at {}", paths.plugin_dir.display()));
+    }
+    // A failed add is fine when the marketplace is already there; the install decides.
+    if let Err(e) = cli(&["plugin", "marketplace", "add", &paths.plugin_dir.to_string_lossy()]) {
+        if e.kind() == io::ErrorKind::NotFound {
+            return skipped(e);
+        }
+    }
+    cli(&["plugin", "install", PLUGIN_ID]).map_or_else(skipped, |()| PluginStep::Done)
+}
+
+fn uninstall_plugin(paths: &Paths, cli: &ClaudeCli) -> PluginStep {
+    // Fails when the plugin is already gone; removing the marketplace still has to run.
+    if let Err(e) = cli(&["plugin", "uninstall", PLUGIN_ID]) {
+        if e.kind() == io::ErrorKind::NotFound {
+            return skipped(e);
+        }
+    }
+    if let Err(e) = cli(&["plugin", "marketplace", "remove", MARKETPLACE]) {
+        return skipped(e);
+    }
+    if let Some(cache) = paths.plugin_cache() {
+        let _ = fs::remove_dir_all(cache);
+    }
+    PluginStep::Done
+}
+
+fn report(step: &PluginStep) {
+    match step {
+        PluginStep::Done => println!("peepthis: peep plugin step done"),
+        PluginStep::Skipped(why) => println!("peepthis: peep plugin step skipped: {why}"),
+    }
+}
+
+/// Hooks first; the plugin step never fails the install, it reports `Skipped`.
+pub fn install(paths: &Paths, ep: &Endpoint, cli: &ClaudeCli) -> Result<PluginStep, String> {
     let existing = read_settings(&paths.settings)?;
     if !paths.wrapper_src.is_file() {
         return Err(format!(
@@ -261,29 +353,38 @@ pub fn install(paths: &Paths, ep: &Endpoint) -> Result<(), String> {
     }
     write_atomic(&paths.settings, text.as_bytes()).map_err(|e| format!("could not write settings: {e}"))?;
     println!("peepthis: integration installed");
-    Ok(())
+    let step = install_plugin(paths, cli);
+    report(&step);
+    Ok(step)
 }
 
-pub fn uninstall(paths: &Paths) -> Result<(), String> {
+pub fn uninstall(paths: &Paths, cli: &ClaudeCli) -> Result<PluginStep, String> {
     let record_path = statusline_original::path(&paths.data_dir);
-    let Some((raw, mut root)) = read_settings(&paths.settings)? else { return Ok(()) };
-    let record = fs::read(&record_path).ok().and_then(|r| {
-        serde_json::from_slice::<Value>(r.strip_prefix(BOM).unwrap_or(&r)).ok()
-    });
-    if apply_uninstall(&mut root, record.as_ref()) {
-        let text = to_pretty(root)?;
-        let b = backup(&paths.settings, &raw, SystemTime::now()).map_err(|e| format!("backup failed, nothing changed: {e}"))?;
-        println!("peepthis: backed up settings to {}", b.display());
-        write_atomic(&paths.settings, text.as_bytes()).map_err(|e| format!("could not write settings: {e}"))?;
+    if let Some((raw, mut root)) = read_settings(&paths.settings)? {
+        let record = fs::read(&record_path).ok().and_then(|r| {
+            serde_json::from_slice::<Value>(r.strip_prefix(BOM).unwrap_or(&r)).ok()
+        });
+        if apply_uninstall(&mut root, record.as_ref()) {
+            let text = to_pretty(root)?;
+            let b = backup(&paths.settings, &raw, SystemTime::now()).map_err(|e| format!("backup failed, nothing changed: {e}"))?;
+            println!("peepthis: backed up settings to {}", b.display());
+            write_atomic(&paths.settings, text.as_bytes()).map_err(|e| format!("could not write settings: {e}"))?;
+        }
+        let _ = fs::remove_file(&record_path);
+        println!("peepthis: integration uninstalled");
     }
-    let _ = fs::remove_file(&record_path);
-    println!("peepthis: integration uninstalled");
-    Ok(())
+    let step = uninstall_plugin(paths, cli);
+    report(&step);
+    Ok(step)
 }
 
 /// Run by the NSIS uninstaller: unhooks Claude Code, then drops the wrapper copy nothing points at any more.
 pub fn remove_for_app_uninstall(paths: &Paths) -> Result<(), String> {
-    uninstall(paths)?;
+    remove_all(paths, &run_claude)
+}
+
+fn remove_all(paths: &Paths, cli: &ClaudeCli) -> Result<(), String> {
+    uninstall(paths, cli)?;
     let dest = paths.wrapper_dest();
     for p in [with_suffix(&dest, ".old"), with_suffix(&dest, ".new"), dest.clone()] {
         let _ = fs::remove_file(p);
@@ -359,16 +460,16 @@ impl Integrator {
         if ep.port != DEFAULT_PORT {
             return Err(format!("port {DEFAULT_PORT} is taken by another program; free it and restart Peep This"));
         }
-        let result = install(&self.paths, ep);
+        let result = install(&self.paths, ep, &run_claude);
         self.refresh(store);
-        result.inspect_err(|e| eprintln!("peepthis: install failed: {e}"))
+        result.map(drop).inspect_err(|e| eprintln!("peepthis: install failed: {e}"))
     }
 
     pub fn uninstall(&self, store: &Store) -> Result<(), String> {
         let _guard = self.busy.lock().unwrap_or_else(|e| e.into_inner());
-        let result = uninstall(&self.paths);
+        let result = uninstall(&self.paths, &run_claude);
         self.refresh(store);
-        result.inspect_err(|e| eprintln!("peepthis: uninstall failed: {e}"))
+        result.map(drop).inspect_err(|e| eprintln!("peepthis: uninstall failed: {e}"))
     }
 }
 
@@ -393,6 +494,10 @@ mod tests {
 
     fn ep() -> Endpoint {
         Endpoint { port: DEFAULT_PORT, token: TOKEN.into() }
+    }
+
+    fn no_claude(_: &[&str]) -> io::Result<()> {
+        Err(io::ErrorKind::NotFound.into())
     }
 
     /// `\r` stripped: autocrlf checkouts would otherwise break the byte-exact round trips.
@@ -422,7 +527,10 @@ mod tests {
                 settings: root.join("claude").join("settings.json"),
                 data_dir: root.join("appdata"),
                 wrapper_src: root.join("build").join(WRAPPER_EXE),
+                plugin_dir: root.join("build").join("plugin"),
             };
+            fs::create_dir_all(paths.plugin_dir.join(".claude-plugin")).unwrap();
+            fs::write(paths.plugin_dir.join(".claude-plugin").join("marketplace.json"), b"{}").unwrap();
             fs::create_dir_all(root.join("claude")).unwrap();
             fs::create_dir_all(root.join("build")).unwrap();
             fs::write(&paths.wrapper_src, b"wrapper v1").unwrap();
@@ -474,13 +582,13 @@ mod tests {
             let env = Env::new(Some(name));
             let original = env.settings();
             assert_eq!(env.status(), Integration::Missing, "{name}");
-            install(&env.paths, &ep()).unwrap();
+            install(&env.paths, &ep(), &no_claude).unwrap();
             assert_eq!(env.status(), Integration::Installed, "{name}");
             let backups = env.backups();
             assert_eq!(backups.len(), 1, "{name}");
             assert_eq!(fs::read(&backups[0]).unwrap(), original, "{name}");
 
-            uninstall(&env.paths).unwrap();
+            uninstall(&env.paths, &no_claude).unwrap();
             assert_eq!(env.json(), serde_json::from_slice::<Value>(&original).unwrap(), "{name}");
             assert_eq!(env.settings(), original, "{name}: key order and format survive");
             assert_eq!(env.status(), Integration::Missing, "{name}");
@@ -494,10 +602,10 @@ mod tests {
     fn app_uninstall_restores_settings_and_removes_the_wrapper_copy() {
         let env = Env::new(Some(ROUND_TRIP[0]));
         let original = env.settings();
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         assert!(env.paths.wrapper_dest().exists());
 
-        remove_for_app_uninstall(&env.paths).unwrap();
+        remove_all(&env.paths, &no_claude).unwrap();
         assert_eq!(env.settings(), original);
         assert!(!env.paths.wrapper_dest().exists());
         assert!(!env.paths.wrapper_dest().parent().unwrap().exists());
@@ -508,9 +616,9 @@ mod tests {
     fn reinstall_is_idempotent_and_keeps_the_real_original() {
         for name in ROUND_TRIP {
             let env = Env::new(Some(name));
-            install(&env.paths, &ep()).unwrap();
+            install(&env.paths, &ep(), &no_claude).unwrap();
             let (once, record) = (env.settings(), env.record());
-            install(&env.paths, &ep()).unwrap();
+            install(&env.paths, &ep(), &no_claude).unwrap();
             assert_eq!(env.settings(), once, "{name}");
             assert_eq!(env.record(), record, "{name}");
             assert!(!is_our_status_line(&record.unwrap()["statusLine"]), "{name}");
@@ -521,7 +629,7 @@ mod tests {
     fn install_keeps_user_hooks_and_statusline_extras() {
         let env = Env::new(Some("hooks_and_padded_statusline.json"));
         let before = env.json();
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         let after = env.json();
         let pre = after["hooks"]["PreToolUse"].as_array().unwrap();
         let orig_pre = before["hooks"]["PreToolUse"].as_array().unwrap();
@@ -541,11 +649,11 @@ mod tests {
     #[test]
     fn missing_settings_file_is_created_and_uninstalls_to_empty() {
         let env = Env::new(None);
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         assert!(env.backups().is_empty());
         assert_eq!(env.record(), Some(serde_json::json!({ "statusLine": null })));
         assert_eq!(env.status(), Integration::Installed);
-        uninstall(&env.paths).unwrap();
+        uninstall(&env.paths, &no_claude).unwrap();
         assert_eq!(env.json(), serde_json::json!({}));
     }
 
@@ -557,14 +665,14 @@ mod tests {
         fs::write(statusline_original::path(&env.paths.data_dir), &original).unwrap();
         assert_eq!(env.status(), Integration::Outdated);
 
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         assert_eq!(env.status(), Integration::Installed);
         let text = String::from_utf8(env.settings()).unwrap();
         assert!(!text.contains(":47000/") && !text.contains("stale-token"), "{text}");
         assert!(!text.contains("SessionStart/"), "entries for events no longer installed are dropped");
         assert_eq!(fs::read(statusline_original::path(&env.paths.data_dir)).unwrap(), original.as_bytes());
 
-        uninstall(&env.paths).unwrap();
+        uninstall(&env.paths, &no_claude).unwrap();
         let after = env.json();
         assert_eq!(after["statusLine"]["command"], "sh ~/.claude/old.sh");
         assert_eq!(after["hooks"]["Stop"][0]["hooks"][0]["command"], "echo done");
@@ -574,12 +682,12 @@ mod tests {
     #[test]
     fn uninstall_keeps_a_statusline_the_user_changed_since() {
         let env = Env::new(Some("statusline_only.json"));
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         let Value::Object(mut root) = env.json() else { panic!() };
         root.insert("statusLine".into(), serde_json::json!({ "type": "command", "command": "mine.sh" }));
         fs::write(&env.paths.settings, to_pretty(root).unwrap()).unwrap();
 
-        uninstall(&env.paths).unwrap();
+        uninstall(&env.paths, &no_claude).unwrap();
         let after = env.json();
         assert_eq!(after["statusLine"]["command"], "mine.sh");
         assert!(after.get("hooks").is_none());
@@ -590,9 +698,9 @@ mod tests {
     fn invalid_settings_are_refused_untouched() {
         let env = Env::new(Some("invalid.json"));
         let before = env.settings();
-        let err = install(&env.paths, &ep()).unwrap_err();
+        let err = install(&env.paths, &ep(), &no_claude).unwrap_err();
         assert!(err.contains("not valid JSON"), "{err}");
-        assert!(uninstall(&env.paths).is_err());
+        assert!(uninstall(&env.paths, &no_claude).is_err());
         assert_eq!(env.settings(), before);
         assert!(env.backups().is_empty());
         assert!(!env.paths.data_dir.exists());
@@ -603,7 +711,7 @@ mod tests {
         let env = Env::new(Some("statusline_only.json"));
         let before = env.settings();
         fs::remove_file(&env.paths.wrapper_src).unwrap();
-        assert!(install(&env.paths, &ep()).unwrap_err().contains("wrapper not found"));
+        assert!(install(&env.paths, &ep(), &no_claude).unwrap_err().contains("wrapper not found"));
         assert_eq!(env.settings(), before);
         assert!(env.backups().is_empty());
         assert!(!env.paths.data_dir.exists());
@@ -612,7 +720,7 @@ mod tests {
     #[test]
     fn status_outdated_cases() {
         let env = Env::new(Some("user_hooks.json"));
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         assert_eq!(env.status(), Integration::Installed);
 
         let other_token = Endpoint { port: DEFAULT_PORT, token: "f".repeat(64) };
@@ -622,7 +730,7 @@ mod tests {
 
         fs::write(&env.paths.wrapper_src, b"wrapper v2").unwrap();
         assert_eq!(env.status(), Integration::Outdated, "a rebuilt wrapper needs copying again");
-        install(&env.paths, &ep()).unwrap();
+        install(&env.paths, &ep(), &no_claude).unwrap();
         assert_eq!(env.status(), Integration::Installed);
 
         let moved = Paths { data_dir: env.root.join("elsewhere"), ..env.paths.clone() };
@@ -659,6 +767,49 @@ mod tests {
     fn statusline_command_uses_forward_slashes_and_quotes_spaces() {
         assert_eq!(status_line_command(Path::new(r"C:\Users\a\AppData\Roaming\PeepThis\bin\x.exe")), "C:/Users/a/AppData/Roaming/PeepThis/bin/x.exe");
         assert_eq!(status_line_command(Path::new(r"C:\Users\a b\x.exe")), "\"C:/Users/a b/x.exe\"");
+    }
+
+    #[test]
+    fn plugin_round_trip_uses_the_claude_cli_and_restores_settings() {
+        let env = Env::new(Some("user_hooks.json"));
+        let original = env.settings();
+        let calls = std::cell::RefCell::new(Vec::new());
+        let fake = |args: &[&str]| {
+            calls.borrow_mut().push(args.join(" "));
+            Ok(())
+        };
+        let cache = env.root.join("claude/plugins/cache");
+        fs::create_dir_all(cache.join("peep-this/peep")).unwrap();
+        fs::create_dir_all(cache.join("owners-own/tool")).unwrap();
+
+        assert_eq!(install(&env.paths, &ep(), &fake).unwrap(), PluginStep::Done);
+        let add = format!("plugin marketplace add {}", env.paths.plugin_dir.display());
+        assert_eq!(*calls.borrow(), [add.as_str(), "plugin install peep@peep-this"]);
+        assert_eq!(env.status(), Integration::Installed);
+
+        calls.borrow_mut().clear();
+        assert_eq!(uninstall(&env.paths, &fake).unwrap(), PluginStep::Done);
+        assert_eq!(*calls.borrow(), ["plugin uninstall peep@peep-this", "plugin marketplace remove peep-this"]);
+        assert_eq!(env.settings(), original);
+        assert!(!cache.join("peep-this").exists(), "orphaned cache removed");
+        assert!(cache.join("owners-own/tool").exists(), "other marketplaces' caches untouched");
+    }
+
+    #[test]
+    fn plugin_step_is_skipped_without_claude_or_plugin_dir() {
+        let env = Env::new(Some("empty.json"));
+        let cache = env.root.join("claude/plugins/cache/peep-this");
+        fs::create_dir_all(&cache).unwrap();
+        let PluginStep::Skipped(why) = install(&env.paths, &ep(), &no_claude).unwrap() else { panic!() };
+        assert!(why.contains("not on PATH"), "{why}");
+        assert_eq!(env.status(), Integration::Installed, "hooks still install");
+        assert!(matches!(uninstall(&env.paths, &no_claude).unwrap(), PluginStep::Skipped(_)));
+        assert!(cache.exists(), "cache kept when the CLI did not remove the marketplace");
+
+        fs::remove_dir_all(&env.paths.plugin_dir).unwrap();
+        let fail = |_: &[&str]| -> io::Result<()> { panic!("claude must not be called") };
+        let PluginStep::Skipped(why) = install(&env.paths, &ep(), &fail).unwrap() else { panic!() };
+        assert!(why.contains("plugin not found"), "{why}");
     }
 
     #[test]
