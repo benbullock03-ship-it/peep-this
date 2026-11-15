@@ -266,6 +266,23 @@ function runDemo() {
   }, DEMO_STEP_MS);
 }
 
+/** `?empty` shows the house peep; `?empty=banner` adds the first-run banner, `?empty=cycle` brings one session in and out. */
+function runEmpty(mode: string) {
+  const render = createList(root, demoIdentity);
+  const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
+  if (mode === "banner") createBanner(root, { install: async () => {} }).render("missing");
+  render([]);
+  renderStrip([]);
+  if (mode !== "cycle") return;
+  const one = demoSnapshot(Date.now()).sessions.slice(0, 1);
+  let on = false;
+  setInterval(() => {
+    on = !on;
+    render(on ? one : []);
+    renderStrip(on ? one : []);
+  }, DEMO_STEP_MS);
+}
+
 async function runLive() {
   if (!("__TAURI_INTERNALS__" in window)) {
     createList(root)([]);
@@ -464,6 +481,7 @@ startSurface().catch((err) => console.error("peepthis: surface failed", err));
 
 if (params.has("accessories")) renderAccessoryCheck(root);
 else if (params.has("demo")) runDemo();
+else if (params.has("empty")) runEmpty(params.get("empty")!);
 else runLive().catch((err) => {
   console.error("peepthis: startup failed", err);
   showNotice("Could not connect to the Peep This backend.");

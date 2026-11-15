@@ -1,3 +1,4 @@
+import { createHousePeep, HOUSE_SIZE_STRIP, HOUSE_TEXT, houseShown } from "./house";
 import type { Session } from "./model";
 import type { IdentityOf } from "./rowView";
 import { stripView, type StripCell } from "./strip";
@@ -96,7 +97,11 @@ export function createStrip(host: HTMLElement, actions: StripActions, identityOf
   const more = document.createElement("span");
   more.className = "ps-strip-more";
   more.hidden = true;
-  host.append(open, more);
+  const house = document.createElement("span");
+  house.className = "ps-strip-house";
+  house.title = HOUSE_TEXT;
+  house.appendChild(createHousePeep(HOUSE_SIZE_STRIP, false));
+  host.append(open, house, more);
   wirePress(host, actions);
   const cells = new Map<string, Cell>();
 
@@ -120,6 +125,8 @@ export function createStrip(host: HTMLElement, actions: StripActions, identityOf
       c.el.remove();
       cells.delete(id);
     }
+    // Strip cells have no fade-out, so the house returns in the same render the last cell leaves.
+    house.hidden = !houseShown(sessions);
     more.hidden = view.more === 0;
     more.textContent = `+${view.more}`;
     more.title = `${view.more} more`;

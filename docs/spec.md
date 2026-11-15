@@ -347,7 +347,7 @@ Built (AV-42): the flyouts are a second transparent window (`flyout`, page `flyo
 
 ### 12.8 Empty state (AV-43)
 
-With no sessions, one house peep: `idle`, yellow, no accessory. 32px in the strip, 64px in the panel above "No sessions running". Art unchanged.
+With no sessions, one house peep: `idle`, yellow, no accessory. 40px in the strip (a session cell's size, so the plate keeps its size), 96px in the panel above "No sessions running". Art unchanged. (Was 32/64px; changed 2026-11-15 in AV-43 to fit the allowed sizes 32/40/48/96.) It shows only when the snapshot has no sessions and no row is still fading out.
 
 ### 12.9 Considered and not taken
 

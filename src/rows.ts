@@ -1,6 +1,7 @@
 import { createCards, type Decide } from "./approvalCard";
 import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
+import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
 import type { Session, TrailEntry } from "./model";
 import { MOTION_MS, motionMs } from "./motion";
@@ -10,7 +11,6 @@ import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
 
 export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
 
-export const EMPTY_TEXT = "No Claude Code sessions running";
 const PEEP_SIZE = "48";
 const PEEP_SIZE_OPEN = "96";
 /** `row-flash` runs three motion units; the timer also ends the static reduced-motion flash. */
@@ -267,7 +267,15 @@ export function createList(
 ) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
-  empty.textContent = EMPTY_TEXT;
+  el("div", "empty-stage", empty).appendChild(createHousePeep(HOUSE_SIZE_PANEL));
+  el("span", "ps-plank empty-plank", empty);
+  el("p", "empty-text", empty).textContent = HOUSE_TEXT;
+  let current: readonly Session[] = [];
+  const syncEmpty = () => {
+    let fading = 0;
+    for (const r of rows.values()) if (r.el.classList.contains("leaving")) fading++;
+    empty.hidden = !houseShown(current, fading);
+  };
   const rows = new Map<string, Row>();
   let open: Row | null = null;
   let ticker = 0;
@@ -350,10 +358,12 @@ export function createList(
         setTimeout(() => {
           r.el.remove();
           rows.delete(id);
+          syncEmpty();
         }, motionMs()),
       );
     }
-    empty.hidden = sorted.length > 0;
+    current = sessions;
+    syncEmpty();
     if (sorted.length > 0) firstRender = false;
     // Finished children fold on time even when no snapshot arrives.
     clearTimeout(foldTimer);
