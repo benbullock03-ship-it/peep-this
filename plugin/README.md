@@ -30,3 +30,4 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). 
 - `SKILL.md` under about 80 lines.
 - Detail lives in the skill's `references/` and is read only when that step needs it.
 - Output is a fixed terse format, defined in the skill; no free-form recaps.
+- Shared formats (repo setup `.peep/setup.md`, ticket, area note, read-back) are in `references/formats.md`; skills cite its sections instead of restating them.

@@ -1,7 +1,7 @@
 ---
 id: AV-56
 title: Repo setup and area note formats for the skill pack
-status: open
+status: done
 depends: [AV-55]
 attended: false
 ---
@@ -17,3 +17,17 @@ attended: false
 - [ ] One example of each file under `plugin/references/examples/`
 
 **Done when:** AV-57 to AV-59 can cite these formats without restating them.
+
+## Built
+
+`plugin/references/formats.md` (sections 1 to 4) and `plugin/references/examples/` (`.peep/setup.md`, `tickets/WEB-14-refund-button.md`, `kb/checkout.md`, `kb/INDEX.md`, `read-back.md`); linked from `plugin/README.md`.
+
+## Decisions taken without a ruling
+
+- Repo setup is `.peep/setup.md`, flat frontmatter only, so the Rust backend (AV-64) parses `tickets:` with a line split like `scripts/ticket-index.mjs`.
+- Areas are `area.<name>: path, path` keys, not a nested map, to keep frontmatter flat.
+- Setup also carries `archive`, `index`, `dev`, `url`, `themes`, `widths`; defaults `tickets/`, `<tickets>archive/`, `light, dark`, `375, 1280`.
+- Ticket filename `<PREFIX>-<NN>-<slug>.md`, matching this repo; extra frontmatter keys (e.g. `attended`) are kept.
+- Leaving parked deletes `reason` and `wake`.
+- Read-back groups use bold labels and end with the exact line `Reply "yes", or name what to change.`
+- Examples use a fictional `WEB` repo so they are not mistaken for this repo's tickets.
