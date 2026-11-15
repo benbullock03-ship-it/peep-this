@@ -62,3 +62,7 @@ peep: <n> tickets written
 ```
 
 No recap of the questions or answers.
+
+## Last step: run count
+
+Bump `qt` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: ten minutes of questions cost less than rewriting the wrong code.`

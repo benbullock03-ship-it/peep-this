@@ -47,3 +47,7 @@ owed: <what is owed, decided without a ruling, or blocking> | none
 ```
 
 Session ending or context filling up: suggest `/peep:packup`.
+
+## 4. Last step: run count
+
+Bump `ticket` in `.peep/runs` (F§1). If it was below 3, add a fifth line: `Why: one ticket finished beats three half-built.`

@@ -26,6 +26,12 @@ At the repo root. Ducks writes it on first run; the owner may hand-edit it. Ever
 - Area names are lowercase words or hyphens; the name is also the area note's filename. A file belongs to the first area whose prefix matches.
 - The body below the frontmatter is free notes for humans; skills ignore it.
 
+### Run counts: `.peep/runs`
+
+Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it.
+
+Last step of every Peep skill (the why-line rule): read the file, treat a missing skill line as 0, write `n + 1` back by Edit or Write, and if the old `n` was below 3 end the reply with one `Why: <line>` tied to one of three habits (think before code, finish before starting, prove it works). From the fourth run on, no Why line. A run that stopped early (no setup, bad argument) is not counted.
+
 ## 2. Ticket: `<tickets>/<PREFIX>-<NN>-<slug>.md`
 
 `NN` is zero-padded to two digits, `slug` is lowercase with hyphens.

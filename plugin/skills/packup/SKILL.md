@@ -38,4 +38,8 @@ Clipboard: copied   (or: not copied, <reason>; open the file instead)
 Safe to /clear or exit. Paste it as the first message of the next session.
 ```
 
+## 5. Last step: run count
+
+Bump `packup` in `.peep/runs` (formats §1). If it was below 3, add a fourth reply line: `Why: close the session cleanly so the next one starts where this one stopped.`
+
 Never commit, push or stage the note. If `.peep/handoff.md` is not ignored and not tracked, leave the ignore file alone.

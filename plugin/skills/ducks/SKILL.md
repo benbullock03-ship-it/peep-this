@@ -60,3 +60,7 @@ next: /peep:ticket <id> | clear to proceed
 ```
 
 `next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose: `peep ducks: 0 loose ends, 0 acted on` then `next: clear to proceed`.
+
+## Last step: run count
+
+Bump `ducks` in `.peep/runs` (F§1). If it was below 3, add a final line: `Why: finish what is loose before you start something new.`

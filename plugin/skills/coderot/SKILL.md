@@ -58,4 +58,8 @@ Coderot: <target>, <n> mutants (cap <cap>), <s> survivors, HEAD <short sha>
 The cleanup line comes after the table: `worktree removed`, or `worktree left at <path>: remove it with git worktree remove --force`.
 Write tickets only on "yes" or named rows; anything else writes nothing.
 
+## 7. Last step: run count
+
+Bump `coderot` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: a test that cannot fail proves nothing.`
+
 Not here: mutating the owner's tree, uncommitted changes (Coderot rots HEAD), coverage tools, fixing the tests.

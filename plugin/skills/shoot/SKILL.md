@@ -55,4 +55,8 @@ Never claim what is owed.
 
 `browser_close`. Stop a dev server this run started. Delete `.playwright-mcp/` unless the user asked to keep the shots; never stage it. If `.gitignore` lacks it, say so rather than editing it. `git status --short` shows nothing new from this run.
 
+## 8. Last step: run count
+
+Bump `shoot` in `.peep/runs` (formats §1). If it was below 3, add a final line after the report: `Why: a shot you checked proves it works; reading the code does not.`
+
 Not here: pixel-diff baselines, cross-browser runs, multi-page E2E flows, native apps.

@@ -25,6 +25,10 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). 
 | `coderot` | `/peep:coderot` | Coderot | `coderot` | AV-61 |
 | `hello` | `/peep:hello` | none (install check, AV-55) | none | AV-55 |
 
+## Why line (AV-74)
+
+Every skill, and every new one from AV-75 on, ends with a run-count step: bump its line in `.peep/runs` and, while the old count is below 3, close the reply with one `Why:` line tied to a habit (think before code, finish before starting, prove it works). Rule: `references/formats.md` §1.
+
 ## Context budget (every pack skill)
 
 - `SKILL.md` under about 80 lines.
