@@ -1,7 +1,7 @@
 ---
 id: AV-51
 title: Global skill for Playwright element checks with pointed screenshot review
-status: in-progress
+status: done
 depends: []
 attended: true
 ---
@@ -68,6 +68,6 @@ Other light ratios: muted target and options 4.71, button 5.93, bubble 5.05. Com
 
 Owed to the owner (outside the page): toast, `Answer in terminal` focusing a real terminal, hotkey inbox.
 
-## Owed before done
+## Done 2026-11-15
 
-- Owner agrees the light chip contrast fail (4.40:1) is a real fail, and says whether to fix it (new ticket) or accept it.
+The owner ruled the light chip contrast fail (4.40:1) a real fail; the fix is AV-52. Proven by `~/.claude/skills/shoot/SKILL.md`, the `shoot` pointers in `~/.claude/skills/ticket/SKILL.md` and `~/.claude/CLAUDE.md`, and the proof run above.
