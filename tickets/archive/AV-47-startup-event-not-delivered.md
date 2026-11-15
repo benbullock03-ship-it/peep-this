@@ -1,7 +1,7 @@
 ---
 id: AV-47
 title: Startup status event never reaches the page
-status: in-progress
+status: done
 depends: []
 attended: false
 ---
@@ -46,7 +46,9 @@ Other events, same test:
 
 - No automated test. The loss needs two real webviews and the Windows message pump; a unit test would only check line order in `setup`. The live check below is the proof.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner looked at the cold launch of the build installed 19:44, retry removed, and said it looks good. The trace and test boxes stay unticked: neither was made. What was owed:
 
 - Owner: on a cold launch of the reinstalled build, no "hotkey is not active" notice shows, both hotkeys work, and mode and sessions are right. With the retry removed, the notices would stay up if the cause were wrong.
 - No live trace was taken; the cause is from reading the source.
