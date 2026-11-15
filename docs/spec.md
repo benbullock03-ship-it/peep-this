@@ -312,7 +312,9 @@ The context bar and the 5h/7d limit bars are rows of 10 square blocks that fill 
 
 Every transition runs in 4 to 6 discrete frames over about 160ms, matching the peeps' 8 to 12 fps, including window resizes. With `prefers-reduced-motion` everything is instant.
 
-Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-steps` in `styles.css`, mirrored by `motion.ts` and by `motion.rs` (`animate` steps the window, one `SetWindowPos` per frame). Exceptions: the approval countdown and the destructive hold fill stay linear, because they show time passing.
+Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-steps` in `styles.css`, mirrored by `motion.ts`. Exceptions: the approval countdown and the destructive hold fill stay linear, because they show time passing.
+
+**Exception, strip/panel switch (owner 2026-11-15, AV-39):** "fluid yet nostalgic" overrules the 4 to 6 frame / 160ms rule for this one transition. The window is never stepped. On a switch it is sized once to the union of the strip and panel rects with the anchored edge fixed, the card animates inside it (`fold.ts`: a frame travels between the two rects, strip and panel content cross-fade, clipped to the frame), and one `SetWindowPos` then drops the window to the final rect. `window.rs` (`begin_switch`, `play_region`, `end_switch`) keeps the hit region on the visible card throughout. Timing: 12 steps over 240ms, the default pending the owner's choice between it, a 220ms ease-out with a 2-frame snap, and a zoom-rect outline. Reduced motion is instant.
 
 ### 12.4 Docking and snap (AV-34, AV-38)
 

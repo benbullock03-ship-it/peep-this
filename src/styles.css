@@ -31,7 +31,7 @@
   --diff-add-mark: #5ed68c;
   --diff-del-bg: rgba(255, 93, 93, 0.12);
   --diff-del-text: #ffc2c2;
-  /* Every transition steps (spec §12.3); motion.ts and motion.rs mirror these. */
+  /* Every transition steps (spec §12.3); motion.ts mirrors these. The strip/panel switch has its own timing in fold.ts. */
   --motion-ms: 160ms;
   --motion-steps: steps(5, end);
   --sans: "IBM Plex Sans", system-ui, sans-serif;
@@ -102,7 +102,7 @@ body {
 .ps {
   flex: 0 1 auto;
   box-sizing: border-box;
-  /* Fixed, so the card is clipped rather than reflowed while the window steps open (AV-39). */
+  /* Fixed, so the card never reflows to whatever width the window has mid-switch (AV-39). */
   width: 354px;
   min-height: 0;
   display: flex;
@@ -135,6 +135,63 @@ body:not([data-anchor$="right"]) {
 
 body[data-anchor^="bottom"] {
   justify-content: flex-end;
+}
+
+/* ---------- strip/panel switch (AV-39, fold.ts) ---------- */
+/* The incoming shape, laid out to be measured before the window grows. */
+.fold-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+}
+
+body[data-fold] {
+  pointer-events: none;
+}
+
+/* fold.ts places both shapes in the union window; the frame is the card while it travels. */
+body[data-fold] > .ps,
+body[data-fold] > .ps-strip {
+  position: absolute;
+  margin: 0;
+}
+
+body[data-fold="run"] > .ps,
+body[data-fold="run"] > .ps-strip {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ps-fold-frame {
+  position: absolute;
+  box-sizing: border-box;
+  background: var(--ps-panel);
+  border: 2px solid var(--ps-text);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.45);
+}
+
+.ps-fold-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dotted var(--ps-text);
+}
+
+/* Dev builds only: which trial timing is on. */
+.fold-chip {
+  position: fixed;
+  left: 4px;
+  bottom: 8px;
+  padding: 0 3px;
+  background: var(--ps-accent);
+  color: var(--ps-on-st);
+  font: 500 9px/12px var(--mono);
+  pointer-events: none;
+}
+
+body[data-fold] > .fold-chip {
+  display: none;
 }
 
 /* ---------- peep strip (AV-39, design/shell .ps-strip) ---------- */

@@ -2,9 +2,11 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { boxOf, clearFold, FOLD_DEFAULT, FOLD_VARIANTS, isFoldVariant, playFold, viewportIs, type Box, type FoldGeometry, type FoldVariant } from "./fold";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
+import { reducedMotion } from "./motion";
 import { createList } from "./rows";
 import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
 import { createStrip, type StripActions } from "./stripPlate";
@@ -27,7 +29,7 @@ const stripActions: StripActions = { open: () => applyMode({ ...view, mode: "pan
 let collapse = () => applyMode({ ...view, mode: "strip", layout: "column" });
 document.querySelector<HTMLButtonElement>("#collapse-btn")!.addEventListener("click", () => collapse());
 
-function applyMode(v: ModeView) {
+function setShape(v: ModeView) {
   view = v;
   shellEl.hidden = v.layout !== "panel";
   stripEl.hidden = v.layout === "panel";
@@ -35,6 +37,113 @@ function applyMode(v: ModeView) {
   // styles.css pins the card to the anchored side, so an unfold grows away from it.
   document.body.dataset.anchor = v.anchor;
   remeasure();
+}
+
+const SHADOW_PX = 6;
+const cardBox = (el: HTMLElement): Box => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left, y: r.top, w: r.width + SHADOW_PX, h: r.height + SHADOW_PX };
+};
+
+/** How a switch gets its window. In a browser nothing resizes: both shapes are measured where they lie. */
+let surface = {
+  begin: async (v: ModeView): Promise<FoldGeometry | null> => {
+    const [incoming, outgoing] = v.layout === "panel" ? [shellEl, stripEl] : [stripEl, shellEl];
+    const from = cardBox(outgoing);
+    incoming.classList.remove("fold-measure");
+    outgoing.hidden = true;
+    const to = cardBox(incoming);
+    outgoing.hidden = false;
+    incoming.classList.add("fold-measure");
+    return { win: [window.innerWidth, window.innerHeight], from, to };
+  },
+  settle: (_w: number, _h: number): Promise<void> => Promise.resolve(),
+  end: (): Promise<void> => Promise.resolve(),
+  region: undefined as ((rects: Box[], gapMs: number) => void) | undefined,
+};
+
+function foldVariant(): FoldVariant {
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem("peepFold");
+  } catch {
+    // Storage can be blocked; the default stands.
+  }
+  const v = params.get("fold") ?? stored;
+  return isFoldVariant(v) ? v : FOLD_DEFAULT;
+}
+
+/** False until the first mode is on screen; the launch shape never animates. */
+let ready = false;
+let folding = false;
+let foldToken = 0;
+
+function applyMode(v: ModeView) {
+  const token = ++foldToken;
+  if (folding) {
+    // A switch arrived mid-animation: land the one in flight, then start from there.
+    folding = false;
+    clearFold(shellEl, stripEl);
+    setShape(view);
+  }
+  const switching = ready && (v.layout === "panel") !== (view.layout === "panel") && !reducedMotion();
+  if (!switching) return setShape(v);
+  fold(v, token).catch((err) => {
+    console.error("peepthis: switch animation failed", err);
+    if (token !== foldToken) return;
+    folding = false;
+    clearFold(shellEl, stripEl);
+    setShape(v);
+    void surface.end();
+  });
+}
+
+async function fold(v: ModeView, token: number) {
+  const toPanel = v.layout === "panel";
+  const incoming = toPanel ? shellEl : stripEl;
+  folding = true;
+  view = v;
+  if (!toPanel) stripEl.dataset.layout = v.layout;
+  document.body.dataset.anchor = v.anchor;
+  incoming.classList.add("fold-measure");
+  incoming.hidden = false;
+  const land = () => {
+    folding = false;
+    clearFold(shellEl, stripEl);
+    setShape(v);
+  };
+  const g = await surface.begin(v);
+  if (token !== foldToken) return;
+  if (!g) return land();
+  await surface.settle(g.win[0], g.win[1]);
+  if (token !== foldToken) return;
+  await playFold({ shell: shellEl, strip: stripEl, toPanel, g, variant: foldVariant(), region: surface.region });
+  if (token !== foldToken) return;
+  await surface.end();
+  await surface.settle(g.to.w, g.to.h);
+  if (token !== foldToken) return;
+  land();
+}
+
+/** Dev builds only: a right-click on the collapse button or the strip steps through the timings on trial. */
+function wireFoldPicker() {
+  const chip = document.createElement("div");
+  chip.className = "fold-chip";
+  const show = () => (chip.textContent = `fold ${foldVariant()}`);
+  show();
+  document.body.append(chip);
+  const next = (e: Event) => {
+    e.preventDefault();
+    const v = FOLD_VARIANTS[(FOLD_VARIANTS.indexOf(foldVariant()) + 1) % FOLD_VARIANTS.length];
+    try {
+      localStorage.setItem("peepFold", v);
+    } catch {
+      return;
+    }
+    show();
+  };
+  document.querySelector<HTMLButtonElement>("#collapse-btn")!.addEventListener("contextmenu", next);
+  stripEl.addEventListener("contextmenu", next);
 }
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
@@ -231,6 +340,9 @@ async function startSurface() {
     // In a browser `?strip` or `?strip=row` shows the plate; a click opens the panel.
     const strip = params.get("strip");
     if (strip !== null) applyMode({ mode: "strip", layout: strip === "row" ? "row" : "column", anchor: params.get("anchor") ?? "float" });
+    else if (params.has("anchor")) applyMode({ ...view, anchor: params.get("anchor")! });
+    ready = true;
+    if (import.meta.env.DEV) wireFoldPicker();
     return;
   }
   const [{ invoke }, { listen }, { getCurrentWindow }] = await Promise.all([
@@ -252,22 +364,34 @@ async function startSurface() {
   // The card's border and the margin that holds its hard shadow sit outside the measured parts.
   const chrome = px(shellEl, ["borderTopWidth", "borderBottomWidth", "marginTop", "marginBottom"]);
   const shadow = px(stripEl, ["marginBottom"]);
+  const lengthOf = (layout: ModeView["layout"]) => {
+    if (layout === "panel") return [header, root, settingsEl].reduce((sum, el) => sum + el.getBoundingClientRect().height, chrome);
+    const r = stripEl.getBoundingClientRect();
+    return (layout === "row" ? r.width : r.height) + shadow;
+  };
+  type FoldView = { win: [number, number]; from: number[]; to: number[] };
+  surface = {
+    begin: async (v) => {
+      const f = await invoke<FoldView | null>("begin_switch", { height: Math.ceil(lengthOf(v.layout)), layout: v.layout });
+      return f && { win: f.win, from: boxOf(f.from), to: boxOf(f.to) };
+    },
+    settle: viewportIs,
+    end: () => invoke<void>("end_switch"),
+    region: (rects, gapMs) =>
+      void invoke("play_region", { rects: rects.map((b) => [b.x, b.y, b.w, b.h]), gapMs: Math.round(gapMs) }).catch((err) =>
+        console.error("peepthis: play_region failed", err),
+      ),
+  };
   remeasure = watchContent(
     [header, root, settingsEl, stripEl],
-    () => {
-      if (view.mode === "hidden") return null;
-      if (view.layout === "panel") {
-        const height = [header, root, settingsEl].reduce((sum, el) => sum + el.getBoundingClientRect().height, chrome);
-        return { length: height, tag: "panel" };
-      }
-      const r = stripEl.getBoundingClientRect();
-      return { length: (view.layout === "row" ? r.width : r.height) + shadow, tag: view.layout };
-    },
+    () => (folding || view.mode === "hidden" ? null : { length: lengthOf(view.layout), tag: view.layout }),
     (height, layout) => {
       invoke("fit_window", { height, layout }).catch((err) => console.error("peepthis: fit_window failed", err));
     },
   );
   remeasure();
+  ready = true;
+  if (import.meta.env.DEV) wireFoldPicker();
 }
 
 const params = new URLSearchParams(location.search);

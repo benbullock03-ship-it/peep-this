@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
@@ -217,17 +217,46 @@ pub fn hit_region(w: i32, h: i32, scale: f64) -> [Rect; 2] {
 }
 
 #[cfg(windows)]
-fn set_region(hwnd: isize, rects: [Rect; 2]) {
+fn set_region(hwnd: isize, rects: &[Rect]) {
     use windows_sys::Win32::Graphics::Gdi::{CombineRgn, CreateRectRgn, DeleteObject, SetWindowRgn, RGN_OR};
     unsafe {
-        let [a, b] = rects;
-        let rgn = CreateRectRgn(a.x, a.y, a.right(), a.bottom());
-        let other = CreateRectRgn(b.x, b.y, b.right(), b.bottom());
-        CombineRgn(rgn, rgn, other, RGN_OR);
-        DeleteObject(other);
+        let rgn = CreateRectRgn(0, 0, 0, 0);
+        for r in rects {
+            let part = CreateRectRgn(r.x, r.y, r.right(), r.bottom());
+            CombineRgn(rgn, rgn, part, RGN_OR);
+            DeleteObject(part);
+        }
         // The system owns `rgn` once it is set.
         SetWindowRgn(hwnd as _, rgn, 1);
     }
+}
+
+fn union(a: Rect, b: Rect) -> Rect {
+    let (x, y) = (a.x.min(b.x), a.y.min(b.y));
+    Rect { x, y, w: a.right().max(b.right()) - x, h: a.bottom().max(b.bottom()) - y }
+}
+
+/// What the frontend animates between (AV-39): the union window's size and both shapes' window
+/// rects inside it, in CSS px.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq)]
+pub struct FoldView {
+    pub win: [f64; 2],
+    pub from: [f64; 4],
+    pub to: [f64; 4],
+}
+
+/// The window rect that holds both shapes, and what the frontend needs to animate inside it.
+pub fn fold_view(from: Rect, to: Rect, scale: f64) -> (Rect, FoldView) {
+    let u = union(from, to);
+    let css = |v: i32| v as f64 / scale;
+    let inside = |r: Rect| [css(r.x - u.x), css(r.y - u.y), css(r.w), css(r.h)];
+    (u, FoldView { win: [css(u.w), css(u.h)], from: inside(from), to: inside(to) })
+}
+
+/// A CSS-px rect as physical px, rounded outward so the region never clips what it covers.
+pub fn cover(r: [f64; 4], scale: f64) -> Rect {
+    let (x, y) = ((r[0] * scale).floor() as i32, (r[1] * scale).floor() as i32);
+    Rect { x, y, w: ((r[0] + r[2]) * scale).ceil() as i32 - x, h: ((r[1] + r[3]) * scale).ceil() as i32 - y }
 }
 
 /// Live magnet (AV-34 answer): the native caption drag sends `WM_MOVING`, and rewriting its rect
@@ -388,11 +417,21 @@ static USER_HIDDEN: AtomicBool = AtomicBool::new(false);
 static LAST_CONTENT: Mutex<Option<(Layout, f64)>> = Mutex::new(None);
 /// The visible shape; `USER_HIDDEN` sits on top of it. The app launches in the strip.
 static STRIP_SHAPE: AtomicBool = AtomicBool::new(true);
-/// The next fit is a mode switch and steps there.
-static UNFOLD: AtomicBool = AtomicBool::new(false);
+/// A strip/panel switch in flight: the window sits on the union of both shapes while the frontend
+/// animates the card inside it, then drops to `to`.
+struct Fold {
+    id: u64,
+    hwnd: isize,
+    to: Rect,
+    scale: f64,
+}
+static FOLD: Mutex<Option<Fold>> = Mutex::new(None);
+static FOLD_ID: AtomicU64 = AtomicU64::new(0);
+/// A frontend that never ends its switch is ended for it.
+const FOLD_TIMEOUT: Duration = Duration::from_millis(1500);
 /// Where the strip was before it unfolded; folding goes back there even if the panel was clamped.
 static HOME: Mutex<Option<(i32, i32)>> = Mutex::new(None);
-/// The rect last asked for, which a running stepped move has not reached yet.
+/// The rect last asked for.
 static TARGET: Mutex<Option<Rect>> = Mutex::new(None);
 static ANCHOR_MOVED: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static FOCUSED: AtomicBool = AtomicBool::new(false);
@@ -457,16 +496,19 @@ fn spawn_saver<R: Runtime>(app: AppHandle<R>) {
     });
 }
 
-fn apply_fit<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<()> {
-    // A measurement of the shape just left; the new one follows.
-    if layout != self::layout() {
-        return Ok(());
-    }
+struct Plan {
+    now: Rect,
+    to: Rect,
+    scale: f64,
+}
+
+/// Where the window is and where `layout` holding `content` puts it. None without a monitor.
+fn plan<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<Option<Plan>> {
     let mon = match w.current_monitor()? {
         Some(m) => m,
         None => match w.primary_monitor()? {
             Some(m) => m,
-            None => return Ok(()),
+            None => return Ok(None),
         },
     };
     let (pos, size) = (w.outer_position()?, w.outer_size()?);
@@ -478,30 +520,85 @@ fn apply_fit<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> 
     // In the strip no row is in view, so alerts treat it like an overflowing list.
     OVERFLOWING.store(overflow || layout != Layout::Panel, Ordering::SeqCst);
     *TARGET.lock().unwrap() = Some(to);
-    let unfold = UNFOLD.swap(false, Ordering::SeqCst) && w.is_visible()?;
+    Ok(Some(Plan { now, to, scale: m.scale }))
+}
+
+/// Ends the switch in flight (only `id`'s, if given): one `SetWindowPos` to the final rect.
+fn finish_fold(id: Option<u64>) {
+    let fold = {
+        let mut slot = FOLD.lock().unwrap();
+        if id.is_some() && slot.as_ref().map(|f| f.id) != id {
+            return;
+        }
+        slot.take()
+    };
+    // The lock is released first: SetWindowPos from a worker waits on the window's thread.
+    let Some(f) = fold else { return };
+    crate::motion::cancel();
+    #[cfg(windows)]
+    {
+        sys::set_rect(f.hwnd, f.to);
+        set_region(f.hwnd, &hit_region(f.to.w, f.to.h, f.scale));
+    }
+    #[cfg(not(windows))]
+    let _ = (f.hwnd, f.to, f.scale);
+}
+
+fn apply_fit<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<()> {
+    finish_fold(None);
+    // A measurement of the shape just left; the new one follows.
+    if layout != self::layout() {
+        return Ok(());
+    }
+    let Some(p) = plan(w, layout, content)? else { return Ok(()) };
     #[cfg(windows)]
     {
         let hwnd = w.hwnd()?.0 as isize;
-        let scale = m.scale;
-        if unfold {
-            crate::motion::animate(hwnd, now, to, move |r| set_region(hwnd, hit_region(r.w, r.h, scale)));
-        } else {
-            crate::motion::cancel();
-            // One call: size then position separately shows a frame at the wrong spot (AV-34).
-            sys::set_rect(hwnd, to);
-            set_region(hwnd, hit_region(to.w, to.h, scale));
-        }
+        // One call: size then position separately shows a frame at the wrong spot (AV-34).
+        sys::set_rect(hwnd, p.to);
+        set_region(hwnd, &hit_region(p.to.w, p.to.h, p.scale));
     }
     #[cfg(not(windows))]
     {
-        let _ = unfold;
-        w.set_size(tauri::PhysicalSize::new(to.w as u32, to.h as u32))?;
-        w.set_position(PhysicalPosition::new(to.x, to.y))?;
+        let _ = (p.now, p.scale);
+        w.set_size(tauri::PhysicalSize::new(p.to.w as u32, p.to.h as u32))?;
+        w.set_position(PhysicalPosition::new(p.to.x, p.to.y))?;
     }
     if !USER_HIDDEN.load(Ordering::SeqCst) && !w.is_visible()? {
         w.show()?;
     }
     Ok(())
+}
+
+/// Starts a strip/panel switch: sizes the window once to the union of the shape it has and the
+/// one `layout` needs, with the hit region left on the card still showing. None when there is
+/// nothing to animate (hidden, reduced motion); the frontend then swaps and fits as usual.
+fn start_fold<R: Runtime>(w: &tauri::Window<R>, layout: Layout, content: f64) -> tauri::Result<Option<FoldView>> {
+    finish_fold(None);
+    if cfg!(not(windows)) || layout != self::layout() || crate::motion::reduced_motion() || !w.is_visible()? {
+        return Ok(None);
+    }
+    let Some(p) = plan(w, layout, content)? else { return Ok(None) };
+    if p.now == p.to {
+        return Ok(None);
+    }
+    #[cfg(windows)]
+    {
+        let hwnd = w.hwnd()?.0 as isize;
+        let (u, view) = fold_view(p.now, p.to, p.scale);
+        let (dx, dy) = (p.now.x - u.x, p.now.y - u.y);
+        sys::set_rect(hwnd, u);
+        set_region(hwnd, &hit_region(p.now.w, p.now.h, p.scale).map(|r| Rect { x: r.x + dx, y: r.y + dy, ..r }));
+        let id = FOLD_ID.fetch_add(1, Ordering::SeqCst) + 1;
+        *FOLD.lock().unwrap() = Some(Fold { id, hwnd, to: p.to, scale: p.scale });
+        std::thread::spawn(move || {
+            std::thread::sleep(FOLD_TIMEOUT);
+            finish_fold(Some(id));
+        });
+        return Ok(Some(view));
+    }
+    #[allow(unreachable_code)]
+    Ok(None)
 }
 
 pub fn is_hidden() -> bool {
@@ -510,6 +607,7 @@ pub fn is_hidden() -> bool {
 
 /// Shows or hides the widget and tells the frontend, which detaches its peeps while hidden.
 pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
+    finish_fold(None);
     USER_HIDDEN.store(hidden, Ordering::SeqCst);
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let _ = app.emit("widget-hidden", hidden);
@@ -525,15 +623,16 @@ pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
     }
 }
 
-/// Switches between strip and panel (shown if it was hidden), or hides. The frontend re-lays out
-/// on the `mode` event and its next fit steps the window to the new shape.
+/// Switches between strip and panel (shown if it was hidden), or hides. On the `mode` event the
+/// frontend asks for `begin_switch`, animates the card, then `end_switch`.
 pub fn set_mode<R: Runtime>(app: &AppHandle<R>, to: Mode) {
     if to == Mode::Hidden {
         return set_hidden(app, true);
     }
     let strip = to == Mode::Strip;
     if STRIP_SHAPE.swap(strip, Ordering::SeqCst) != strip {
-        UNFOLD.store(true, Ordering::SeqCst);
+        // HOME is read from the strip's own spot, not from a union still on screen.
+        finish_fold(None);
         let at = app.get_webview_window(LABEL).and_then(|w| w.outer_position().ok());
         *HOME.lock().unwrap() = at.filter(|_| !strip).map(|p| (p.x, p.y));
     }
@@ -643,6 +742,32 @@ pub fn fit_window(window: tauri::Window, height: f64, layout: Layout) -> Result<
     }
     *LAST_CONTENT.lock().unwrap() = Some((layout, height));
     apply_fit(&window, layout, height).map_err(|e| e.to_string())
+}
+
+/// The frontend is about to animate from the shape on screen to `layout`, which needs `height`.
+#[tauri::command]
+pub fn begin_switch(window: tauri::Window, height: f64, layout: Layout) -> Result<Option<FoldView>, String> {
+    if !height.is_finite() {
+        return Err("height must be finite".into());
+    }
+    *LAST_CONTENT.lock().unwrap() = Some((layout, height));
+    start_fold(&window, layout, height).map_err(|e| e.to_string())
+}
+
+/// Hit regions (CSS px in the union window) to play `gap_ms` apart beside the CSS animation.
+#[tauri::command]
+pub fn play_region(rects: Vec<[f64; 4]>, gap_ms: u32) {
+    let Some((hwnd, scale)) = FOLD.lock().unwrap().as_ref().map(|f| (f.hwnd, f.scale)) else { return };
+    let steps: Vec<Rect> = rects.into_iter().map(|r| cover(r, scale)).collect();
+    #[cfg(windows)]
+    crate::motion::play(steps, Duration::from_millis(gap_ms.clamp(1, 200) as u64), move |r| set_region(hwnd, &[*r]));
+    #[cfg(not(windows))]
+    let _ = (hwnd, steps, gap_ms);
+}
+
+#[tauri::command]
+pub fn end_switch() {
+    finish_fold(None);
 }
 
 #[cfg(test)]
@@ -776,6 +901,39 @@ mod tests {
         assert_eq!(card, Rect { x: 0, y: 0, w: 531, h: 291 });
         assert_eq!(shadow, Rect { x: 9, y: 9, w: 531, h: 291 });
         assert_eq!((shadow.right(), shadow.bottom()), (540, 300));
+    }
+
+    #[test]
+    fn fold_window_is_the_union_with_the_anchored_corner_shared() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.5, 72);
+        let strip = target(Layout::Column, 300.0, (0, 0), &m, Anchor::BottomRight).0;
+        let panel = target(Layout::Panel, 420.0, (strip.x, strip.y), &m, Anchor::BottomRight).0;
+        let (u, v) = fold_view(strip, panel, 1.5);
+        assert_eq!(u, panel);
+        assert_eq!(v.win, [360.0, 420.0]);
+        assert_eq!(v.to, [0.0, 0.0, 360.0, 420.0]);
+        // The strip sits in the union's bottom-right corner, where it already was on screen.
+        assert_eq!(v.from, [360.0 - 68.0, 420.0 - 300.0, 68.0, 300.0]);
+        assert_eq!(fold_view(panel, strip, 1.5).0, u);
+    }
+
+    #[test]
+    fn fold_window_covers_a_panel_pushed_back_inside_the_work_area() {
+        let m = mon("D1", 0, 0, 1920, 1080, 1.0, 40);
+        let strip = target(Layout::Column, 300.0, (1800, 300), &m, Anchor::Float).0;
+        let panel = target(Layout::Panel, 420.0, (1800, 300), &m, Anchor::Float).0;
+        let (u, v) = fold_view(strip, panel, 1.0);
+        assert_eq!((u.x, u.right()), (panel.x, strip.right().max(panel.right())));
+        assert_eq!(v.from[0], (strip.x - panel.x) as f64);
+        assert_eq!(v.to[0], 0.0);
+    }
+
+    #[test]
+    fn fold_region_rounds_outward_to_physical_pixels() {
+        assert_eq!(cover([10.0, 20.0, 68.0, 100.0], 1.0), Rect { x: 10, y: 20, w: 68, h: 100 });
+        let r = cover([10.5, 0.3, 67.7, 100.0], 1.25);
+        assert_eq!((r.x, r.y), (13, 0));
+        assert_eq!((r.right(), r.bottom()), (98, 126));
     }
 
     #[test]
