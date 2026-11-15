@@ -1,7 +1,7 @@
 ---
 id: AV-41
 title: Hover peek and click pin
-status: in-progress
+status: done
 depends: [AV-39]
 attended: false
 ---
@@ -35,7 +35,9 @@ Decide: whether the 200ms and 300ms delays are settings (recommended: constants;
 - A pin that arrives during the unfold animation lets the animation finish instead of cutting it short.
 - No peek in a browser (`npm run dev`). There it is strip clicks only, as before.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. What was owed, as it stood:
 
 Built 2026-11-15. Code: `src-tauri/src/peek.rs` (machine plus 7 tests), `src-tauri/src/window.rs` (`PEEK`, `PEEK_STRIP`, `DRAGGING`, `start_peek`, `end_peek`, `set_shape`, `spawn_peek`, `sys::cursor_over`, `sys::button_down`, `peek` in `ModeView`, `toggled(mode, peek)`), `src/peek.ts` and `src/peek.test.ts` (3 tests), `src/main.ts` (pin listener, `data-peek`).
 
