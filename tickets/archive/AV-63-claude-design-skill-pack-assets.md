@@ -1,7 +1,7 @@
 ---
 id: AV-63
 title: Claude Design deliverables for floppies, shelf, chips and emotes
-status: open
+status: closed
 depends: []
 attended: true
 ---
