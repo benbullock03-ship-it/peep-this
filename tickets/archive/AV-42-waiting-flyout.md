@@ -1,7 +1,7 @@
 ---
 id: AV-42
 title: Waiting row flyout from the strip
-status: in-progress
+status: done
 depends: [AV-39]
 attended: false
 ---
@@ -34,7 +34,9 @@ attended: false
 - Ended sessions never fly out, even if their last state was `waiting`.
 - The `design-tropes` skill is not installed here; the look was checked against `design/shell/` and the panel's own row, by screenshot.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. The three unticked boxes (leaving on state change or click, flying out from the `+N` tile, nothing in `hidden`) were not seen by Claude and stay unticked. What was owed, as it stood:
 
 Built 2026-11-15. Code: `src-tauri/src/flyout.rs` (window, side and zone maths, `set_flyouts` / `get_flyouts` / `flyout_region`, 6 tests), `src-tauri/src/window.rs` (`still_strip`, refresh on `mode`, move and resize; `set_region`, `place_rect`, `show_inactive` made crate-visible), `src-tauri/src/lib.rs`, `src-tauri/capabilities/default.json` (the `flyout` window), `flyout.html`, `vite.config.ts` (second page), `src/flyout.ts` + `src/flyout.test.ts` (10 tests: selection, dismissal, `+N` mapping, stacking, sides), `src/flyoutPage.ts`, `src/stripPlate.ts` (`slotCenter`), `src/main.ts` (`syncFlyouts`), `.ps-fly` in `src/styles.css`, spec §12.7. Checks: `npm run build`, `npm test` 148, `cargo test` 290 + 15.
 
