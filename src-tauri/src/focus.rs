@@ -3,6 +3,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::source::claude::sessions::{is_live, parse, Record};
+use crate::source::process::Proc;
 use crate::store::Store;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,9 +143,60 @@ pub fn focus_by_id(store: &Store, session_id: &str) -> Result<bool, String> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EndError {
+    UnknownSession,
+    /// No session file, no `procStart`, or an unreadable OS start time: PID reuse cannot be ruled out.
+    Unverified,
+    StartMismatch,
+    Exited,
+    Kill(String),
+}
+
+impl std::fmt::Display for EndError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EndError::UnknownSession => f.write_str("no live session with that id"),
+            EndError::Unverified => f.write_str("cannot verify the session's process start time"),
+            EndError::StartMismatch => f.write_str("the PID now belongs to another process"),
+            EndError::Exited => f.write_str("the session's process has already exited"),
+            EndError::Kill(e) => write!(f, "TerminateProcess failed: {e}"),
+        }
+    }
+}
+
+/// Whether `os` (the PID's process as probed) is still the process the session file describes; fails closed.
+pub fn check_end(session_id: &str, rec: Option<&Record>, os: Proc) -> Result<(), EndError> {
+    let rec = rec.filter(|r| r.info.id == session_id && r.proc_start.is_some()).ok_or(EndError::Unverified)?;
+    match os {
+        Proc::Dead => Err(EndError::Exited),
+        Proc::Alive { started: None } => Err(EndError::Unverified),
+        Proc::Alive { .. } if is_live(rec, |_| os) => Ok(()),
+        Proc::Alive { .. } => Err(EndError::StartMismatch),
+    }
+}
+
+/// Ok(false) when the process had already exited; the lifecycle takes the row to done either way.
+#[tauri::command]
+pub fn end_session(session_id: String, store: tauri::State<'_, Arc<Store>>) -> Result<bool, String> {
+    match end_by_id(&store, &session_id) {
+        Ok(()) => Ok(true),
+        Err(EndError::Exited) => Ok(false),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+pub fn end_by_id(store: &Store, session_id: &str) -> Result<(), EndError> {
+    let snap = store.snapshot();
+    let pid = snap.sessions.iter().find(|s| s.id == session_id && s.alive).map(|s| s.pid).ok_or(EndError::UnknownSession)?;
+    let file = crate::source::claude::config_dir().join("sessions").join(format!("{pid}.json"));
+    let rec = std::fs::read(&file).ok().and_then(|b| parse(&b, &pid.to_string()).ok());
+    sys::terminate_checked(pid, |os| check_end(session_id, rec.as_ref(), os))
+}
+
 #[cfg(windows)]
 mod sys {
-    use super::{FocusError, ProcEntry, WindowInfo};
+    use super::{EndError, FocusError, ProcEntry, WindowInfo};
     use crate::source::process::{probe, Proc};
     use std::collections::HashMap;
     use windows_sys::core::BOOL;
@@ -265,11 +318,47 @@ mod sys {
             if GetForegroundWindow() == hwnd { Ok(()) } else { Err(FocusError::Foreground) }
         }
     }
+
+    /// Checks and kills through one handle, so the PID cannot be reused between the check and the kill.
+    pub fn terminate_checked(pid: u32, check: impl FnOnce(Proc) -> Result<(), EndError>) -> Result<(), EndError> {
+        use windows_sys::Win32::Foundation::{FILETIME, GetLastError, STILL_ACTIVE};
+        use windows_sys::Win32::System::Threading::{
+            GetExitCodeProcess, GetProcessTimes, OpenProcess, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+            PROCESS_TERMINATE,
+        };
+        if pid == 0 {
+            return check(Proc::Dead);
+        }
+        unsafe {
+            let h = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if h.is_null() {
+                let err = GetLastError();
+                check(probe(pid))?;
+                return Err(EndError::Kill(format!("OpenProcess error {err}")));
+            }
+            let mut code = 0u32;
+            let exited = GetExitCodeProcess(h, &mut code) != 0 && code != STILL_ACTIVE as u32;
+            let zero = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+            let (mut created, mut exit, mut kernel, mut user) = (zero, zero, zero, zero);
+            let started = (GetProcessTimes(h, &mut created, &mut exit, &mut kernel, &mut user) != 0)
+                .then(|| ((created.dwHighDateTime as u64) << 32) | created.dwLowDateTime as u64);
+            let os = if exited { Proc::Dead } else { Proc::Alive { started } };
+            let out = check(os).and_then(|()| {
+                if TerminateProcess(h, 1) != 0 {
+                    Ok(())
+                } else {
+                    Err(EndError::Kill(format!("error {}", GetLastError())))
+                }
+            });
+            CloseHandle(h);
+            out
+        }
+    }
 }
 
 #[cfg(not(windows))]
 mod sys {
-    use super::{FocusError, ProcEntry, WindowInfo};
+    use super::{EndError, FocusError, ProcEntry, Proc, WindowInfo};
     use std::collections::HashMap;
 
     pub fn process_table() -> HashMap<u32, ProcEntry> {
@@ -289,6 +378,10 @@ mod sys {
     }
     pub fn exists(_hwnd: isize) -> bool {
         false
+    }
+    pub fn terminate_checked(pid: u32, check: impl FnOnce(Proc) -> Result<(), EndError>) -> Result<(), EndError> {
+        check(crate::source::process::probe(pid))?;
+        Err(EndError::Kill("unsupported on this platform".into()))
     }
 }
 
@@ -363,6 +456,76 @@ mod tests {
         assert_eq!(folder_hint("F:\\Projects\\agentview widget\\"), Some("agentview widget"));
         assert_eq!(folder_hint("C:/work/demo"), Some("demo"));
         assert_eq!(folder_hint(""), None);
+    }
+
+    const START: u64 = 133_000_000_000_000_000;
+
+    fn rec(proc_start: Option<u64>) -> Record {
+        let ps = proc_start.map_or("null".into(), |p| p.to_string());
+        parse(format!(r#"{{"sessionId":"s1","pid":10,"procStart":{ps}}}"#).as_bytes(), "10").unwrap()
+    }
+
+    #[test]
+    fn end_allows_matching_start_time() {
+        let r = rec(Some(START));
+        assert_eq!(check_end("s1", Some(&r), Proc::Alive { started: Some(START + 10_000_000) }), Ok(()));
+    }
+
+    #[test]
+    fn end_refuses_reused_pid() {
+        let r = rec(Some(START));
+        let later = Proc::Alive { started: Some(START + 3_600 * 10_000_000) };
+        assert_eq!(check_end("s1", Some(&r), later), Err(EndError::StartMismatch));
+        assert_eq!(check_end("s1", Some(&r), Proc::Alive { started: Some(START - 30_000_000) }), Err(EndError::StartMismatch));
+    }
+
+    #[test]
+    fn end_fails_closed_when_start_cannot_be_compared() {
+        let alive = Proc::Alive { started: Some(START) };
+        assert_eq!(check_end("s1", None, alive), Err(EndError::Unverified));
+        assert_eq!(check_end("s1", Some(&rec(None)), alive), Err(EndError::Unverified));
+        assert_eq!(check_end("other", Some(&rec(Some(START))), alive), Err(EndError::Unverified));
+        assert_eq!(check_end("s1", Some(&rec(Some(START))), Proc::Alive { started: None }), Err(EndError::Unverified));
+        assert_eq!(check_end("s1", Some(&rec(Some(START))), Proc::Dead), Err(EndError::Exited));
+    }
+
+    #[test]
+    fn end_errors_for_unknown_session() {
+        let store = Store::new(Box::new(|_| {}));
+        assert_eq!(end_by_id(&store, "nope"), Err(EndError::UnknownSession));
+    }
+
+    #[cfg(windows)]
+    fn throwaway() -> std::process::Child {
+        std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap()
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn end_refusal_leaves_the_process_running() {
+        let mut child = throwaway();
+        assert_eq!(sys::terminate_checked(child.id(), |_| Err(EndError::StartMismatch)), Err(EndError::StartMismatch));
+        assert!(child.try_wait().unwrap().is_none(), "refused end must not kill");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn end_kills_a_verified_throwaway_process() {
+        let mut child = throwaway();
+        let mut seen = None;
+        let out = sys::terminate_checked(child.id(), |os| {
+            seen = Some(os);
+            Ok(())
+        });
+        assert_eq!(out, Ok(()));
+        assert!(matches!(seen, Some(Proc::Alive { started: Some(_) })), "{seen:?}");
+        assert_eq!(child.wait().unwrap().code(), Some(1));
     }
 
     #[cfg(windows)]

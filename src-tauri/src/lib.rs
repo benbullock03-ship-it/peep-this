@@ -256,6 +256,7 @@ pub fn run() {
             flyout::get_flyouts,
             flyout::flyout_region,
             focus::focus_session,
+            focus::end_session,
             install::install_integration,
             install::uninstall_integration,
             approve::decide_approval,

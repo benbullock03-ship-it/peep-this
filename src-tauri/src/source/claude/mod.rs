@@ -86,7 +86,7 @@ fn track_key(ev: &SourceEvent) -> Option<(String, String)> {
 }
 
 /// Claude Code honours `CLAUDE_CONFIG_DIR` in place of `~/.claude`.
-fn config_dir() -> PathBuf {
+pub fn config_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("CLAUDE_CONFIG_DIR").filter(|d| !d.is_empty()) {
         return PathBuf::from(dir);
     }
