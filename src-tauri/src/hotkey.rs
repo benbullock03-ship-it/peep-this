@@ -1,4 +1,5 @@
-//! AV-24: the keyboard inbox's global hotkey (spec §11.4) and the window focus goes back to.
+//! Global hotkeys: the keyboard inbox (AV-24, spec §11.4) and the panel/strip toggle (AV-40,
+//! spec §12.6), plus the window focus goes back to after an inbox visit.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -11,12 +12,49 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use crate::store::{Snapshot, Store};
 use crate::{focus, window};
 
-pub const DEFAULT: &str = "Ctrl+Alt+I";
-const RESERVED: &[(&str, &str)] = &[
-    ("Ctrl+Alt+P", "the panel/strip toggle"),
-    ("Ctrl+Alt+Delete", "Windows"),
-];
-const SETTINGS_KEY: &str = "inboxHotkey";
+const RESERVED: &[(&str, &str)] = &[("Ctrl+Alt+Delete", "Windows")];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Slot {
+    Inbox,
+    Toggle,
+}
+
+impl Slot {
+    const ALL: [Slot; 2] = [Slot::Inbox, Slot::Toggle];
+
+    pub fn default_combo(self) -> &'static str {
+        match self {
+            Slot::Inbox => "Ctrl+Alt+I",
+            Slot::Toggle => "Ctrl+Alt+P",
+        }
+    }
+
+    fn settings_key(self) -> &'static str {
+        match self {
+            Slot::Inbox => "inboxHotkey",
+            Slot::Toggle => "toggleHotkey",
+        }
+    }
+
+    fn what(self) -> &'static str {
+        match self {
+            Slot::Inbox => "the keyboard inbox",
+            Slot::Toggle => "the panel/strip toggle",
+        }
+    }
+
+    fn event(self) -> &'static str {
+        match self {
+            Slot::Inbox => "hotkey-status",
+            Slot::Toggle => "toggle-hotkey-status",
+        }
+    }
+
+    fn idx(self) -> usize {
+        self as usize
+    }
+}
 
 /// Canonical `Ctrl+Alt+Shift+Win+Key` form, or why the combination cannot be used.
 pub fn normalize(raw: &str) -> Result<String, String> {
@@ -60,6 +98,21 @@ pub fn normalize(raw: &str) -> Result<String, String> {
         return Err(format!("{combo} is reserved for {owner}"));
     }
     Ok(combo)
+}
+
+/// The two hotkeys may not share a combination.
+fn check_free(combo: &str, other: Slot, other_combo: &str) -> Result<(), String> {
+    if combo == other_combo {
+        return Err(format!("{combo} is already {}", other.what()));
+    }
+    Ok(())
+}
+
+fn other(slot: Slot) -> Slot {
+    match slot {
+        Slot::Inbox => Slot::Toggle,
+        Slot::Toggle => Slot::Inbox,
+    }
 }
 
 fn key_name(tok: &str) -> Option<String> {
@@ -119,26 +172,37 @@ pub struct Status {
     pub error: Option<String>,
 }
 
-static STATUS: Mutex<Option<Status>> = Mutex::new(None);
-static CURRENT: Mutex<Option<Shortcut>> = Mutex::new(None);
+static STATUS: Mutex<[Option<Status>; 2]> = Mutex::new([None, None]);
+static CURRENT: Mutex<[Option<Shortcut>; 2]> = Mutex::new([None, None]);
 static PREVIOUS: Mutex<Previous> = Mutex::new(Previous(None));
 
-fn status() -> Status {
-    STATUS
-        .lock()
-        .unwrap()
+fn status(slot: Slot) -> Status {
+    STATUS.lock().unwrap()[slot.idx()]
         .clone()
-        .unwrap_or_else(|| Status { hotkey: DEFAULT.into(), registered: false, error: None })
+        .unwrap_or_else(|| Status { hotkey: slot.default_combo().into(), registered: false, error: None })
 }
 
-/// The hotkey as the user would type it, when it is live.
+fn current(slot: Slot) -> Option<Shortcut> {
+    CURRENT.lock().unwrap()[slot.idx()]
+}
+
+fn set_current(slot: Slot, sc: Option<Shortcut>) {
+    CURRENT.lock().unwrap()[slot.idx()] = sc;
+}
+
+/// The inbox hotkey as the user would type it, when it is live.
 pub fn registered() -> Option<String> {
-    let s = status();
+    let s = status(Slot::Inbox);
     s.registered.then_some(s.hotkey)
 }
 
 pub fn pending_count(snap: &Snapshot) -> usize {
     snap.sessions.iter().filter(|s| s.alive).map(|s| s.pending.len()).sum()
+}
+
+/// The tray line for a hotkey that is not live, if any.
+fn tray_notice(statuses: &[Status]) -> Option<String> {
+    statuses.iter().find(|s| !s.registered).map(|s| format!("{} is taken by another app: change it", s.hotkey))
 }
 
 fn settings_path() -> PathBuf {
@@ -149,17 +213,17 @@ fn read_settings(path: &Path) -> Value {
     std::fs::read_to_string(path).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or(Value::Null)
 }
 
-fn load_saved(path: &Path) -> Option<String> {
-    read_settings(path).get(SETTINGS_KEY).and_then(Value::as_str).and_then(|s| normalize(s).ok())
+fn load_saved(path: &Path, slot: Slot) -> Option<String> {
+    read_settings(path).get(slot.settings_key()).and_then(Value::as_str).and_then(|s| normalize(s).ok())
 }
 
 /// Merges into the settings file the trail switch also lives in.
-fn save(path: &Path, combo: &str) -> std::io::Result<()> {
+fn save(path: &Path, slot: Slot, combo: &str) -> std::io::Result<()> {
     let mut v = read_settings(path);
     if !v.is_object() {
         v = Value::Object(Default::default());
     }
-    v[SETTINGS_KEY] = Value::String(combo.into());
+    v[slot.settings_key()] = Value::String(combo.into());
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -171,8 +235,13 @@ fn save(path: &Path, combo: &str) -> std::io::Result<()> {
 pub fn plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri_plugin_global_shortcut::Builder::new()
         .with_handler(|app, shortcut, event| {
-            if event.state() == ShortcutState::Pressed && *CURRENT.lock().unwrap() == Some(*shortcut) {
-                pressed(app);
+            if event.state() != ShortcutState::Pressed {
+                return;
+            }
+            match Slot::ALL.into_iter().find(|s| current(*s) == Some(*shortcut)) {
+                Some(Slot::Inbox) => pressed(app),
+                Some(Slot::Toggle) => window::toggle_shape(app),
+                None => {}
             }
         })
         .build()
@@ -186,21 +255,28 @@ fn register<R: Runtime>(app: &AppHandle<R>, combo: &str) -> Result<Shortcut, Str
     Ok(sc)
 }
 
-fn set_status<R: Runtime>(app: &AppHandle<R>, s: Status) {
-    *STATUS.lock().unwrap() = Some(s.clone());
-    let _ = app.emit("hotkey-status", s);
+fn set_status<R: Runtime>(app: &AppHandle<R>, slot: Slot, s: Status) {
+    STATUS.lock().unwrap()[slot.idx()] = Some(s.clone());
+    let _ = app.emit(slot.event(), s);
+    crate::tray::hotkey_notice(app, tray_notice(&Slot::ALL.map(status)));
 }
 
 pub fn setup<R: Runtime>(app: &AppHandle<R>) {
-    let combo = load_saved(&settings_path()).unwrap_or_else(|| DEFAULT.into());
-    match register(app, &combo) {
-        Ok(sc) => {
-            *CURRENT.lock().unwrap() = Some(sc);
-            set_status(app, Status { hotkey: combo, registered: true, error: None });
-        }
-        Err(e) => {
-            eprintln!("peepthis: {e}");
-            set_status(app, Status { hotkey: combo, registered: false, error: Some(e) });
+    let path = settings_path();
+    let inbox = load_saved(&path, Slot::Inbox).unwrap_or_else(|| Slot::Inbox.default_combo().into());
+    let toggle = load_saved(&path, Slot::Toggle)
+        .filter(|c| *c != inbox)
+        .unwrap_or_else(|| Slot::Toggle.default_combo().into());
+    for (slot, combo) in [(Slot::Inbox, inbox), (Slot::Toggle, toggle)] {
+        match register(app, &combo) {
+            Ok(sc) => {
+                set_current(slot, Some(sc));
+                set_status(app, slot, Status { hotkey: combo, registered: true, error: None });
+            }
+            Err(e) => {
+                eprintln!("peepthis: {e}");
+                set_status(app, slot, Status { hotkey: combo, registered: false, error: Some(e) });
+            }
         }
     }
 }
@@ -216,43 +292,58 @@ fn pressed<R: Runtime>(app: &AppHandle<R>) {
     let _ = app.emit("inbox-open", ());
 }
 
-#[tauri::command]
-pub fn inbox_hotkey() -> Status {
-    status()
-}
-
-/// Swaps the hotkey; on a clash the old one stays registered and the error comes back.
-#[tauri::command]
-pub fn set_inbox_hotkey(app: AppHandle, hotkey: String) -> Result<Status, String> {
-    let combo = normalize(&hotkey)?;
-    let old = status();
+/// Swaps a hotkey; on a clash the old one stays registered and the error comes back.
+fn rebind(app: &AppHandle, slot: Slot, raw: &str) -> Result<Status, String> {
+    let combo = normalize(raw)?;
+    check_free(&combo, other(slot), &status(other(slot)).hotkey)?;
+    let old = status(slot);
     if old.registered && old.hotkey == combo {
         return Ok(old);
     }
-    let old_sc = *CURRENT.lock().unwrap();
+    let old_sc = current(slot);
     if let Some(sc) = old_sc {
         let _ = app.global_shortcut().unregister(sc);
     }
-    match register(&app, &combo) {
+    match register(app, &combo) {
         Ok(sc) => {
-            *CURRENT.lock().unwrap() = Some(sc);
-            if let Err(e) = save(&settings_path(), &combo) {
-                eprintln!("peepthis: saving the inbox hotkey failed: {e}");
+            set_current(slot, Some(sc));
+            if let Err(e) = save(&settings_path(), slot, &combo) {
+                eprintln!("peepthis: saving the {} hotkey failed: {e}", slot.settings_key());
             }
             let s = Status { hotkey: combo, registered: true, error: None };
-            set_status(&app, s.clone());
+            set_status(app, slot, s.clone());
             Ok(s)
         }
         Err(e) => {
             if let Some(sc) = old_sc {
                 if app.global_shortcut().register(sc).is_err() {
-                    *CURRENT.lock().unwrap() = None;
-                    set_status(&app, Status { registered: false, error: Some(format!("{} was lost while changing it", old.hotkey)), ..old });
+                    set_current(slot, None);
+                    set_status(app, slot, Status { registered: false, error: Some(format!("{} was lost while changing it", old.hotkey)), ..old });
                 }
             }
             Err(e)
         }
     }
+}
+
+#[tauri::command]
+pub fn inbox_hotkey() -> Status {
+    status(Slot::Inbox)
+}
+
+#[tauri::command]
+pub fn set_inbox_hotkey(app: AppHandle, hotkey: String) -> Result<Status, String> {
+    rebind(&app, Slot::Inbox, &hotkey)
+}
+
+#[tauri::command]
+pub fn toggle_hotkey() -> Status {
+    status(Slot::Toggle)
+}
+
+#[tauri::command]
+pub fn set_toggle_hotkey(app: AppHandle, hotkey: String) -> Result<Status, String> {
+    rebind(&app, Slot::Toggle, &hotkey)
 }
 
 /// Ends an inbox visit. `restore` raises the window the hotkey was pressed in; false just forgets it.
@@ -275,6 +366,8 @@ pub fn inbox_return(restore: bool) -> bool {
 mod tests {
     use super::*;
 
+    const DEFAULT: &str = "Ctrl+Alt+I";
+
     #[test]
     fn hotkey_normalizes_case_order_and_aliases() {
         assert_eq!(normalize("ctrl+alt+i"), Ok("Ctrl+Alt+I".into()));
@@ -282,27 +375,42 @@ mod tests {
         assert_eq!(normalize("shift+super+digit5"), Ok("Shift+Win+5".into()));
         assert_eq!(normalize("Ctrl+Shift+f12"), Ok("Ctrl+Shift+F12".into()));
         assert_eq!(normalize("Win+ArrowUp"), Ok("Win+Up".into()));
-        assert_eq!(normalize(DEFAULT), Ok(DEFAULT.into()));
+        for slot in Slot::ALL {
+            assert_eq!(normalize(slot.default_combo()), Ok(slot.default_combo().into()));
+        }
     }
 
     #[test]
     fn hotkey_rejects_unusable_combinations() {
-        for bad in ["", "I", "Shift+I", "Ctrl+Alt", "Ctrl++I", "Ctrl+Ctrl+I", "Ctrl+I+J", "Ctrl+Alt+F25", "Ctrl+Alt+Banana"] {
+        for bad in ["", "I", "Shift+I", "Ctrl+Alt", "Ctrl++I", "Ctrl+Ctrl+I", "Ctrl+I+J", "Ctrl+Alt+F25", "Ctrl+Alt+Banana", "ctrl+alt+delete"] {
             assert!(normalize(bad).is_err(), "{bad:?}");
         }
     }
 
     #[test]
-    fn hotkey_refuses_the_reserved_toggle() {
-        let e = normalize("alt+ctrl+p").unwrap_err();
+    fn hotkey_slots_cannot_share_a_combination() {
+        let e = check_free("Ctrl+Alt+P", Slot::Toggle, "Ctrl+Alt+P").unwrap_err();
         assert!(e.contains("panel/strip"), "{e}");
+        let e = check_free("Ctrl+Alt+I", Slot::Inbox, "Ctrl+Alt+I").unwrap_err();
+        assert!(e.contains("inbox"), "{e}");
+        assert!(check_free("Ctrl+Alt+K", Slot::Toggle, "Ctrl+Alt+P").is_ok());
+        assert_ne!(Slot::Inbox.default_combo(), Slot::Toggle.default_combo());
     }
 
     #[test]
     fn hotkey_canonical_forms_parse_as_shortcuts() {
-        for combo in [DEFAULT, "Ctrl+Shift+Win+F5", "Alt+Space", "Ctrl+Alt+PageDown", "Ctrl+9"] {
+        for combo in [DEFAULT, "Ctrl+Alt+P", "Ctrl+Shift+Win+F5", "Alt+Space", "Ctrl+Alt+PageDown", "Ctrl+9"] {
             assert!(to_shortcut(combo).is_ok(), "{combo}");
         }
+    }
+
+    #[test]
+    fn hotkey_tray_notice_names_the_first_dead_key() {
+        let ok = |k: &str| Status { hotkey: k.into(), registered: true, error: None };
+        let dead = |k: &str| Status { hotkey: k.into(), registered: false, error: Some("taken".into()) };
+        assert_eq!(tray_notice(&[ok("Ctrl+Alt+I"), ok("Ctrl+Alt+P")]), None);
+        let n = tray_notice(&[ok("Ctrl+Alt+I"), dead("Ctrl+Alt+P")]).unwrap();
+        assert!(n.starts_with("Ctrl+Alt+P "), "{n}");
     }
 
     #[test]
@@ -325,14 +433,17 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("peepthis-hotkey-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let path = dir.join("settings.json");
-        assert_eq!(load_saved(&path), None);
+        assert_eq!(load_saved(&path, Slot::Inbox), None);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(&path, r#"{"trail":false}"#).unwrap();
-        save(&path, "Ctrl+Shift+K").unwrap();
-        assert_eq!(load_saved(&path).as_deref(), Some("Ctrl+Shift+K"));
+        save(&path, Slot::Inbox, "Ctrl+Shift+K").unwrap();
+        save(&path, Slot::Toggle, "Ctrl+Alt+O").unwrap();
+        assert_eq!(load_saved(&path, Slot::Inbox).as_deref(), Some("Ctrl+Shift+K"));
+        assert_eq!(load_saved(&path, Slot::Toggle).as_deref(), Some("Ctrl+Alt+O"));
         assert_eq!(read_settings(&path)["trail"], Value::Bool(false));
         std::fs::write(&path, r#"{"inboxHotkey":"Shift+K"}"#).unwrap();
-        assert_eq!(load_saved(&path), None, "an invalid saved key falls back to the default");
+        assert_eq!(load_saved(&path, Slot::Inbox), None, "an invalid saved key falls back to the default");
+        assert_eq!(load_saved(&path, Slot::Toggle), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

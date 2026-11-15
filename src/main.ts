@@ -27,7 +27,8 @@ let remeasure = () => {};
 const stripActions: StripActions = { open: () => applyMode({ ...view, mode: "panel", layout: "panel" }) };
 // Replaced by the backend's switch once Tauri is up; in a browser the swap is local.
 let collapse = () => applyMode({ ...view, mode: "strip", layout: "column" });
-document.querySelector<HTMLButtonElement>("#collapse-btn")!.addEventListener("click", () => collapse());
+const collapseBtn = document.querySelector<HTMLButtonElement>("#collapse-btn")!;
+collapseBtn.addEventListener("click", () => collapse());
 
 function setShape(v: ModeView) {
   view = v;
@@ -155,7 +156,12 @@ function mountSettings(api: SettingsApi) {
   }
   settingsBtn.hidden = false;
   settingsBtn.addEventListener("click", () => showSettings(settingsEl.hidden !== false));
-  return { show: showSettings, refresh: () => settings.refresh(), hotkeyStatus: settings.hotkeyStatus };
+  return {
+    show: showSettings,
+    refresh: () => settings.refresh(),
+    hotkeyStatus: settings.hotkeyStatus,
+    toggleHotkeyStatus: settings.toggleHotkeyStatus,
+  };
 }
 
 function mountInbox(deps: Pick<InboxDeps, "reveal" | "focusTerminal" | "leave">) {
@@ -167,7 +173,7 @@ function mountInbox(deps: Pick<InboxDeps, "reveal" | "focusTerminal" | "leave">)
 }
 
 /** A clash with another app stays on screen until a free combination is saved. */
-function createHotkeyNotice(openSettings: () => void) {
+function createHotkeyNotice(openSettings: () => void, name: string) {
   const n = document.createElement("div");
   n.className = "notice notice--warn";
   n.hidden = true;
@@ -181,7 +187,7 @@ function createHotkeyNotice(openSettings: () => void) {
   root.prepend(n);
   return (s: HotkeyStatus) => {
     n.hidden = s.registered;
-    text.textContent = s.error ?? `The inbox hotkey ${s.hotkey} is not active.`;
+    text.textContent = s.error ?? `The ${name} hotkey ${s.hotkey} is not active.`;
   };
 }
 
@@ -197,11 +203,13 @@ function runDemo() {
   const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
   let trailOn = true;
   let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
+  let toggleHotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+P", registered: true };
   const settings = mountSettings({
     log: async () => [],
     enabled: async () => trailOn,
     setEnabled: async (on) => (trailOn = on),
     hotkey: { get: async () => hotkey, set: async (combo) => (hotkey = { hotkey: combo, registered: true }) },
+    toggleHotkey: { get: async () => toggleHotkey, set: async (combo) => (toggleHotkey = { hotkey: combo, registered: true }) },
   });
   inbox = mountInbox({ reveal: () => settings.show(false), focusTerminal: () => {}, leave: () => {} });
   inbox.setHotkey(hotkey.hotkey);
@@ -252,6 +260,10 @@ async function runLive() {
       get: () => invoke<HotkeyStatus>("inbox_hotkey"),
       set: (hotkey) => invoke<HotkeyStatus>("set_inbox_hotkey", { hotkey }),
     },
+    toggleHotkey: {
+      get: () => invoke<HotkeyStatus>("toggle_hotkey"),
+      set: (hotkey) => invoke<HotkeyStatus>("set_toggle_hotkey", { hotkey }),
+    },
   });
   await listen("open-settings", () => settings.show(true));
   const inbox = mountInbox({
@@ -259,7 +271,7 @@ async function runLive() {
     focusTerminal: (id) => void invoke<boolean>("focus_session", { sessionId: id }).catch((err) => console.error("peepthis: focus_session failed", err)),
     leave: (restore) => void invoke<boolean>("inbox_return", { restore }).catch((err) => console.error("peepthis: inbox_return failed", err)),
   });
-  const hotkeyNotice = createHotkeyNotice(() => settings.show(true));
+  const hotkeyNotice = createHotkeyNotice(() => settings.show(true), "inbox");
   const applyHotkey = (s: HotkeyStatus) => {
     hotkeyNotice(s);
     inbox.setHotkey(s.registered ? s.hotkey : null);
@@ -267,6 +279,14 @@ async function runLive() {
   };
   await listen<HotkeyStatus>("hotkey-status", (e) => applyHotkey(e.payload));
   invoke<HotkeyStatus>("inbox_hotkey").then(applyHotkey, (err) => console.error("peepthis: inbox_hotkey failed", err));
+  const toggleNotice = createHotkeyNotice(() => settings.show(true), "panel/strip");
+  const applyToggleHotkey = (s: HotkeyStatus) => {
+    toggleNotice(s);
+    settings.toggleHotkeyStatus(s);
+    collapseBtn.title = s.registered ? `Collapse to strip (${s.hotkey})` : "Collapse to strip";
+  };
+  await listen<HotkeyStatus>("toggle-hotkey-status", (e) => applyToggleHotkey(e.payload));
+  invoke<HotkeyStatus>("toggle_hotkey").then(applyToggleHotkey, (err) => console.error("peepthis: toggle_hotkey failed", err));
   await listen("inbox-open", () => inbox.open());
   await listen("inbox-empty", () => inbox.flash());
   const loadRecent = async () => {
@@ -319,6 +339,12 @@ async function startSurface() {
     const strip = params.get("strip");
     if (strip !== null) applyMode({ mode: "strip", layout: strip === "row" ? "row" : "column", anchor: params.get("anchor") ?? "float" });
     else if (params.has("anchor")) applyMode({ ...view, anchor: params.get("anchor")! });
+    // No global hotkey in a browser: the toggle works while the page has focus.
+    window.addEventListener("keydown", (e) => {
+      if (!(e.ctrlKey && e.altKey && e.code === "KeyP")) return;
+      e.preventDefault();
+      applyMode(view.layout === "panel" ? { ...view, mode: "strip", layout: "column" } : { ...view, mode: "panel", layout: "panel" });
+    });
     ready = true;
     return;
   }

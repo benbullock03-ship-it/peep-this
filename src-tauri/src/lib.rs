@@ -208,6 +208,8 @@ pub fn run() {
             trail::set_trail_enabled,
             hotkey::inbox_hotkey,
             hotkey::set_inbox_hotkey,
+            hotkey::toggle_hotkey,
+            hotkey::set_toggle_hotkey,
             hotkey::inbox_return
         ])
         .on_window_event(|w, e| window::on_event(w, e))

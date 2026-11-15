@@ -635,6 +635,10 @@ pub fn is_hidden() -> bool {
 
 /// Shows or hides the widget and tells the frontend, which detaches its peeps while hidden.
 pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
+    apply_hidden(app, hidden, true);
+}
+
+fn apply_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool, activate: bool) {
     finish_fold(None, None);
     USER_HIDDEN.store(hidden, Ordering::SeqCst);
     let Some(w) = app.get_webview_window(LABEL) else { return };
@@ -643,17 +647,47 @@ pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
     request_save();
     let result = if hidden {
         w.hide()
-    } else {
+    } else if activate {
         w.show().and_then(|_| w.set_focus())
+    } else {
+        show_inactive(&w)
     };
     if let Err(e) = result {
         eprintln!("peepthis: show/hide failed: {e}");
     }
 }
 
+/// Shows the window without taking the keyboard from the app in front (AV-40).
+fn show_inactive<R: Runtime>(w: &tauri::WebviewWindow<R>) -> tauri::Result<()> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE};
+        unsafe { ShowWindow(w.hwnd()?.0 as _, SW_SHOWNOACTIVATE) };
+    }
+    // Brings tao's visible flag along; ShowWindow(SW_SHOW) on a window already shown does not activate it.
+    w.show()
+}
+
+/// The hotkey's target: panel folds to the strip; strip, or hidden, opens the panel.
+pub fn toggled(from: Mode) -> Mode {
+    match from {
+        Mode::Panel => Mode::Strip,
+        Mode::Strip | Mode::Hidden => Mode::Panel,
+    }
+}
+
+/// The panel/strip hotkey (AV-40). Never takes focus, even when it brings the widget back.
+pub fn toggle_shape<R: Runtime>(app: &AppHandle<R>) {
+    switch_to(app, toggled(mode()), false);
+}
+
 /// Switches between strip and panel (shown if it was hidden), or hides. On the `mode` event the
 /// frontend asks for `begin_switch`, animates the card, then `end_switch`.
 pub fn set_mode<R: Runtime>(app: &AppHandle<R>, to: Mode) {
+    switch_to(app, to, true);
+}
+
+fn switch_to<R: Runtime>(app: &AppHandle<R>, to: Mode, activate: bool) {
     if to == Mode::Hidden {
         return set_hidden(app, true);
     }
@@ -665,7 +699,7 @@ pub fn set_mode<R: Runtime>(app: &AppHandle<R>, to: Mode) {
         *HOME.lock().unwrap() = at.filter(|_| !strip).map(|p| (p.x, p.y));
     }
     if is_hidden() {
-        set_hidden(app, false);
+        apply_hidden(app, false, activate);
     } else {
         emit_mode(app);
         request_save();
@@ -828,6 +862,13 @@ mod tests {
             assert_eq!(Layout::of(true, a), Layout::Column);
             assert_eq!(Layout::of(false, a), Layout::Panel);
         }
+    }
+
+    #[test]
+    fn hotkey_toggles_panel_and_strip_and_recalls_hidden_as_panel() {
+        assert_eq!(toggled(Mode::Panel), Mode::Strip);
+        assert_eq!(toggled(Mode::Strip), Mode::Panel);
+        assert_eq!(toggled(Mode::Hidden), Mode::Panel);
     }
 
     #[test]

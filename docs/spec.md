@@ -336,6 +336,7 @@ Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-s
 - Tray left click toggles `hidden` against the last visible mode.
 - Hovering the strip for 200ms unfolds the panel as a peek that folds back when the mouse leaves. A click pins it as `panel`.
 - The keyboard inbox (§11.4) has its own key.
+- Built (AV-40): `hotkey.rs` holds both keys as slots on one plugin handler (`inboxHotkey`, `toggleHotkey` in `settings.json`; the two may not share a combination). `window::toggle_shape` shows a hidden widget with `SW_SHOWNOACTIVATE`. A key another app holds adds a line at the top of the tray menu that opens settings.
 
 ### 12.7 Waiting flyout (AV-42)
 

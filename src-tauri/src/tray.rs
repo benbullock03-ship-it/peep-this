@@ -1,7 +1,7 @@
 //! Tray icon and menu (spec §3.1), plus start-at-login.
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::image::Image;
@@ -67,6 +67,30 @@ fn run_integration<R: Runtime>(app: &AppHandle<R>, action: &'static str) {
     });
 }
 
+/// A hotkey another app holds (AV-40): a line at the top of the tray menu that opens settings.
+struct HotkeyNotice<R: Runtime> {
+    menu: Menu<R>,
+    item: MenuItem<R>,
+    sep: PredefinedMenuItem<R>,
+    shown: Mutex<bool>,
+}
+
+/// Shows `text` at the top of the tray menu, or removes the line when None.
+pub fn hotkey_notice<R: Runtime>(app: &AppHandle<R>, text: Option<String>) {
+    let Some(n) = app.try_state::<HotkeyNotice<R>>() else { return };
+    let mut shown = n.shown.lock().unwrap();
+    let want = text.is_some();
+    let result = match text {
+        Some(t) => n.item.set_text(t).and_then(|_| if *shown { Ok(()) } else { n.menu.insert_items(&[&n.item, &n.sep], 0) }),
+        None if *shown => n.menu.remove(&n.item).and_then(|_| n.menu.remove(&n.sep)),
+        None => Ok(()),
+    };
+    match result {
+        Ok(()) => *shown = want,
+        Err(e) => eprintln!("peepthis: tray hotkey notice failed: {e}"),
+    }
+}
+
 pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let handle = app.handle();
     apply_autostart_default(handle);
@@ -81,6 +105,12 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
     let menu = Menu::with_items(app, &[&show_hide, &strip, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &sep()?, &quit])?;
+    app.manage(HotkeyNotice {
+        menu: menu.clone(),
+        item: MenuItem::with_id(app, "hotkey-clash", "", true, None::<&str>)?,
+        sep: sep()?,
+        shown: Mutex::new(false),
+    });
 
     let autostart_item = autostart.clone();
     TrayIconBuilder::with_id("main")
@@ -91,7 +121,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "toggle" => toggle(app),
             "strip" => window::set_mode(app, window::Mode::Strip),
-            "settings" => {
+            "settings" | "hotkey-clash" => {
                 window::set_mode(app, window::Mode::Panel);
                 let _ = app.emit("open-settings", ());
             }

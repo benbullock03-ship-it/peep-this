@@ -6,12 +6,24 @@ import { entryTitle, filterTrail, formatWhen, LOG_MAX, markOf, OUTCOMES, session
 /** hotkey.rs `Status`. */
 export type HotkeyStatus = { hotkey: string; registered: boolean; error?: string };
 
+type HotkeyApi = { get: () => Promise<HotkeyStatus>; set: (combo: string) => Promise<HotkeyStatus> };
+
 export type SettingsApi = {
   log: () => Promise<TrailEntry[]>;
   enabled: () => Promise<boolean>;
   setEnabled: (on: boolean) => Promise<boolean>;
-  hotkey?: { get: () => Promise<HotkeyStatus>; set: (combo: string) => Promise<HotkeyStatus> };
+  hotkey?: HotkeyApi;
+  toggleHotkey?: HotkeyApi;
   theme?: { get: () => ThemePref; set: (pref: ThemePref) => void };
+};
+
+const INBOX_FIELD = {
+  title: "Inbox hotkey",
+  note: "Brings the oldest pending approval into focus. Y allow, N deny, R reason, Tab next, Enter terminal, Esc back.",
+};
+const TOGGLE_FIELD = {
+  title: "Panel/strip hotkey",
+  note: "Opens the panel from the strip, or folds it back, without leaving the app you are in.",
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement, text?: string) {
@@ -41,7 +53,8 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const err = el("p", "settings-error", host);
   err.hidden = true;
 
-  const hotkey = api.hotkey ? createHotkeyField(host, api.hotkey) : null;
+  const hotkey = api.hotkey ? createHotkeyField(host, api.hotkey, INBOX_FIELD) : null;
+  const toggleHotkey = api.toggleHotkey ? createHotkeyField(host, api.toggleHotkey, TOGGLE_FIELD) : null;
   const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
 
   el("h3", "settings-sub", host, "Decision log");
@@ -127,10 +140,14 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await hotkey?.refresh();
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh()]);
   }
 
-  return { refresh, hotkeyStatus: (s: HotkeyStatus) => hotkey?.show(s) };
+  return {
+    refresh,
+    hotkeyStatus: (s: HotkeyStatus) => hotkey?.show(s),
+    toggleHotkeyStatus: (s: HotkeyStatus) => toggleHotkey?.show(s),
+  };
 }
 
 const THEME_LABELS: Record<ThemePref, string> = { system: "Match Windows", dark: "Dark", light: "Light" };
@@ -145,17 +162,17 @@ function createThemeField(host: HTMLElement, api: NonNullable<SettingsApi["theme
   return select;
 }
 
-/** The inbox hotkey: press a combination in the field, then Save (Enter). Esc puts the live one back. */
-function createHotkeyField(host: HTMLElement, api: NonNullable<SettingsApi["hotkey"]>) {
-  el("h3", "settings-sub", host, "Inbox hotkey");
+/** A global hotkey: press a combination in the field, then Save (Enter). Esc puts the live one back. */
+function createHotkeyField(host: HTMLElement, api: HotkeyApi, text: { title: string; note: string }) {
+  el("h3", "settings-sub", host, text.title);
   const row = el("div", "hotkey-row", host);
   const input = el("input", "hotkey-input", row);
   input.readOnly = true;
-  input.setAttribute("aria-label", "Inbox hotkey");
+  input.setAttribute("aria-label", text.title);
   input.placeholder = "Press a combination";
   const save = el("button", "card-btn hotkey-save", row, "Save");
   save.type = "button";
-  el("p", "settings-note", host, "Brings the oldest pending approval into focus. Y allow, N deny, R reason, Tab next, Enter terminal, Esc back.");
+  el("p", "settings-note", host, text.note);
   const msg = el("p", "settings-error", host);
   msg.hidden = true;
 
