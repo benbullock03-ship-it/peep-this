@@ -9,6 +9,7 @@ use crate::notify;
 use crate::source::{SessionInfo, ShellQuery, SourceEvent};
 use crate::state::{self, Event, Session};
 use crate::ticker;
+use crate::tickets::Repo;
 
 pub const EMIT_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -35,12 +36,14 @@ pub struct Snapshot {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limits: Option<RateLimits>,
     pub integration: Integration,
+    pub repos: Vec<Repo>,
 }
 
 struct Inner {
     sessions: HashMap<String, Session>,
     rate_limits: Option<RateLimits>,
     integration: Integration,
+    repos: Vec<Repo>,
     dirty: bool,
     /// Sessions that entered `waiting` during the current mutation; drained outside the lock.
     entered: Vec<Session>,
@@ -54,7 +57,7 @@ impl Inner {
     fn snapshot(&self) -> Snapshot {
         let mut sessions: Vec<Session> = self.sessions.values().cloned().collect();
         sessions.sort_by(|a, b| a.id.cmp(&b.id));
-        Snapshot { sessions, rate_limits: self.rate_limits, integration: self.integration }
+        Snapshot { sessions, rate_limits: self.rate_limits, integration: self.integration, repos: self.repos.clone() }
     }
 }
 
@@ -75,6 +78,7 @@ impl Store {
                 sessions: HashMap::new(),
                 rate_limits: None,
                 integration: Integration::Missing,
+                repos: Vec::new(),
                 dirty: false,
                 entered: Vec::new(),
                 activity: away::Activity::default(),
@@ -270,6 +274,23 @@ impl Store {
             inner.integration = integration;
             changed
         });
+    }
+
+    pub fn set_repos(&self, repos: Vec<Repo>) {
+        self.mutate(|inner| {
+            let changed = inner.repos != repos;
+            inner.repos = repos;
+            changed
+        });
+    }
+
+    /// (id, cwd) of live sessions, by id.
+    pub fn live_cwds(&self) -> Vec<(String, String)> {
+        let inner = self.inner.lock().unwrap();
+        let mut out: Vec<(String, String)> =
+            inner.sessions.values().filter(|s| s.alive).map(|s| (s.id.clone(), s.cwd.clone())).collect();
+        out.sort();
+        out
     }
 
     fn upsert(&self, info: SessionInfo, busy: Option<bool>, now: u64) {
@@ -562,11 +583,13 @@ mod tests {
         assert!(v.get("rateLimits").is_none());
         assert_eq!(v["sessions"][0]["id"], "a");
         assert_eq!(v["sessions"][0]["state"], "idle");
+        assert_eq!(v["repos"], serde_json::json!([]));
 
         let snap = Snapshot {
             sessions: vec![],
             rate_limits: Some(RateLimits { five_hour_pct: 42.0, seven_day_pct: 18.0, at: 5 }),
             integration: Integration::Installed,
+            repos: vec![],
         };
         let v = serde_json::to_value(snap).unwrap();
         assert_eq!(v["rateLimits"]["fiveHourPct"], 42.0);

@@ -125,8 +125,24 @@ export type Digest = { since: number; until: number; entries: DigestEntry[] };
 
 export type RateLimits ={ fiveHourPct: number; sevenDayPct: number; at: number };
 
+/** Ticket file status (formats.md §2); `closed` never reaches a shelf. */
+export type TicketStatus = "open" | "doing" | "blocked" | "deferred" | "done";
+/** `title` is "" when the file has none; `reason`/`wake` only on parked tickets. */
+export type RepoTicket = { id: string; title: string; status: TicketStatus; reason?: string; wake?: string };
+
+/** src-tauri/src/tickets.rs `Repo`: one per repo root with live sessions; `sessions` are session ids. */
+export type Repo = {
+  root: string;
+  sessions: string[];
+  tickets: RepoTicket[];
+  /** Latest ticket seen closing since the widget first read the repo; `at` is ms. */
+  lastClosed?: { id: string; at: number };
+};
+
 export type Snapshot = {
   sessions: Session[];
   rateLimits?: RateLimits;
   integration: "installed" | "missing" | "outdated";
+  /** Always sent by the backend; optional so the browser demo snapshot needs none. */
+  repos?: Repo[];
 };

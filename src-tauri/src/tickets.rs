@@ -1,13 +1,63 @@
-//! A repo's tickets folder, read for the ticket a Peep skill call links (spec §13.2).
+//! A repo's tickets folder: the ticket a Peep skill call links, and each live repo's shelf (spec §13.2).
 
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::{mpsc, Arc};
+use std::time::Duration;
+
+use notify::{RecursiveMode, Watcher};
+use serde::Serialize;
 
 use crate::state::TicketLink;
+use crate::store::{self, Store};
 
-/// The first `PREFIX-N` argument, uppercased, with its title when the ticket file is found under `cwd`.
+const POLL: Duration = Duration::from_secs(5);
+const DEBOUNCE: Duration = Duration::from_millis(50);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Status {
+    Open,
+    Doing,
+    Blocked,
+    Deferred,
+    Done,
+    Closed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Ticket {
+    pub id: String,
+    pub title: String,
+    pub status: Status,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wake: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Closed {
+    pub id: String,
+    pub at: u64,
+}
+
+/// One repo with live sessions: its open and parked tickets, read once for all its sessions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Repo {
+    pub root: String,
+    pub sessions: Vec<String>,
+    pub tickets: Vec<Ticket>,
+    /// The latest ticket seen closing since the widget first read this repo (AV-70 cheer).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_closed: Option<Closed>,
+}
+
+/// The first `PREFIX-N` argument, uppercased, with its title when the ticket file is found in the repo `cwd` is in.
 pub fn link(args: &str, cwd: Option<&str>) -> Option<TicketLink> {
     let id = args.split_whitespace().find(|t| is_ticket_id(t))?.to_ascii_uppercase();
-    let title = cwd.filter(|c| !c.is_empty()).and_then(|c| title(Path::new(c), &id));
+    let title = cwd.filter(|c| !c.is_empty()).and_then(|c| title(&repo_root(Path::new(c)), &id));
     Some(TicketLink { id, title })
 }
 
@@ -19,33 +69,195 @@ fn is_ticket_id(t: &str) -> bool {
         && n.chars().all(|c| c.is_ascii_digit())
 }
 
+/// The nearest ancestor holding `.git` or a repo setup, else `cwd` itself.
+pub fn repo_root(cwd: &Path) -> PathBuf {
+    cwd.ancestors()
+        .find(|d| d.join(".git").exists() || d.join(".peep").join("setup.md").is_file())
+        .unwrap_or(cwd)
+        .to_path_buf()
+}
+
+fn setup_key(repo: &Path, key: &str) -> Option<String> {
+    let setup = std::fs::read_to_string(repo.join(".peep").join("setup.md")).ok()?;
+    frontmatter(&setup)?.get(key).filter(|v| !v.is_empty()).map(|v| v.to_string())
+}
+
 /// The repo setup's `tickets:` line (`plugin/references/formats.md` §1), else `tickets/`.
 pub fn tickets_dir(repo: &Path) -> PathBuf {
-    let setup = std::fs::read_to_string(repo.join(".peep").join("setup.md")).unwrap_or_default();
-    let folder = setup
-        .lines()
-        .find_map(|l| l.strip_prefix("tickets:"))
-        .map(|v| v.trim().trim_matches(['"', '\'']))
-        .filter(|v| !v.is_empty());
-    repo.join(folder.unwrap_or("tickets"))
+    repo.join(setup_key(repo, "tickets").as_deref().unwrap_or("tickets"))
+}
+
+/// The repo setup's `archive:` line, else `<tickets>/archive/`.
+pub fn archive_dir(repo: &Path) -> PathBuf {
+    match setup_key(repo, "archive") {
+        Some(a) => repo.join(a),
+        None => tickets_dir(repo).join("archive"),
+    }
+}
+
+/// Flat frontmatter keys (formats.md); `None` without an opening and closing `---`.
+fn frontmatter(text: &str) -> Option<HashMap<&str, &str>> {
+    let mut lines = text.trim_start_matches('\u{feff}').lines();
+    if lines.next()?.trim() != "---" {
+        return None;
+    }
+    let mut keys = HashMap::new();
+    for l in lines {
+        if l.trim() == "---" {
+            return Some(keys);
+        }
+        if let Some((k, v)) = l.split_once(':') {
+            keys.entry(k.trim()).or_insert(v.trim().trim_matches(['"', '\'']));
+        }
+    }
+    None
 }
 
 fn title(repo: &Path, id: &str) -> Option<String> {
     let prefix = format!("{id}-");
-    let file = std::fs::read_dir(tickets_dir(repo)).ok()?.flatten().map(|e| e.path()).find(|p| {
+    let file = md_files(&tickets_dir(repo)).into_iter().find(|p| {
         let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_uppercase();
-        name.starts_with(&prefix) && name.ends_with(".MD")
+        name.starts_with(&prefix)
     })?;
     let text = std::fs::read_to_string(file).ok()?;
-    let mut lines = text.lines();
-    if lines.next()?.trim() != "---" {
-        return None;
+    frontmatter(&text)?.get("title").filter(|t| !t.is_empty()).map(|t| t.to_string())
+}
+
+fn md_files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut files: Vec<PathBuf> = entries
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("md")))
+        .collect();
+    files.sort();
+    files
+}
+
+/// `AV-65` from `AV-65-repo-tickets.md`.
+fn id_from_name(path: &Path) -> Option<String> {
+    let stem = path.file_stem()?.to_str()?;
+    let mut parts = stem.splitn(3, '-');
+    let id = format!("{}-{}", parts.next()?, parts.next()?);
+    is_ticket_id(&id).then(|| id.to_ascii_uppercase())
+}
+
+/// One ticket file; `None` when it has no frontmatter or no known status.
+pub fn parse(text: &str, path: &Path) -> Option<Ticket> {
+    let fm = frontmatter(text)?;
+    let status = match *fm.get("status")? {
+        "open" => Status::Open,
+        "doing" => Status::Doing,
+        "blocked" => Status::Blocked,
+        "deferred" => Status::Deferred,
+        "done" => Status::Done,
+        "closed" => Status::Closed,
+        _ => return None,
+    };
+    let key = |k: &str| fm.get(k).filter(|v| !v.is_empty()).map(|v| v.to_string());
+    let id = key("id").map(|i| i.to_ascii_uppercase()).or_else(|| id_from_name(path))?;
+    Some(Ticket { id, title: key("title").unwrap_or_default(), status, reason: key("reason"), wake: key("wake") })
+}
+
+/// Every parseable ticket directly in `dir`; malformed files are skipped.
+fn read_tickets(dir: &Path) -> Vec<Ticket> {
+    md_files(dir)
+        .into_iter()
+        .filter_map(|p| std::fs::read_to_string(&p).ok().and_then(|t| parse(&t, &p)))
+        .collect()
+}
+
+/// Per repo, the ids seen closed at the last read and the latest closing.
+#[derive(Default)]
+pub struct Shelf {
+    closed: HashMap<PathBuf, (HashSet<String>, Option<Closed>)>,
+}
+
+impl Shelf {
+    /// `sessions` is (id, cwd) of live sessions. A closing is an id newly in the archive or newly `closed`.
+    pub fn read(&mut self, sessions: &[(String, String)], now: u64) -> Vec<Repo> {
+        let mut groups: BTreeMap<PathBuf, Vec<String>> = BTreeMap::new();
+        for (id, cwd) in sessions.iter().filter(|(_, c)| !c.is_empty()) {
+            groups.entry(repo_root(Path::new(cwd))).or_default().push(id.clone());
+        }
+        self.closed.retain(|root, _| groups.contains_key(root));
+        groups
+            .into_iter()
+            .map(|(root, sessions)| {
+                let (closed, tickets): (Vec<Ticket>, Vec<Ticket>) =
+                    read_tickets(&tickets_dir(&root)).into_iter().partition(|t| t.status == Status::Closed);
+                // Archive files are only listed, never parsed.
+                let now_closed: HashSet<String> = closed
+                    .into_iter()
+                    .map(|t| t.id)
+                    .chain(md_files(&archive_dir(&root)).iter().filter_map(|p| id_from_name(p)))
+                    .collect();
+                let (seen, last) = self.closed.entry(root.clone()).or_insert_with(|| (now_closed.clone(), None));
+                if let Some(id) = now_closed.difference(seen).max() {
+                    *last = Some(Closed { id: id.clone(), at: now });
+                }
+                *seen = now_closed;
+                Repo { root: root.to_string_lossy().into_owned(), sessions, tickets, last_closed: last.clone() }
+            })
+            .collect()
     }
-    lines
-        .take_while(|l| l.trim() != "---")
-        .find_map(|l| l.strip_prefix("title:"))
-        .map(|t| t.trim().trim_matches(['"', '\'']).to_string())
-        .filter(|t| !t.is_empty())
+}
+
+pub fn spawn(store: Arc<Store>) {
+    if let Err(e) = std::thread::Builder::new().name("tickets".into()).spawn(move || watch(&store)) {
+        eprintln!("peepthis: tickets thread failed: {e}");
+    }
+}
+
+/// Rereads every live repo on any change in its tickets or archive folder, and every `POLL` (new sessions, new folders).
+fn watch(store: &Store) {
+    let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
+    let mut watcher = notify::recommended_watcher(move |res| {
+        let _ = tx.send(res);
+    })
+    .inspect_err(|e| eprintln!("peepthis: tickets watcher unavailable, polling only: {e}"))
+    .ok();
+    let mut watched: HashSet<PathBuf> = HashSet::new();
+    let mut shelf = Shelf::default();
+    loop {
+        let repos = shelf.read(&store.live_cwds(), store::now_ms());
+        if let Some(w) = watcher.as_mut() {
+            let want: HashSet<PathBuf> = repos
+                .iter()
+                .flat_map(|r| [tickets_dir(Path::new(&r.root)), archive_dir(Path::new(&r.root))])
+                .filter(|d| d.is_dir())
+                .collect();
+            let gone: Vec<PathBuf> = watched.difference(&want).cloned().collect();
+            for d in gone {
+                let _ = w.unwatch(&d);
+                watched.remove(&d);
+            }
+            for d in want {
+                if !watched.contains(&d) && w.watch(&d, RecursiveMode::NonRecursive).is_ok() {
+                    watched.insert(d);
+                }
+            }
+        }
+        store.set_repos(repos);
+        match rx.recv_timeout(POLL) {
+            Ok(first) => {
+                std::thread::sleep(DEBOUNCE);
+                let mut failed = first.is_err();
+                for res in rx.try_iter() {
+                    failed |= res.is_err();
+                }
+                // Rewatch everything next pass, as a folder deleted and recreated loses its OS watch.
+                if let (true, Some(w)) = (failed, watcher.as_mut()) {
+                    for d in watched.drain() {
+                        let _ = w.unwatch(&d);
+                    }
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => std::thread::sleep(POLL),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -62,6 +274,10 @@ mod tests {
     fn write(path: PathBuf, text: &str) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, text).unwrap();
+    }
+
+    fn s(id: &str, cwd: &Path) -> (String, String) {
+        (id.into(), cwd.to_string_lossy().into_owned())
     }
 
     #[test]
@@ -83,5 +299,72 @@ mod tests {
         write(dir.join("work/issues/W-3-x.md"), "---\ntitle: From setup\n---\n");
         write(dir.join("tickets/W-3-y.md"), "---\ntitle: Wrong folder\n---\n");
         assert_eq!(link("W-3", dir.to_str()).unwrap().title.as_deref(), Some("From setup"));
+        assert_eq!(archive_dir(&dir), dir.join("work/issues/").join("archive"));
+        write(dir.join(".peep/setup.md"), "---\ntickets: work/issues/\narchive: done/\n---\n");
+        assert_eq!(archive_dir(&dir), dir.join("done/"));
+    }
+
+    #[test]
+    fn shelf_parser_reads_fixture_folder_and_skips_malformed_index_and_archive() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tickets");
+        let got = read_tickets(&dir);
+        let ids: Vec<(&str, Status)> = got.iter().map(|t| (t.id.as_str(), t.status)).collect();
+        assert_eq!(
+            ids,
+            vec![
+                ("AV-01", Status::Open),
+                ("AV-02", Status::Doing),
+                ("AV-03", Status::Blocked),
+                ("AV-04", Status::Deferred),
+                ("AV-05", Status::Done),
+                ("AV-06", Status::Closed),
+            ]
+        );
+        assert_eq!(got[0].title, "Open: with a colon");
+        assert_eq!(got[1].title, "", "missing title is empty; id comes from the file name");
+        assert_eq!(got[2].reason.as_deref(), Some("Needs the parser from AV-01"));
+        assert_eq!(got[2].wake.as_deref(), Some("ticket:AV-01"));
+        assert_eq!(got[3].wake.as_deref(), Some("date:2026-12-01"));
+        assert_eq!(got[0].reason, None);
+    }
+
+    #[test]
+    fn shelf_groups_sessions_by_git_root_and_skips_closed() {
+        let a = repo("group-a");
+        let b = repo("group-b");
+        std::fs::create_dir_all(a.join(".git")).unwrap();
+        write(a.join("tickets/AV-1-x.md"), "---\nid: AV-1\ntitle: X\nstatus: open\n---\n");
+        write(a.join("tickets/AV-2-y.md"), "---\nid: AV-2\ntitle: Y\nstatus: closed\n---\n");
+        std::fs::create_dir_all(a.join("src/deep")).unwrap();
+        let repos = Shelf::default().read(&[s("s1", &a), s("s2", &a.join("src/deep")), s("s3", &b), ("s4".into(), String::new())], 1);
+        assert_eq!(repos.len(), 2);
+        let ra = repos.iter().find(|r| Path::new(&r.root) == a).unwrap();
+        assert_eq!(ra.sessions, vec!["s1", "s2"]);
+        assert_eq!(ra.tickets.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec!["AV-1"]);
+        let rb = repos.iter().find(|r| Path::new(&r.root) == b).unwrap();
+        assert!(rb.tickets.is_empty());
+    }
+
+    #[test]
+    fn shelf_reports_a_ticket_closing_after_the_first_read() {
+        let dir = repo("closing");
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        write(dir.join("tickets/AV-1-x.md"), "---\nid: AV-1\nstatus: done\n---\n");
+        write(dir.join("tickets/AV-2-y.md"), "---\nid: AV-2\nstatus: open\n---\n");
+        write(dir.join("tickets/archive/AV-0-old.md"), "---\nid: AV-0\nstatus: closed\n---\n");
+        let sessions = [s("s1", &dir)];
+        let mut shelf = Shelf::default();
+        assert_eq!(shelf.read(&sessions, 1)[0].last_closed, None, "already-archived tickets are not news");
+
+        std::fs::rename(dir.join("tickets/AV-1-x.md"), dir.join("tickets/archive/AV-1-x.md")).unwrap();
+        let r = shelf.read(&sessions, 2);
+        assert_eq!(r[0].last_closed, Some(Closed { id: "AV-1".into(), at: 2 }));
+        assert_eq!(r[0].tickets.len(), 1);
+        assert_eq!(shelf.read(&sessions, 3)[0].last_closed, Some(Closed { id: "AV-1".into(), at: 2 }));
+
+        write(dir.join("tickets/AV-2-y.md"), "---\nid: AV-2\nstatus: closed\n---\n");
+        assert_eq!(shelf.read(&sessions, 4)[0].last_closed, Some(Closed { id: "AV-2".into(), at: 4 }));
+        std::fs::rename(dir.join("tickets/AV-2-y.md"), dir.join("tickets/archive/AV-2-y.md")).unwrap();
+        assert_eq!(shelf.read(&sessions, 5)[0].last_closed.as_ref().unwrap().at, 4,"the archive move is the same closing");
     }
 }

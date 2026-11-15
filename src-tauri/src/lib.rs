@@ -286,6 +286,7 @@ pub fn run() {
                 let store = Arc::clone(&store);
                 Box::new(move |ev| store.ingest(ev, store::now_ms()))
             });
+            tickets::spawn(Arc::clone(&store));
             // Last: creating a webview pumps messages, so the main page runs from here on, and
             // an emit made on this thread before `setup` returns never reaches it (AV-47).
             flyout::setup(app)?;
