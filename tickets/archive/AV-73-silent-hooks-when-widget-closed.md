@@ -1,7 +1,7 @@
 ---
 id: AV-73
 title: Hooks stay silent when the widget is closed
-status: done
+status: closed
 depends: []
 attended: false
 ---
