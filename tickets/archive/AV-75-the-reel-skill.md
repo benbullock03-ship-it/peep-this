@@ -1,7 +1,7 @@
 ---
 id: AV-75
 title: The Reel skill - north star in .peep/reel.md, drift flagged
-status: done
+status: closed
 depends: [AV-74]
 ---
 
