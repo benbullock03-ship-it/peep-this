@@ -1,7 +1,7 @@
 ---
 id: AV-78
 title: Stale doing ticket after 3 days - worried peep, Ducks lists it first
-status: doing
+status: done
 depends: [AV-69]
 ---
 
@@ -19,9 +19,9 @@ depends: [AV-69]
 - Ducks now uses the ticket file's mtime and `stale.days` too (was: no `<id>:` commit in 7 days), so Ducks and the worried peep agree.
 - Stale worry has no expiry; it lasts while the ticket stays stale and keeps worry's slot in the priority order.
 
-## Owed before done
+## Done 2026-11-15
 
-- Owner check in `npm run tauri dev`: backdate a `doing` ticket 4 days (`touch -d "4 days ago" tickets/AV-NN-x.md`) and see that repo's peep worried; `/peep:ducks` lists it first.
-- Built: `tickets.rs` `Repo.stale` (test `doing_tickets_unchanged_for_stale_days_are_stale`), `mood.rs` worry (test `a_stale_doing_ticket_worries_every_session_in_its_repo`), Ducks `gather.md`/`questions.md`, F§1 `stale.days`.
+- `tickets.rs` `Repo.stale` (test `doing_tickets_unchanged_for_stale_days_are_stale`), `mood.rs` worry (test `a_stale_doing_ticket_worries_every_session_in_its_repo`), Ducks `gather.md`/`questions.md`, F§1 `stale.days`.
+- Dev widget (`cargo run` against the running vite): with this file backdated 4 days, both sessions in this repo showed the worry emote and the Ponytail session in another repo did not; after `touch` back to now the emote cleared within one poll. Ducks' stale rule on the same files: AV-78 stale (4d), AV-46 fresh.
 
 **Done when:** a `doing` ticket backdated 4 days makes that repo's peep worried in `npm run tauri dev`, and Ducks lists it first.
