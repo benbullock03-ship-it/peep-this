@@ -6,7 +6,16 @@
    - `closed`: say so and stop.
    - `done`: it waits for the owner; say `/peep:ticket close <id>` closes it, and stop unless the owner asked for rework in this session.
    - `blocked` or `deferred`: if the wake-up condition is met (`ticket:` that ticket is `closed`; `date:` that date has passed) or the owner says it is, delete `reason` and `wake`, set `open`, and go on. Otherwise print its `reason` and `wake`, and stop.
-2. Read each ticket in `depends` (live folder, then the archive by that id only). Any that is not `closed` blocks this one: park it per `park.md` with `status: blocked`, `reason: waiting on <dep>`, `wake: ticket:<dep>`, report, and stop.
+2. Read each ticket in `depends` (live folder, then the archive by that id only). Any that is not `closed` blocks this one: park it per `park.md` with `status: blocked`, `reason: waiting on <dep>`, `wake: ticket:<dep>` (the first such dep), name the next ticket (below) in `owed`, report, and stop. Never start the next ticket: one per run.
+
+   **Next ticket.** Walk the depends tree depth-first in `depends` order, reading each id once (live, then archive by id; an archived ticket is `closed`). At each dep:
+   - `closed`: satisfied, skip.
+   - `done`: stop the walk; `next: /peep:ticket close <dep>`.
+   - `open` with every one of its own `depends` `closed`: stop the walk; `next: /peep:ticket <dep>`.
+   - `open` with a dep not `closed`, `blocked` or `deferred`: walk into its `depends`.
+   - `doing`: in hand elsewhere; note it, skip.
+
+   Walk ends with no hit: `next: none unblocked; nearest wake <dep> <wake>`, from the parked deps in the tree: the earliest `date:`, else the first `ticket:` in walk order, else the first free text. No parked dep, only `doing`: `next: none unblocked; <dep> is doing`.
 3. `git status --short` and `git log --oneline -1`. Uncommitted files that are not yours belong to another session. If the ticket must change one, park it `blocked` (reason names the file, wake is free text) and stop.
 4. Area note: from the paths the ticket names, or the files you expect to touch, pick the one area (SKILL.md §2) and read `kb/<area>.md`. No match or no note: go on without one.
 
