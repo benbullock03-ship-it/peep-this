@@ -1,7 +1,7 @@
 ---
 id: AV-39
 title: Peep strip collapsed state
-status: in-progress
+status: done
 depends: [AV-35, AV-37, AV-38]
 attended: false
 ---
@@ -48,7 +48,9 @@ attended: false
 - A switch that arrives mid-animation lands the one in flight at once, then animates from there. If the frontend never ends a switch, the backend ends it after 1.5s.
 - The `design-tropes` skill the ticket workflow names is not installed in this environment; the look was checked against `design/shell/` and by screenshot.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. The two unticked boxes (hand drag, peeps stopping when hidden) were not seen by Claude and stay unticked. What was owed, as it stood:
 
 Built 2026-11-15. Code: `src-tauri/src/window.rs` (`Mode`, `Layout`, `target`, `set_mode`, `switch_mode`, `get_mode`, the `mode` event, mode in `window.json`; 5 new `strip_*` tests, fit tests moved onto `target`), `src-tauri/src/motion.rs` (`cancel`), `src-tauri/src/tray.rs`, `src/strip.ts` + `src/strip.test.ts` (7 tests), `src/stripPlate.ts`, `src/main.ts` (`startSurface`), `src/windowFit.ts`, `.ps-strip` in `src/styles.css`.
 
