@@ -6,6 +6,7 @@ mod ingest;
 mod install;
 mod motion;
 mod notify;
+mod peek;
 mod risk;
 mod snap;
 mod source;

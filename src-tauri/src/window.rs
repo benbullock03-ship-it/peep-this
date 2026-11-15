@@ -124,6 +124,8 @@ pub struct ModeView {
     pub mode: Mode,
     pub layout: Layout,
     pub anchor: Anchor,
+    /// The panel is showing as a hover peek (AV-41); `mode` stays `strip`.
+    pub peek: bool,
 }
 
 fn to_phys(logical: f64, scale: f64) -> i32 {
@@ -289,6 +291,26 @@ mod sys {
         (p.x, p.y)
     }
 
+    fn contains(r: &Rect, (x, y): (i32, i32)) -> bool {
+        x >= r.x && x < r.right() && y >= r.y && y < r.bottom()
+    }
+
+    /// The cursor is on the window's rect, or on `extra`.
+    pub fn cursor_over(h: isize, extra: Option<Rect>) -> bool {
+        let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        if unsafe { GetWindowRect(h as HWND, &mut rc) } == 0 {
+            return false;
+        }
+        let win = Rect { x: rc.left, y: rc.top, w: rc.right - rc.left, h: rc.bottom - rc.top };
+        let at = cursor();
+        contains(&win, at) || extra.is_some_and(|r| contains(&r, at))
+    }
+
+    pub fn button_down() -> bool {
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON};
+        [VK_LBUTTON, VK_RBUTTON, VK_MBUTTON].iter().any(|&k| unsafe { GetAsyncKeyState(k as i32) } as u16 & 0x8000 != 0)
+    }
+
     pub fn set_rect(h: isize, r: Rect) {
         unsafe { SetWindowPos(h as HWND, std::ptr::null_mut(), r.x, r.y, r.w, r.h, SWP_NOZORDER | SWP_NOACTIVATE) };
     }
@@ -317,6 +339,7 @@ mod sys {
     unsafe extern "system" fn proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _id: usize, _data: usize) -> LRESULT {
         match msg {
             WM_ENTERSIZEMOVE => {
+                DRAGGING.store(true, Ordering::SeqCst);
                 let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
                 unsafe { GetWindowRect(hwnd, &mut rc) };
                 let (cx, cy) = cursor();
@@ -339,6 +362,7 @@ mod sys {
                 return 1;
             }
             WM_EXITSIZEMOVE => {
+                DRAGGING.store(false, Ordering::SeqCst);
                 *GRAB.lock().unwrap() = None;
                 if let Some(a) = DRAG_ANCHOR.lock().unwrap().take() {
                     *ANCHOR.lock().unwrap() = a;
@@ -408,7 +432,10 @@ fn store(saved: &Stored) -> std::io::Result<()> {
 fn save_now<R: Runtime>(app: &AppHandle<R>) {
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let (Ok(pos), Ok(Some(mon))) = (w.outer_position(), w.current_monitor()) else { return };
-    let saved = Stored { at: Saved { monitor: info(&mon).id, x: pos.x, y: pos.y }, anchor: Some(anchor()), mode: Some(mode()) };
+    // A peek is not a move: the strip's own spot is what gets saved.
+    let home = if is_peeking() { *HOME.lock().unwrap() } else { None };
+    let (x, y) = home.unwrap_or((pos.x, pos.y));
+    let saved = Stored { at: Saved { monitor: info(&mon).id, x, y }, anchor: Some(anchor()), mode: Some(mode()) };
     if let Err(e) = store(&saved) {
         eprintln!("peepthis: saving window position failed: {e}");
     }
@@ -443,13 +470,23 @@ static FOCUSED: AtomicBool = AtomicBool::new(false);
 /// Content is taller than the capped window, so the list scrolls.
 static OVERFLOWING: AtomicBool = AtomicBool::new(false);
 static ANCHOR: Mutex<Anchor> = Mutex::new(Anchor::TopRight);
+/// The panel shape is up as a hover peek over the strip (AV-41); the mode is still `strip`.
+static PEEK: AtomicBool = AtomicBool::new(false);
+/// The strip's window rect when the peek opened; the cursor there still counts as on the peek.
+static PEEK_STRIP: Mutex<Option<Rect>> = Mutex::new(None);
+/// A native caption drag is under way.
+static DRAGGING: AtomicBool = AtomicBool::new(false);
 
 pub fn anchor() -> Anchor {
     *ANCHOR.lock().unwrap()
 }
 
+pub fn is_peeking() -> bool {
+    PEEK.load(Ordering::SeqCst)
+}
+
 pub fn mode() -> Mode {
-    match (USER_HIDDEN.load(Ordering::SeqCst), STRIP_SHAPE.load(Ordering::SeqCst)) {
+    match (USER_HIDDEN.load(Ordering::SeqCst), STRIP_SHAPE.load(Ordering::SeqCst) || is_peeking()) {
         (true, _) => Mode::Hidden,
         (false, true) => Mode::Strip,
         (false, false) => Mode::Panel,
@@ -461,7 +498,7 @@ fn layout() -> Layout {
 }
 
 pub fn mode_view() -> ModeView {
-    ModeView { mode: mode(), layout: layout(), anchor: anchor() }
+    ModeView { mode: mode(), layout: layout(), anchor: anchor(), peek: is_peeking() }
 }
 
 fn emit_mode<R: Runtime>(app: &AppHandle<R>) {
@@ -640,6 +677,11 @@ pub fn set_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool) {
 
 fn apply_hidden<R: Runtime>(app: &AppHandle<R>, hidden: bool, activate: bool) {
     finish_fold(None, None);
+    // Hidden from a peek: the strip is what comes back.
+    if hidden && PEEK.swap(false, Ordering::SeqCst) {
+        set_shape(app, true);
+        *PEEK_STRIP.lock().unwrap() = None;
+    }
     USER_HIDDEN.store(hidden, Ordering::SeqCst);
     let Some(w) = app.get_webview_window(LABEL) else { return };
     let _ = app.emit("widget-hidden", hidden);
@@ -668,9 +710,10 @@ fn show_inactive<R: Runtime>(w: &tauri::WebviewWindow<R>) -> tauri::Result<()> {
     w.show()
 }
 
-/// The hotkey's target: panel folds to the strip; strip, or hidden, opens the panel.
-pub fn toggled(from: Mode) -> Mode {
+/// The hotkey's target: panel, or a peek, folds to the strip; strip, or hidden, opens the panel.
+pub fn toggled(from: Mode, peek: bool) -> Mode {
     match from {
+        _ if peek => Mode::Strip,
         Mode::Panel => Mode::Strip,
         Mode::Strip | Mode::Hidden => Mode::Panel,
     }
@@ -678,7 +721,7 @@ pub fn toggled(from: Mode) -> Mode {
 
 /// The panel/strip hotkey (AV-40). Never takes focus, even when it brings the widget back.
 pub fn toggle_shape<R: Runtime>(app: &AppHandle<R>) {
-    switch_to(app, toggled(mode()), false);
+    switch_to(app, toggled(mode(), is_peeking()), false);
 }
 
 /// Switches between strip and panel (shown if it was hidden), or hides. On the `mode` event the
@@ -687,22 +730,95 @@ pub fn set_mode<R: Runtime>(app: &AppHandle<R>, to: Mode) {
     switch_to(app, to, true);
 }
 
+/// Puts the window in the strip's or the panel's shape. Unfolding notes the strip's spot in HOME,
+/// which the next strip fit takes, so folding goes back there.
+fn set_shape<R: Runtime>(app: &AppHandle<R>, strip: bool) {
+    if STRIP_SHAPE.swap(strip, Ordering::SeqCst) == strip {
+        return;
+    }
+    // HOME is read from the strip's own spot, not from a union still on screen.
+    finish_fold(None, None);
+    if !strip {
+        let at = app.get_webview_window(LABEL).and_then(|w| w.outer_position().ok());
+        *HOME.lock().unwrap() = at.map(|p| (p.x, p.y));
+    }
+}
+
+/// Any explicit switch ends a peek: to `panel` pins it, to `strip` folds it.
 fn switch_to<R: Runtime>(app: &AppHandle<R>, to: Mode, activate: bool) {
     if to == Mode::Hidden {
         return set_hidden(app, true);
     }
-    let strip = to == Mode::Strip;
-    if STRIP_SHAPE.swap(strip, Ordering::SeqCst) != strip {
-        // HOME is read from the strip's own spot, not from a union still on screen.
-        finish_fold(None, None);
-        let at = app.get_webview_window(LABEL).and_then(|w| w.outer_position().ok());
-        *HOME.lock().unwrap() = at.filter(|_| !strip).map(|p| (p.x, p.y));
+    if PEEK.swap(false, Ordering::SeqCst) {
+        *PEEK_STRIP.lock().unwrap() = None;
     }
+    set_shape(app, to == Mode::Strip);
     if is_hidden() {
         apply_hidden(app, false, activate);
     } else {
         emit_mode(app);
         request_save();
+    }
+}
+
+/// Unfolds the panel over the strip without changing the mode or taking focus (AV-41).
+fn start_peek<R: Runtime>(app: &AppHandle<R>) {
+    if is_hidden() || !STRIP_SHAPE.load(Ordering::SeqCst) || PEEK.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let rect = app.get_webview_window(LABEL).and_then(|w| {
+        let (p, s) = (w.outer_position().ok()?, w.outer_size().ok()?);
+        Some(Rect { x: p.x, y: p.y, w: s.width as i32, h: s.height as i32 })
+    });
+    *PEEK_STRIP.lock().unwrap() = rect;
+    set_shape(app, false);
+    emit_mode(app);
+}
+
+fn end_peek<R: Runtime>(app: &AppHandle<R>) {
+    if !PEEK.swap(false, Ordering::SeqCst) {
+        return;
+    }
+    set_shape(app, true);
+    *PEEK_STRIP.lock().unwrap() = None;
+    emit_mode(app);
+}
+
+/// Polls the cursor against the strip and a peek, and opens or folds the peek (AV-41).
+#[cfg(windows)]
+fn spawn_peek<R: Runtime>(app: AppHandle<R>, hwnd: isize) {
+    use crate::peek::{step, Action, Input, Phase, POLL_MS};
+    let spawned = std::thread::Builder::new().name("peek".into()).spawn(move || {
+        let start = std::time::Instant::now();
+        let mut phase = Phase::Away;
+        loop {
+            std::thread::sleep(Duration::from_millis(POLL_MS));
+            let peeking = is_peeking();
+            let strip = !peeking && !is_hidden() && STRIP_SHAPE.load(Ordering::SeqCst);
+            if !strip && !peeking {
+                phase = Phase::Resting;
+                continue;
+            }
+            let extra = *PEEK_STRIP.lock().unwrap();
+            let blocked = DRAGGING.load(Ordering::SeqCst) || sys::button_down() || FOLD.lock().unwrap().is_some();
+            let input = Input {
+                now: start.elapsed().as_millis() as u64,
+                strip,
+                peeking,
+                over: sys::cursor_over(hwnd, extra.filter(|_| peeking)),
+                blocked,
+            };
+            let (next, action) = step(phase, input);
+            phase = next;
+            match action {
+                Action::Open => start_peek(&app),
+                Action::Close => end_peek(&app),
+                Action::None => {}
+            }
+        }
+    });
+    if let Err(e) = spawned {
+        eprintln!("peepthis: peek thread failed: {e}");
     }
 }
 
@@ -762,7 +878,11 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         w.set_position(PhysicalPosition::new(x, y))?;
     }
     #[cfg(windows)]
-    sys::subclass(w.hwnd()?.0 as isize);
+    {
+        let hwnd = w.hwnd()?.0 as isize;
+        sys::subclass(hwnd);
+        spawn_peek(app.handle().clone(), hwnd);
+    }
     spawn_saver(app.handle().clone());
     let moved = app.handle().clone();
     let _ = ANCHOR_MOVED.set(Box::new(move || emit_mode(&moved)));
@@ -866,9 +986,11 @@ mod tests {
 
     #[test]
     fn hotkey_toggles_panel_and_strip_and_recalls_hidden_as_panel() {
-        assert_eq!(toggled(Mode::Panel), Mode::Strip);
-        assert_eq!(toggled(Mode::Strip), Mode::Panel);
-        assert_eq!(toggled(Mode::Hidden), Mode::Panel);
+        assert_eq!(toggled(Mode::Panel, false), Mode::Strip);
+        assert_eq!(toggled(Mode::Strip, false), Mode::Panel);
+        assert_eq!(toggled(Mode::Hidden, false), Mode::Panel);
+        // A peek reports `strip` but shows the panel: the key folds it.
+        assert_eq!(toggled(Mode::Strip, true), Mode::Strip);
     }
 
     #[test]

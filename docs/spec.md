@@ -337,6 +337,7 @@ Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-s
 - Hovering the strip for 200ms unfolds the panel as a peek that folds back when the mouse leaves. A click pins it as `panel`.
 - The keyboard inbox (§11.4) has its own key.
 - Built (AV-40): `hotkey.rs` holds both keys as slots on one plugin handler (`inboxHotkey`, `toggleHotkey` in `settings.json`; the two may not share a combination). `window::toggle_shape` shows a hidden widget with `SW_SHOWNOACTIVATE`. A key another app holds adds a line at the top of the tray menu that opens settings.
+- Built (AV-41): `peek.rs` is the hover machine (200ms to open, 300ms to fold, constants); `window.rs` polls the cursor every 25ms against the window rect and, during a peek, the strip's old rect. A peek is the panel shape with `peek: true` in `ModeView` while the mode stays `strip`, so `window.json` keeps the strip's mode and spot. A press in a peek pins it (`src/peek.ts`), except focusing a terminal from a row peep, Allow, Deny and the collapse button. A button down, a drag or a switch in flight blocks arming, and the cursor must leave the strip once before it can arm again.
 
 ### 12.7 Waiting flyout (AV-42)
 

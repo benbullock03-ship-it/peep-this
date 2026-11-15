@@ -7,6 +7,7 @@ import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
 import { reducedMotion } from "./motion";
+import { pinsPeek } from "./peek";
 import { createList } from "./rows";
 import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
 import { createStrip, type StripActions } from "./stripPlate";
@@ -18,7 +19,7 @@ const DEMO_STEP_MS = 3200;
 const theme = initTheme();
 
 /** Mirrors `ModeView` in src-tauri/src/window.rs. `layout` is the visible shape even while hidden. */
-type ModeView = { mode: "panel" | "strip" | "hidden"; layout: "panel" | "column" | "row"; anchor: string };
+type ModeView = { mode: "panel" | "strip" | "hidden"; layout: "panel" | "column" | "row"; anchor: string; peek?: boolean };
 
 const shellEl = document.querySelector<HTMLElement>("#shell")!;
 const stripEl = document.querySelector<HTMLElement>("#strip")!;
@@ -72,6 +73,12 @@ let folding = false;
 let foldToken = 0;
 
 function applyMode(v: ModeView) {
+  document.body.toggleAttribute("data-peek", !!v.peek);
+  // A peek pinned mid-unfold keeps its animation.
+  if (folding && v.layout === view.layout && v.anchor === view.anchor) {
+    view = v;
+    return;
+  }
   const token = ++foldToken;
   if (folding) {
     // A switch arrived mid-animation: land the one in flight, then start from there.
@@ -103,7 +110,7 @@ async function fold(v: ModeView, token: number) {
   const land = () => {
     folding = false;
     clearFold(shellEl, stripEl);
-    setShape(v);
+    setShape(view);
   };
   // WebView2 goes blank for a few frames when its window resizes. The backend freezes a picture of
   // the card over each resize and drops it when it sees this side's beacon on screen.
@@ -356,6 +363,14 @@ async function startSurface() {
   stripActions.open = () => void invoke("switch_mode", { mode: "panel" }).catch((err) => console.error("peepthis: switch_mode failed", err));
   collapse = () => void invoke("switch_mode", { mode: "strip" }).catch((err) => console.error("peepthis: switch_mode failed", err));
   stripActions.drag =() => void getCurrentWindow().startDragging().catch((err) => console.error("peepthis: drag failed", err));
+  // Capture phase, so a press that starts a header drag pins too.
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (view.peek && pinsPeek(e.target as Element)) stripActions.open();
+    },
+    true,
+  );
   let uncovered: (() => void) | null = null;
   await listen("uncovered", () => uncovered?.());
   await listen<ModeView>("mode", (e) => applyMode(e.payload));
