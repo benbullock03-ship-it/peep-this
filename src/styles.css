@@ -561,6 +561,7 @@ body[data-fold] > .ps-strip {
   gap: 6px;
   min-width: 0;
   padding-bottom: 8px;
+  container-type: inline-size;
 }
 
 .ps-row:hover .ps-name {
@@ -617,6 +618,77 @@ body[data-fold] > .ps-strip {
   box-shadow: -4px 4px 0 var(--st);
 }
 
+/* FLOPPY-SPEC §05: `ID: title · verb`; the title ellipsises first, then the verb goes, then all but the id. */
+.ps-bubble > .bb {
+  display: flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.bb > span {
+  flex: none;
+}
+
+.bb > .bb-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-id {
+  font-weight: 600;
+}
+
+.bb-id::after {
+  content: ":";
+  margin-right: 0.35em;
+}
+
+.bb-verb {
+  opacity: 0.78;
+}
+
+.bb-verb::before {
+  content: "·";
+  margin: 0 0.4em;
+}
+
+.bb.is-tab .bb-id {
+  align-self: center;
+  margin-right: 6px;
+  padding: 0 4px;
+  background: var(--ps-on-st);
+  color: var(--st);
+  font-size: 10px;
+}
+
+.bb.is-tab .bb-id::after {
+  content: none;
+}
+
+.bb.is-tab .bb-text {
+  font-weight: 600;
+}
+
+@container (max-width: 180px) {
+  .bb-verb {
+    display: none;
+  }
+}
+
+@container (max-width: 90px) {
+  .bb > .bb-text {
+    display: none;
+  }
+  .bb-id::after {
+    content: none;
+  }
+  .bb.is-tab .bb-id {
+    margin-right: 0;
+  }
+}
+
 .ps-meta {
   display: flex;
   align-items: center;
@@ -657,10 +729,120 @@ body[data-fold] > .ps-strip {
 }
 
 .ps-plank {
+  position: relative;
   display: block;
   height: 6px;
   margin: 0 10px;
   background: repeating-linear-gradient(90deg, var(--ps-shelf) 0 8px, var(--ps-shelf-top) 8px 16px);
+}
+
+/* FLOPPY-SPEC §01: seated at the plank's right end, 2px in, the bottom 5 of 16 sprite rows hidden in the slot. 16px on a row, 32px on the stage. */
+.ps-floppy {
+  --px: 1px;
+  position: absolute;
+  top: calc(-11 * var(--px));
+  right: 2px;
+  width: calc(16 * var(--px));
+  height: calc(16 * var(--px));
+  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(160 * var(--px)) auto;
+  image-rendering: pixelated;
+  clip-path: inset(0 0 calc(5 * var(--px)) 0);
+  pointer-events: none;
+}
+
+:root[data-theme="light"] .ps-floppy {
+  background-image: url("./assets/floppy/floppies-light.png");
+}
+
+.ps-item.is-open .ps-floppy {
+  --px: 2px;
+}
+
+/* The seated disk rises 11px past the plank; the chip steps left so the two never touch. */
+.ps-item:has(> .ps-plank > .ps-floppy) > .ps-row .ps-meta {
+  padding-right: 18px;
+}
+
+.ps-item:has(> .ps-plank > .ps-floppy) > .ps-stage {
+  padding-right: 48px;
+}
+
+/* Three dust pixels for the eject's last frame. */
+.ps-floppy::after {
+  content: "";
+  position: absolute;
+  left: calc(3 * var(--px));
+  top: calc(9 * var(--px));
+  width: var(--px);
+  height: var(--px);
+  background: var(--ps-muted);
+  box-shadow: calc(5 * var(--px)) calc(-3 * var(--px)) 0 var(--ps-muted), calc(9 * var(--px)) 0 0 var(--ps-muted);
+  opacity: 0;
+}
+
+.ps-floppy.is-in {
+  animation: floppy-insert 320ms steps(1, end);
+}
+
+.ps-floppy.is-out {
+  animation: floppy-eject 400ms steps(1, end) forwards;
+}
+
+.ps-floppy.is-out::after {
+  animation: floppy-dust 400ms steps(1, end) forwards;
+}
+
+/* Eject: seated, press, pop, hop, gone; insert is hop, pop, press, seated. 80ms a frame. */
+@keyframes floppy-eject {
+  0% {
+    transform: none;
+    clip-path: inset(0 0 calc(5 * var(--px)) 0);
+  }
+  20% {
+    transform: translateY(calc(3 * var(--px)));
+    clip-path: inset(0 0 calc(8 * var(--px)) 0);
+  }
+  40% {
+    transform: translateY(calc(-7 * var(--px)));
+    clip-path: inset(0);
+  }
+  60% {
+    transform: translate(calc(4 * var(--px)), calc(-18 * var(--px)));
+    clip-path: inset(0);
+  }
+  80%,
+  100% {
+    transform: none;
+    clip-path: inset(0);
+    background-position-y: calc(-32 * var(--px));
+  }
+}
+
+@keyframes floppy-insert {
+  0% {
+    transform: translate(calc(4 * var(--px)), calc(-18 * var(--px)));
+    clip-path: inset(0);
+  }
+  25% {
+    transform: translateY(calc(-7 * var(--px)));
+    clip-path: inset(0);
+  }
+  50% {
+    transform: translateY(calc(3 * var(--px)));
+    clip-path: inset(0 0 calc(8 * var(--px)) 0);
+  }
+  75%,
+  100% {
+    transform: none;
+    clip-path: inset(0 0 calc(5 * var(--px)) 0);
+  }
+}
+
+@keyframes floppy-dust {
+  80%,
+  100% {
+    opacity: 1;
+  }
 }
 
 /* ---------- open row ---------- */
@@ -694,6 +876,27 @@ body[data-fold] > .ps-strip {
 
 .ps-stage .ps-bubble > span {
   -webkit-line-clamp: 4;
+}
+
+/* On the 96px stage the verb takes the second line. */
+.ps-stage .ps-bubble:has(> .bb) {
+  min-width: 0;
+}
+
+.ps-stage .bb {
+  flex-wrap: wrap;
+}
+
+.ps-stage .bb > .bb-text {
+  flex: 1 1 0;
+}
+
+.ps-stage .bb-verb {
+  flex-basis: 100%;
+}
+
+.ps-stage .bb-verb::before {
+  content: none;
 }
 
 .ps-facts {
@@ -1151,7 +1354,10 @@ body[data-fold] > .ps-strip {
   .ps-item.leaving,
   .ps-item.is-open .ps-stage,
   .ps-item.is-open .ps-facts,
-  .ps-item.closing > .ps-row {
+  .ps-item.closing > .ps-row,
+  .ps-floppy.is-in,
+  .ps-floppy.is-out,
+  .ps-floppy.is-out::after {
     animation: none;
   }
   .ps-item.flash {

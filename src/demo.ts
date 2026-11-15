@@ -144,6 +144,15 @@ function shellsFor(i: number, now: number): Shell[] | undefined {
   });
 }
 
+// AV-66: linked tickets and running Peep skills; the skill ejects when the turn ends, as on Stop.
+const LINKS: Record<number, Pick<Session, "skill" | "ticket">> = {
+  0: { skill: "qt" },
+  3: { skill: "shoot", ticket: { id: "AV-34", title: "chip contrast on the light theme" } },
+  4: { skill: "ticket", ticket: { id: "AV-66" } },
+};
+
+const skillIn = (i: number, state: State) => (state === "success" || state === "idle" ? undefined : LINKS[i]?.skill);
+
 function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number): PendingApproval {
   return { ...p, receivedAt: now, releaseAt: now + HOLD_MS };
 }
@@ -183,6 +192,8 @@ export function demoSnapshot(now: number): Snapshot {
       // Low, amber (70+) and red (90+) context for the segmented bars.
       contextPct: [74, 35, 93, 12, 47, undefined][i],
       alive: true,
+      ticket: LINKS[i]?.ticket,
+      skill: skillIn(i, a.state),
     }, i, now)),
   };
 }
@@ -248,7 +259,7 @@ export function demoStep(snap: Snapshot, now: number, rand: () => number = Math.
   let next: State;
   do next = FLOW[Math.floor(rand() * FLOW.length)];
   while (next === sessions[i].state);
-  sessions[i] = { ...sessions[i], state: next, stateSince: now, task: taskFor(i, next) };
+  sessions[i] = { ...sessions[i], state: next, stateSince: now, task: taskFor(i, next), skill: skillIn(i, next) };
   const rateLimits = snap.rateLimits && { ...snap.rateLimits, at: now };
   return { ...snap, sessions, rateLimits };
 }

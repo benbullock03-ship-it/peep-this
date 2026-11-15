@@ -1,3 +1,4 @@
+import { BLANK_COL, bubbleFor, bubbleLine, FLOPPIES, type Bubble } from "./bubble";
 import { identityFor, type Identity } from "./identity";
 import { STATES, type Session, type State } from "./model";
 import { sayFor } from "./say";
@@ -8,6 +9,9 @@ export type RowView = {
   id: string;
   name: string;
   say: string;
+  bubble: Bubble;
+  /** Sprite-sheet column of the inserted floppy; null when no Peep skill runs. */
+  floppy: number | null;
   state: State;
   label: string;
   attention: boolean;
@@ -42,13 +46,17 @@ export async function requestFocus(onFocus: OnFocus, id: string, flash: () => vo
 export function toRowView(s: Session, identityOf: IdentityOf = (x) => identityFor(x.cwd), now = Date.now()): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
   const { color, accessory } = identityOf(s);
+  const attention = isAttention(state);
+  const bubble = bubbleFor(s, sayFor({ ...s, state }, now), attention);
   return {
     id: s.id,
     name: s.name || s.id.slice(0, 8),
-    say: sayFor({ ...s, state }, now),
+    say: bubbleLine(bubble),
+    bubble,
+    floppy: s.alive && s.skill ? (FLOPPIES[s.skill]?.col ?? BLANK_COL) : null,
     state,
     label: STATE_LABEL[state],
-    attention: isAttention(state),
+    attention,
     color,
     accessory,
     contextPct: contextFill(s.contextPct),

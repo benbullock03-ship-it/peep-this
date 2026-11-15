@@ -1,10 +1,11 @@
 import { createCards, type Decide } from "./approvalCard";
+import { fillBubble } from "./bubble";
 import { createBar, type Bar } from "./bar";
 import { openFacts } from "./details";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
 import type { RuleOffer, Session, TrailEntry } from "./model";
-import { MOTION_MS, motionMs } from "./motion";
+import { MOTION_MS, motionMs, reducedMotion } from "./motion";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { createOffers, type AnswerOffer } from "./ruleOffer";
 import { createShells, type ShellsRender } from "./shellRows";
@@ -25,6 +26,9 @@ const PEEP_SIZE = "48";
 const PEEP_SIZE_OPEN = "96";
 /** `row-flash` runs three motion units; the timer also ends the static reduced-motion flash. */
 export const FLASH_MS = 3 * MOTION_MS;
+/** `floppy-eject` / `floppy-insert` in styles.css: 80ms frames (FLOPPY-SPEC §01). */
+const EJECT_MS = 400;
+const INSERT_MS = 320;
 const TICK_MS = 1000;
 const STAGGER_MS = 40;
 const MAX_STAGGER = 8;
@@ -63,6 +67,7 @@ type Row = {
   shells: ShellsRender;
   /** Red dot on the peep for a failed shell; survives the chip folding and the row closing. */
   fail: HTMLElement;
+  floppy?: HTMLElement;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
@@ -196,12 +201,8 @@ function updateRow(r: Row, v: RowView) {
     }
   }
   if (l.label !== v.label) for (const x of r.labels) x.textContent = v.label;
-  if (l.say !== v.say) {
-    for (const x of r.says) {
-      x.textContent = v.say;
-      x.parentElement!.title = v.say;
-    }
-  }
+  if (l.say !== v.say || l.bubble?.tab !== v.bubble.tab) for (const x of r.says) fillBubble(x, v.bubble);
+  if (l.floppy !== v.floppy) seat(r, v.floppy);
   if (l.shellNote !== v.shellNote) {
     r.fail.hidden = !v.shellNote;
     r.fail.title = v.shellNote;
@@ -210,6 +211,25 @@ function updateRow(r: Row, v: RowView) {
     r.closed.setAttribute("aria-label", `${v.name}: ${v.label}${v.shellNote ? ", a shell failed" : ""}. ${v.say}`);
   if (l.alive !== v.alive) r.el.dataset.alive = String(v.alive);
   r.last = v;
+}
+
+/** FLOPPY-SPEC §01: the disk sits in the plank slot while a skill runs, and plays the eject frames when it clears. */
+function seat(r: Row, col: number | null) {
+  const f = r.floppy;
+  if (col === null) {
+    if (!f) return;
+    r.floppy = undefined;
+    f.classList.add("is-out");
+    setTimeout(() => f.remove(), reducedMotion() ? 0 : EJECT_MS);
+    return;
+  }
+  if (!f) {
+    const e = (r.floppy = el("span", "ps-floppy is-in", r.plank));
+    e.setAttribute("aria-hidden", "true");
+    // Re-sorting moves the row, which would replay the insert frames.
+    setTimeout(() => e.classList.remove("is-in"), INSERT_MS);
+  }
+  r.floppy!.style.setProperty("--col", String(col));
 }
 
 function setText(e: HTMLElement, text: string) {

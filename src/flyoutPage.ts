@@ -1,5 +1,6 @@
 /** AV-42: the flyout window's page. The backend places the window beside the strip; this lays the rows out in it. */
 import "./vendor/peep.js";
+import { fillBubble } from "./bubble";
 import { layOut, SHADOW, type Side } from "./flyout";
 import type { Session, Snapshot } from "./model";
 import { MOTION_MS, motionMs } from "./motion";
@@ -73,10 +74,7 @@ function updateFly(f: Fly, v: RowView) {
     f.name.title = v.name;
   }
   if (l.label !== v.label) f.label.textContent = v.label;
-  if (l.say !== v.say) {
-    f.say.textContent = v.say;
-    f.say.parentElement!.title = v.say;
-  }
+  if (l.say !== v.say || l.bubble?.tab !== v.bubble.tab) fillBubble(f.say, v.bubble);
   if (l.name !== v.name || l.label !== v.label || l.say !== v.say) f.row.setAttribute("aria-label", `${v.name}: ${v.label}. ${v.say}. Focus its terminal`);
   if (l.alive !== v.alive) f.item.dataset.alive = String(v.alive);
   f.last = v;
