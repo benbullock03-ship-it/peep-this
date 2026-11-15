@@ -5,10 +5,11 @@ Run from the repo root. Each Bash call is a fresh shell, so carry `$WT` as a lit
 ## Create
 
 ```
-BASE=$(mktemp -d)            # OS temp dir, never inside the repo
-WT="$BASE/coderot"
+WT=$(mktemp -d)              # OS temp dir, never inside the repo
 git worktree add --detach "$WT" HEAD
 ```
+
+The empty temp dir is the worktree itself, so `git worktree remove` deletes it and nothing is left to clean by hand.
 
 Note the short sha (`git rev-parse --short HEAD`) for the report header.
 

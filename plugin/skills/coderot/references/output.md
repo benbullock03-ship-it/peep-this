@@ -22,7 +22,7 @@ When there is at least one `survivor`, `only` or `flaky` row, end with exactly:
 
 `Turn the top <k> into tickets? Reply "yes", or name the row numbers.`
 
-`k` is the number of such rows, at most 5. Wait. Only "yes" or a list of row numbers writes; anything else replies `peep: nothing written.`
+`k` is the number of such rows, at most 5. Nothing after that line. Wait. Only "yes" or a list of row numbers writes; anything else replies `peep: nothing written.`
 
 ## Writing tickets (on yes)
 

@@ -44,7 +44,7 @@ git worktree prune
 git worktree list
 ```
 
-`git worktree list` must show only the main tree. If the folder survives (a locked file), delete it and prune again. Then delete the empty `$BASE` folder.
+`git worktree list` must show only the main tree and `$WT` must be gone. If the folder survives (a locked file), delete it and prune again.
 
 ## 6. Output
 

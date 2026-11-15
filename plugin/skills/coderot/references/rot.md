@@ -37,4 +37,5 @@ Only inside units whose tier 1 stub was caught. One flip per mutant, at most 3 p
 Run the setup's `test` from `$WT` after each mutant.
 
 - Non-zero exit, or killed at the time limit: **caught**.
+- An equivalent mutant (same result for every input, e.g. `n < lo` -> `n <= lo` where both branches return `lo` at `n == lo`) is no test's fault: drop it, pick another flip, and do not count it.
 - Exit 0: **survivor**. Record file:line, tier, and the one-line change (e.g. `if (n > limit)` -> `if (!(n > limit))`).
