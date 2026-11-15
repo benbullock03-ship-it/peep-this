@@ -1,7 +1,7 @@
 ---
 id: AV-30
 title: Shell chip rows
-status: in-progress
+status: done
 depends: [AV-29, AV-28]
 attended: false
 ---
@@ -46,7 +46,9 @@ attended: false
 - **Hover text** checked in the demo DOM, not as an on-screen tooltip: the dot's title is `Shell failed: npm run build / exit code 1 / last: error TS2307: …`, the chip's title adds the description, and the strip cell's title appends the same note.
 - Demo dark, light and after-33s shots (`demo-dark.png`, `demo-light.png`, `demo-after-30s.png`): chips readable in both themes, no overlap; the digest exit and the sync build folded on time with sync-05's dot intact.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. What was owed, as it stood:
 
 - The owner has not seen it. Look at a real dev server chip with its port, and a real failed build on a closed row and in the strip. Hover the red dot and the strip cell to confirm the tooltip shows exit code and last line.
 - Middle truncation is tight at 354px (`npm run …rt 5173`): the owner may want the runtime or label shorter, or a two-line chip.
