@@ -209,23 +209,6 @@ body[data-fold] > .ps-strip {
   padding: 0 10px 0 6px;
 }
 
-/* No border on the docked edge. */
-body[data-anchor$="right"] .ps-strip[data-layout="column"] {
-  border-right: 0;
-}
-
-body[data-anchor$="left"] .ps-strip[data-layout="column"] {
-  border-left: 0;
-}
-
-body[data-anchor="top"] .ps-strip {
-  border-top: 0;
-}
-
-body[data-anchor="bottom"] .ps-strip {
-  border-bottom: 0;
-}
-
 .ps-strip-btn {
   position: relative;
   flex: none;

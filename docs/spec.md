@@ -326,7 +326,7 @@ Built (AV-37): 5 frames over 160ms. The tokens are `--motion-ms` and `--motion-s
 ### 12.5 Peep strip (AV-39)
 
 - Three modes: `panel`, `strip`, `hidden`. The app launches in `strip`.
-- The strip is a slim plate (62px, AV-44 design: square, 2px border, no border on the docked edge, each peep on a mini shelf, attention cells tinted and ringed in the state colour) with one 40px peep per top-level session, in the panel's sort order, capped at 8 and then a `+N` tile. No subagents or shells; a failed shell's red dot shows on its parent's peep.
+- The strip is a slim plate (62px, AV-44 design: square, 2px border on all four sides, 12px off a snapped edge like the panel, each peep on a mini shelf, attention cells tinted and ringed in the state colour) with one 40px peep per top-level session, in the panel's sort order, capped at 8 and then a `+N` tile. No subagents or shells; a failed shell's red dot shows on its parent's peep.
 - Orientation follows the anchor: a column on the left and right edges, a row on the top and bottom edges, a column at corners and when floating.
 - Strip and panel share the anchor; the panel unfolds from the strip away from the snapped edge. The whole plate drags the widget.
 

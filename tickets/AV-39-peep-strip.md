@@ -13,7 +13,7 @@ attended: false
 > Owner ruling 2026-11-14: build the strip from the AV-44 design (`design/shell/`: `stripHTML`, `.ps-strip`, `.ps-strip-btn`): 62px plate, 40px peeps on mini shelves, attention cells tinted and ringed, a state dot per cell, the `‹` expand button at the top. Where the list below says 32px or stairs, the design wins. This ticket builds the strip and the switch between strip and panel; the hotkey (AV-40), hover peek (AV-41) and waiting flyout (AV-42) come after.
 
 - [x] Backend holds the mode: `panel`, `strip` or `hidden`; persisted; the app launches in `strip`
-- [x] Strip plate has the same border and hard shadow as the card, no border on the docked edge
+- [x] Strip plate has the same border and hard shadow as the card, ~~no border on the docked edge~~ border on all four sides (2026-11-15, see decisions)
 - [x] One 40px peep per top-level session in the panel's sort order, with its real state, colour and accessory. No names, bars, LEDs, subagents or shells
 - [x] More than 8 sessions: 8 peeps, then a `+N` tile in pixel type
 - [x] A failed shell's red dot shows on its parent's peep once AV-30 exists (leave the hook, do not build shells here)
@@ -29,7 +29,8 @@ attended: false
 ## Decisions taken without a ruling
 
 - "Persisted" and "launches in `strip`" read together: the saved mode is restored, a first run or a file without a mode is `strip`, and a saved `hidden` comes back as `strip` so a launch always shows something. If the owner meant every launch is `strip`, it is one line in `window::setup`.
-- The strip keeps the 12px margin on its snapped edge, the same line the panel sits on, because the anchored edge must not move. The plate still drops its border on that edge as the ticket says, so the open side faces a 12px gap, not the screen edge. The design drew it flush.
+- The strip keeps the 12px margin on its snapped edge, the same line the panel sits on, because the anchored edge must not move. The design drew it flush with no border there.
+- Owner 2026-11-15: "because of the magnetic nature of the peep strip the side on which the panel is anchored looks off". The plate dropped its border on the snapped edge while sitting 12px off it, so the open side faced a gap. Taken without a ruling: the plate now has its border on all four sides at every anchor (the four `body[data-anchor…] .ps-strip` rules are deleted); the margin, anchor and fold are untouched. The alternative, for the owner to pick instead: sit flush on the screen edge with no border there as `design/shell` drew it, which then needs a ruling on whether the panel goes flush too (if not, the anchored edge moves 12px on a switch).
 - Floating, the panel unfolds right and down from the strip's top-left and is pushed back inside the work area if it does not fit. Folding returns the strip to where it was before the unfold, unless the widget was dragged in between.
 - Anything that needs rows switches to the panel: the inbox hotkey, the tray's settings item, a failed integration install. Nothing switches back on its own; AV-40 and AV-42 own that.
 - Held approvals are still held in the strip, where no card shows until AV-42. The toast, the tinted cell and the inbox hotkey are the ways in; a focused terminal still gets its prompt at once. Alerts treat the strip as "row not in view", so a focused strip does not suppress a toast.
@@ -56,6 +57,8 @@ Seen by Claude in `npm run tauri dev` (one 2560×1440 monitor at 100%, bottom-ri
 Switch animation, seen by Claude 2026-11-15 in `npm run tauri dev` (2560×1440 at 100%), by clicking `›` and the strip and grabbing screen frames about 14ms apart: fold and unfold on bottom-right, right, top (row strip) and floating. Every frame had the window on the union rect with the anchored edges where they started, the hit region on the card, and the final rect equal to the old one. With the beacon in, 6 switches on bottom-right (236px panel) were sampled every 4 to 8ms at the strip's spot with no blank frame; the card starts moving about 40ms after the click. Before any cover, 3 of 3 unfolds of a 974px panel had a blank frame. A tall panel was not re-measured.
 
 The owner then named the last cause: the strip showing at the panel's corner for an instant. On an unfold the window was resized before its region was set, so the old strip-shaped region sat at the union's top-left for a moment. The region is now set first. **Owner 2026-11-15, in `npm run tauri dev` after that fix: "looks good".** Which edges the owner tried was not said, so "Done when" (right, top, floating, and a restart into the strip) is still open.
+
+Four-sided border, seen by Claude 2026-11-15 in `npm run tauri dev` (2560×1440 at 100%), strip dragged by script and screenshotted on top, left, right, bottom and bottom-right: a closed 2px border on every side at each. An unfold on the top edge kept the window's x and y. The owner has not looked at it yet.
 
 Not seen live, so not claimed:
 - Folding back from the tray item (the item is in the menu; driving the tray by script was unreliable).
