@@ -1,7 +1,7 @@
 ---
 id: AV-72
 title: Owner walkthrough - the checks only a human can do
-status: doing
+status: done
 depends: [AV-67, AV-68, AV-73]
 attended: true
 ---
@@ -25,6 +25,6 @@ attended: true
 - Steps 1 and 2 updated to today's pack before the walkthrough: AV-75 to AV-77 added reel, unpack and walk (ten commands, not six), and since AV-77 Ducks with no setup points to `/peep:walk` instead of writing the setup. Walk has no floppy until AV-84, so the floppy check moved to a second Ducks run (2b).
 - Prep checked 2026-11-15: `F:\Projects\peep-trial` is clean at 6bb93c7, has TR-01 and TR-02, and has no `.peep/`.
 
-## Owed before done
+## Done 2026-11-15
 
-- The owner runs steps 1 to 6 and replies "all good" or names the step that failed.
+The owner ran steps 1 to 6 in `F:\Projects\peep-trial` and replied "all works great!". No step failed, so no new tickets.
