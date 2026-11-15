@@ -1,7 +1,7 @@
 ---
 id: AV-79
 title: Claude Design prompt for phase 1 art
-status: open
+status: closed
 depends: []
 attended: true
 ---
@@ -11,8 +11,8 @@ attended: true
 **What to deliver:** The owner pastes the prompt below into Claude Design with the listed files attached, and brings the result back as `design/skill-pack-2/`, which becomes the reference like `design/skill-pack/`.
 
 - [x] Run the prompt in Claude Design (2026-11-15, canvas https://claude.ai/artifact/FEirV38AYhxsvRYcrBg6gA)
-- [ ] Deliverables in `design/skill-pack-2/`: spec, tokens additions, sprites, `ref/` mocks, dark and light. In place except PNG mocks: `ref/` holds the artboard sources, which need the canvas to render; PNGs come from the canvas export.
-- [ ] Owner says they are final
+- [x] Deliverables in `design/skill-pack-2/`: spec, tokens additions, sprites, `ref/` mocks, dark and light. In place except PNG mocks: `ref/` holds the artboard sources, which need the canvas to render; PNGs come from the canvas export.
+- [x] Owner says they are final (2026-11-15; accepted: no PNG mocks, ref/ renders on the canvas; 32px peeps on the closed shelf; ended waiting/error is the end chip, not a flag)
 
 **Done when:** the files are in `design/skill-pack-2/` and the owner says they're final.
 
