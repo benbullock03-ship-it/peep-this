@@ -1,0 +1,15 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "bypassPermissions",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PostToolUseFailure",
+  "tool_name": "Bash",
+  "tool_input": { "command": "ls nonexistent_dir_zz", "description": "List nonexistent directory" },
+  "tool_use_id": "toolu_01JJJJJJJJJJJJJJJJJJJJJJ",
+  "error": "Exit code 2\nls: cannot access 'nonexistent_dir_zz': No such file or directory",
+  "is_interrupt": false,
+  "duration_ms": 102
+}

@@ -1,0 +1,24 @@
+{
+  "session_id": "aaaaaaaa-1111-4222-8333-444444444444",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo\\aaaaaaaa-1111-4222-8333-444444444444.jsonl",
+  "cwd": "C:\\work\\demo",
+  "prompt_id": "bbbbbbbb-1111-4222-8333-555555555555",
+  "permission_mode": "bypassPermissions",
+  "effort": { "level": "medium" },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": { "file_path": "C:\\work\\demo\\a.txt", "old_string": "SECRET-OLD", "new_string": "SECRET-NEW", "replace_all": false },
+  "tool_response": {
+    "filePath": "C:\\work\\demo\\a.txt",
+    "oldString": "SECRET-OLD",
+    "newString": "SECRET-NEW",
+    "originalFile": "SECRET-OLD",
+    "structuredPatch": [
+      { "oldStart": 1, "oldLines": 1, "newStart": 1, "newLines": 1, "lines": ["-SECRET-OLD", "+SECRET-NEW"] }
+    ],
+    "userModified": false,
+    "replaceAll": false
+  },
+  "tool_use_id": "toolu_01FFFFFFFFFFFFFFFFFFFFFF",
+  "duration_ms": 21
+}
