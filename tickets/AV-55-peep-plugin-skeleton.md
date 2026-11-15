@@ -1,7 +1,7 @@
 ---
 id: AV-55
 title: Peep plugin skeleton with a local marketplace
-status: open
+status: done
 depends: []
 attended: false
 ---
@@ -18,3 +18,17 @@ attended: false
 Decision taken for the owner to overrule: the plugin source lives in this repo under `plugin/` and ships with the widget release.
 
 **Done when:** a local install gives `/peep:hello` in a fresh session in another repo.
+
+## Notes (2026-11-15)
+
+- Built `plugin/.claude-plugin/{plugin.json,marketplace.json}`, `plugin/skills/hello/SKILL.md`, `plugin/README.md` (labels table, context budget rule).
+- `claude plugin validate plugin`: passed with warnings (no author; directory-only: no LICENSE, no icon).
+- Install test (CLI 2.1.325): `claude plugin marketplace add "<repo>/plugin"` then `claude plugin install peep@peep-this` (scope: user); `claude -p "/peep:hello"` from an empty scratch dir printed `peep: hello, the skill pack is installed.`
+- Then `claude plugin uninstall peep@peep-this` and `claude plugin marketplace remove peep-this`; `settings.json`, `known_marketplaces.json` and `installed_plugins.json` byte-identical to the pre-test backups. The orphaned `plugins/cache/peep-this` left behind was deleted by hand.
+
+## Decisions taken without a ruling
+
+- `plugin/` is both the plugin and its marketplace: one `.claude-plugin/` holds both manifests, entry `source: "./"`.
+- Marketplace name `peep-this`, so the install id is `peep@peep-this`.
+- Floppy labels live in the `plugin/README.md` table for now, not in frontmatter; each skill ticket copies its label in.
+- No `author`, `license` or icon in `plugin.json` yet; only needed for a directory submission.

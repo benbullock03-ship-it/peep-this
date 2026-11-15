@@ -1,0 +1,12 @@
+{
+  "name": "peep-this",
+  "description": "Local marketplace for the Peep This skill pack.",
+  "owner": { "name": "Peep This" },
+  "plugins": [
+    {
+      "name": "peep",
+      "source": "./",
+      "description": "Peep This skill pack: a working rhythm for Claude Code sessions."
+    }
+  ]
+}
