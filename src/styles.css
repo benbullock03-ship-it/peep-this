@@ -157,8 +157,8 @@ body[data-fold] > .ps-strip {
   margin: 0;
 }
 
-body[data-fold="run"] > .ps,
-body[data-fold="run"] > .ps-strip {
+body[data-fold] > .ps,
+body[data-fold] > .ps-strip {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
@@ -170,28 +170,6 @@ body[data-fold="run"] > .ps-strip {
   background: var(--ps-panel);
   border: 2px solid var(--ps-text);
   box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.45);
-}
-
-.ps-fold-outline {
-  position: absolute;
-  box-sizing: border-box;
-  border: 2px dotted var(--ps-text);
-}
-
-/* Dev builds only: which trial timing is on. */
-.fold-chip {
-  position: fixed;
-  left: 4px;
-  bottom: 8px;
-  padding: 0 3px;
-  background: var(--ps-accent);
-  color: var(--ps-on-st);
-  font: 500 9px/12px var(--mono);
-  pointer-events: none;
-}
-
-body[data-fold] > .fold-chip {
-  display: none;
 }
 
 /* ---------- peep strip (AV-39, design/shell .ps-strip) ---------- */

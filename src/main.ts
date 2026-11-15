@@ -2,7 +2,7 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
-import { boxOf, clearFold, FOLD_DEFAULT, FOLD_VARIANTS, isFoldVariant, playFold, viewportIs, type Box, type FoldGeometry, type FoldVariant } from "./fold";
+import { boxOf, clearFold, painted, playFold, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
 import type { Session, Snapshot, TrailEntry } from "./model";
@@ -59,19 +59,10 @@ let surface = {
   },
   settle: (_w: number, _h: number): Promise<void> => Promise.resolve(),
   end: (): Promise<void> => Promise.resolve(),
+  /** Drops the frozen picture the backend holds over a window resize. */
+  uncover: () => {},
   region: undefined as ((rects: Box[], gapMs: number) => void) | undefined,
 };
-
-function foldVariant(): FoldVariant {
-  let stored: string | null = null;
-  try {
-    stored = localStorage.getItem("peepFold");
-  } catch {
-    // Storage can be blocked; the default stands.
-  }
-  const v = params.get("fold") ?? stored;
-  return isFoldVariant(v) ? v : FOLD_DEFAULT;
-}
 
 /** False until the first mode is on screen; the launch shape never animates. */
 let ready = false;
@@ -94,7 +85,7 @@ function applyMode(v: ModeView) {
     folding = false;
     clearFold(shellEl, stripEl);
     setShape(v);
-    void surface.end();
+    void surface.end().then(surface.uncover);
   });
 }
 
@@ -112,38 +103,25 @@ async function fold(v: ModeView, token: number) {
     clearFold(shellEl, stripEl);
     setShape(v);
   };
+  // WebView2 goes blank for a frame when its window resizes. The backend freezes a picture of the
+  // card over each resize; it comes off once this side has painted at the new size.
   const g = await surface.begin(v);
-  if (token !== foldToken) return;
+  if (token !== foldToken) return surface.uncover();
   if (!g) return land();
   await surface.settle(g.win[0], g.win[1]);
+  // Not awaited: the card starts moving at once and the picture hides only its first two frames.
+  void painted().then(surface.uncover);
   if (token !== foldToken) return;
-  await playFold({ shell: shellEl, strip: stripEl, toPanel, g, variant: foldVariant(), region: surface.region });
+  await playFold({ shell: shellEl, strip: stripEl, toPanel, g, region: surface.region });
+  if (token !== foldToken) return;
+  // The last step must be on screen before the backend takes its picture of it.
+  await painted();
   if (token !== foldToken) return;
   await surface.end();
   await surface.settle(g.to.w, g.to.h);
-  if (token !== foldToken) return;
-  land();
-}
-
-/** Dev builds only: a right-click on the collapse button or the strip steps through the timings on trial. */
-function wireFoldPicker() {
-  const chip = document.createElement("div");
-  chip.className = "fold-chip";
-  const show = () => (chip.textContent = `fold ${foldVariant()}`);
-  show();
-  document.body.append(chip);
-  const next = (e: Event) => {
-    e.preventDefault();
-    const v = FOLD_VARIANTS[(FOLD_VARIANTS.indexOf(foldVariant()) + 1) % FOLD_VARIANTS.length];
-    try {
-      localStorage.setItem("peepFold", v);
-    } catch {
-      return;
-    }
-    show();
-  };
-  document.querySelector<HTMLButtonElement>("#collapse-btn")!.addEventListener("contextmenu", next);
-  stripEl.addEventListener("contextmenu", next);
+  if (token === foldToken) land();
+  await painted();
+  surface.uncover();
 }
 
 const root = document.querySelector<HTMLElement>("#sessions")!;
@@ -342,7 +320,6 @@ async function startSurface() {
     if (strip !== null) applyMode({ mode: "strip", layout: strip === "row" ? "row" : "column", anchor: params.get("anchor") ?? "float" });
     else if (params.has("anchor")) applyMode({ ...view, anchor: params.get("anchor")! });
     ready = true;
-    if (import.meta.env.DEV) wireFoldPicker();
     return;
   }
   const [{ invoke }, { listen }, { getCurrentWindow }] = await Promise.all([
@@ -377,6 +354,7 @@ async function startSurface() {
     },
     settle: viewportIs,
     end: () => invoke<void>("end_switch"),
+    uncover: () => void invoke("uncover").catch((err) => console.error("peepthis: uncover failed", err)),
     region: (rects, gapMs) =>
       void invoke("play_region", { rects: rects.map((b) => [b.x, b.y, b.w, b.h]), gapMs: Math.round(gapMs) }).catch((err) =>
         console.error("peepthis: play_region failed", err),
@@ -391,7 +369,6 @@ async function startSurface() {
   );
   remeasure();
   ready = true;
-  if (import.meta.env.DEV) wireFoldPicker();
 }
 
 const params = new URLSearchParams(location.search);

@@ -1,4 +1,5 @@
 mod approve;
+mod cover;
 mod focus;
 mod hotkey;
 mod ingest;
@@ -197,6 +198,7 @@ pub fn run() {
             window::begin_switch,
             window::play_region,
             window::end_switch,
+            window::uncover,
             focus::focus_session,
             install::install_integration,
             install::uninstall_integration,
