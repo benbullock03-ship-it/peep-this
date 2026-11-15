@@ -1,7 +1,7 @@
 ---
 id: AV-78
 title: Stale doing ticket after 3 days - worried peep, Ducks lists it first
-status: blocked
+status: open
 depends: [AV-69]
 ---
 
