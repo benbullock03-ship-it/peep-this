@@ -50,6 +50,8 @@ describe("sayFor", () => {
     const described = [pending("Bash", { command: "mkdir zz-test", description: "Create zz-test directory" }, 1)];
     expect(sayFor({ ...base, state: "waiting", task: "Waiting for input", pending: described }, T)).toBe("Can I create zz-test directory?");
     expect(sayFor({ ...base, state: "waiting", task: "Waiting for input" }, T)).toBe("Waiting for you.");
+    const asked = { ...pending("AskUserQuestion", { questions: [{ question: "Which colour?\nPick one." }] }, 1), risk: { tier: "question" as const, reason: "" } };
+    expect(sayFor({ ...base, state: "waiting", task: "Claude needs your permission", pending: [asked] }, T)).toBe("Which colour?");
   });
 
   it("a held shell request asks about the flagged part of the command", () => {

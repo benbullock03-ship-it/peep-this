@@ -4,11 +4,13 @@ import type { PendingApproval, Session } from "./model";
 /** One pending request in keyboard-inbox order (AV-24); subagent requests carry `agentId`. */
 export type InboxItem = Pick<PendingApproval, "id" | "receivedAt" | "agentId"> & { sessionId: string };
 
-/** Every live request across sessions and their subagents, oldest first. */
+const isQuestion = (p: PendingApproval) => Number(p.risk.tier === "question");
+
+/** Every live request across sessions and their subagents, oldest first; questions queue after real approvals. */
 export function inboxOrder(sessions: readonly Session[]): InboxItem[] {
   const all: (PendingApproval & { sessionId: string })[] = [];
   for (const s of sessions) if (s.alive) for (const p of s.pending ?? []) all.push({ ...p, sessionId: s.id });
-  return all.sort(byOldest).map(({ id, receivedAt, agentId, sessionId }) => ({ id, receivedAt, agentId, sessionId }));
+  return all.sort((a, b) => isQuestion(a) - isQuestion(b) || byOldest(a, b)).map(({ id, receivedAt, agentId, sessionId }) => ({ id, receivedAt, agentId, sessionId }));
 }
 
 /** Tab / Shift+Tab, wrapping. An unknown current starts from the matching end. */

@@ -292,6 +292,9 @@ fn hook_event(name: &str, v: &Value, cwd: Option<&str>) -> Option<Event> {
         // Fires after PreToolUse while the prompt is on screen; approval is followed by PostToolUse.
         "PermissionRequest" => {
             let tool = str_at(v, "/tool_name").unwrap_or_default();
+            if let Some(q) = str_at(v, "/tool_input/questions/0/question").filter(|_| tool == "AskUserQuestion") {
+                return Some(Event::Notification { message: clip(&q), idle: false });
+            }
             let target = v.get("tool_input").and_then(|i| tool_target(i, cwd));
             let what = match target {
                 Some(t) => format!("{tool} {t}"),
@@ -692,6 +695,13 @@ mod tests {
             assert_eq!(r.event, Some(want), "{file}");
             assert!(!format!("{r:?}").contains("SECRET"), "{file} leaked payload content");
         }
+    }
+
+    #[test]
+    fn question_fixtures_map_to_the_question_text_and_a_plain_post_tool_use() {
+        let asked = hook("PermissionRequest", "permission_request_question.json");
+        assert_eq!(asked.event, Some(Event::Notification { message: "Which colour?".into(), idle: false }));
+        assert_eq!(hook("PostToolUse", "post_tool_use_question.json").event, Some(Event::PostToolUse));
     }
 
     #[test]

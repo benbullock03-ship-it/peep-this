@@ -361,7 +361,7 @@ export function createList(
     const r = rowOf(e);
     if (!r || r.el.classList.contains("leaving")) return;
     const target = e.target as Element;
-    if (onFocus && target.closest(".ps-peep")) {
+    if (onFocus && target.closest(".ps-peep, .card-terminal")) {
       void requestFocus(onFocus, r.session.id, () => flash(r.el));
       return;
     }

@@ -5,7 +5,9 @@ import {
   formatArgs,
   HOLD_MS,
   pushReason,
+  questionOf,
   riskParts,
+  type Question,
   SHELL_TOOLS,
   targetOf,
 } from "./approval";
@@ -98,17 +100,9 @@ const handles = new Map<string, CardHandle>();
 
 export const findCard = (requestId: string) => handles.get(requestId);
 
-function keyHints(card: HTMLElement, destructive: boolean) {
+function keyHints(card: HTMLElement, hints: [string, string][]) {
   const box = el("div", "card-keys", card);
   box.setAttribute("aria-hidden", "true");
-  const hints: [string, string][] = [
-    ["Y", destructive ? "hold to allow" : "allow"],
-    ["N", "deny"],
-    ["R", "reason"],
-    ["Tab", "next"],
-    ["Enter", "terminal"],
-    ["Esc", "back"],
-  ];
   for (const [k, what] of hints) {
     const item = el("span", "card-key", box);
     el("kbd", "", item, k);
@@ -116,7 +110,54 @@ function keyHints(card: HTMLElement, destructive: boolean) {
   }
 }
 
+/** AV-50: read-only. The `.card-terminal` click is handled by the list's focus delegation (rows.ts). */
+function createQuestionCard(p: PendingApproval, q: Question): Card {
+  const card = el("div", "card");
+  card.dataset.tier = p.risk.tier;
+  card.dataset.id = p.id;
+  card.tabIndex = -1;
+
+  const head = el("div", "card-head", card);
+  el("span", "card-tool", head, p.tool);
+  el("span", "card-target", head, q.count > 1 ? `1 of ${q.count}` : "");
+  if (p.agentId) el("span", "card-agent", head, "subagent");
+  el("span", "card-tier", head, "question").title = p.risk.reason;
+
+  el("div", "card-question", card, q.text);
+  if (q.options.length) {
+    const box = el("div", "card-options", card);
+    for (const o of q.options) el("span", "card-option", box, o.label).title = o.description;
+  }
+  button("card-allow card-terminal", "Answer in terminal", el("div", "card-actions", card));
+  keyHints(card, [
+    ["Enter", "terminal"],
+    ["Tab", "next"],
+    ["Esc", "back"],
+  ]);
+
+  const nothing = () => {};
+  const handle: CardHandle = {
+    el: card,
+    allowKey: nothing,
+    holdStop: nothing,
+    deny: nothing,
+    openReason: nothing,
+    closeReason: () => false,
+    focus: () => card.focus({ preventScroll: true }),
+  };
+  handles.set(p.id, handle);
+  return {
+    el: card,
+    dispose: () => {
+      card.remove();
+      if (handles.get(p.id) === handle) handles.delete(p.id);
+    },
+  };
+}
+
 function createCard(p: PendingApproval, decide: Decide): Card {
+  const q = questionOf(p);
+  if (q) return createQuestionCard(p, q);
   const tier = p.risk.tier;
   const card = el("div", "card");
   card.dataset.tier = tier;
@@ -249,7 +290,14 @@ function createCard(p: PendingApproval, decide: Decide): Card {
     if (reason) void send("deny", reason);
   });
 
-  keyHints(card, tier === "destructive");
+  keyHints(card, [
+    ["Y", tier === "destructive" ? "hold to allow" : "allow"],
+    ["N", "deny"],
+    ["R", "reason"],
+    ["Tab", "next"],
+    ["Enter", "terminal"],
+    ["Esc", "back"],
+  ]);
   const handle: CardHandle = {
     el: card,
     allowKey: holdStart,

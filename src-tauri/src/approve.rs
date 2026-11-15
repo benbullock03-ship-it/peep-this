@@ -76,6 +76,18 @@ impl Responder for TcpResponder {
     }
 }
 
+/// Stands in for a question's hook connection, which was answered 204 on arrival.
+struct Answered;
+
+impl Responder for Answered {
+    fn reply(self: Box<Self>, _: Reply) -> bool {
+        true
+    }
+    fn closed(&self) -> bool {
+        false
+    }
+}
+
 /// OS lookups the sweep needs; faked in tests.
 pub trait Env: Send + Sync {
     fn terminal_foreground(&self, pid: u32, cwd: &str) -> bool;
@@ -247,7 +259,17 @@ impl Broker {
     /// Takes over the hook's connection. Released at once when the widget is hidden.
     pub fn hold(&self, req: Request, responder: Box<dyn Responder>, now: u64) -> Option<String> {
         let risk = risk::classify(&req.tool, &req.input, &req.cwd);
-        let rule = (risk.tier != Tier::Destructive)
+        // AV-50: the terminal shows the question at once; the card stays until the session leaves `waiting`.
+        let responder: Box<dyn Responder> = if risk.tier == Tier::Question {
+            responder.reply(Reply::Release);
+            if self.env.widget_hidden() {
+                return None;
+            }
+            Box::new(Answered)
+        } else {
+            responder
+        };
+        let rule = (!matches!(risk.tier, Tier::Destructive | Tier::Question))
             .then(|| self.rules.get().and_then(|r| r.auto_rule(&req.tool, &req.input, &req.cwd)))
             .flatten();
         if let Some(rule) = rule {
@@ -284,7 +306,7 @@ impl Broker {
 
     /// `Ok(false)`: unknown id (already decided or released), or Claude Code had already dropped it.
     pub fn decide(&self, id: &str, allow: bool, reason: Option<String>, now: u64) -> Result<bool, String> {
-        let Some(h) = self.take(|h| h.meta.id == id).pop() else { return Ok(false) };
+        let Some(h) = self.take(|h| h.meta.id == id && h.meta.risk.tier != Tier::Question).pop() else { return Ok(false) };
         let reply = if allow {
             Reply::Allow
         } else {
@@ -329,19 +351,20 @@ impl Broker {
         let snap = self.store.snapshot();
         let find = |id: &str| snap.sessions.iter().find(|s| s.id == id);
         let hidden = self.env.widget_hidden();
-        let candidates: Vec<(String, String, Option<String>, u64, bool)> = {
+        let candidates: Vec<(String, String, Option<String>, u64, bool, bool)> = {
             let inner = self.inner.lock().unwrap();
             inner
                 .held
                 .iter()
                 .map(|h| {
-                    (h.meta.id.clone(), h.session_id.clone(), h.meta.agent_id.clone(), h.meta.release_at, h.responder.closed())
+                    let question = h.meta.risk.tier == Tier::Question;
+                    (h.meta.id.clone(), h.session_id.clone(), h.meta.agent_id.clone(), h.meta.release_at, h.responder.closed(), question)
                 })
                 .collect()
         };
         let mut foreground: Vec<(String, bool)> = Vec::new();
         let mut verdicts: Vec<(String, Release)> = Vec::new();
-        for (id, sid, agent, release_at, closed) in candidates {
+        for (id, sid, agent, release_at, closed, question) in candidates {
             let session = find(&sid);
             let why = if closed {
                 Some(Release::Disconnected)
@@ -351,6 +374,8 @@ impl Broker {
                 Some(Release::SessionGone)
             } else if !waiting(session.unwrap(), agent.as_deref()) {
                 Some(Release::LeftWaiting)
+            } else if question {
+                None
             } else if now >= release_at {
                 Some(Release::Window)
             } else {
@@ -386,7 +411,9 @@ impl Broker {
                 h.responder.reply(Reply::Release);
             }
             self.sync(&sid);
-            self.record(&sid, &h.meta, Outcome::Released, None, Some(why), now);
+            if h.meta.risk.tier != Tier::Question {
+                self.record(&sid, &h.meta, Outcome::Released, None, Some(why), now);
+            }
         }
     }
 
@@ -826,6 +853,40 @@ mod tests {
         assert!(held.is_some());
         assert!(replies(&probe).is_empty());
         assert!(log.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn question_is_released_at_once_and_its_card_stays_until_answered() {
+        let r = rig();
+        let (_d, rules, log) = with_rules(&r);
+        let (id, probe) = r.request("permission_request_question.json", T0);
+        assert_eq!(replies(&probe), vec![Reply::Release], "the terminal shows the question with no delay");
+        let s = r.session();
+        assert_eq!((s.state, s.task.as_str()), (State::Waiting, "Which colour?"));
+        assert_eq!(s.pending[0].risk.tier, Tier::Question);
+
+        r.foreground.store(true, Ordering::SeqCst);
+        r.broker.sweep(T0 + HOLD_MS * 10);
+        assert_eq!(r.session().pending.len(), 1, "no window and no foreground release");
+        assert_eq!(r.broker.decide(&id, true, None, T0 + 1), Ok(false), "the widget never answers a question");
+        assert_eq!(r.session().pending.len(), 1);
+
+        r.store.apply(SID, Event::PostToolUse, T0 + 5);
+        r.broker.sweep(T0 + 10);
+        assert!(r.session().pending.is_empty());
+        assert_eq!(replies(&probe), vec![Reply::Release]);
+        assert!(log.lock().unwrap().is_empty(), "no trail entry");
+        assert!(rules.view().offers.is_empty());
+    }
+
+    #[test]
+    fn question_shows_no_card_while_the_widget_is_hidden() {
+        let r = rig();
+        r.hidden.store(true, Ordering::SeqCst);
+        let probe = Arc::new(Probe::default());
+        let v = payload("permission_request_question.json");
+        assert_eq!(r.broker.hold(Request::from_payload(&v).unwrap(), Box::new(Fake(Arc::clone(&probe))), T0), None);
+        assert_eq!(replies(&probe), vec![Reply::Release]);
     }
 
     #[test]

@@ -124,7 +124,21 @@ export function targetOf(p: PendingApproval): string {
   return str(p.input.url) || str(p.input.pattern) || str(p.input.query);
 }
 
-export const byOldest = (a: PendingApproval, b: PendingApproval) => a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
+export type Question = { text: string; options: { label: string; description: string }[]; count: number };
+
+/** The first question of an `AskUserQuestion` request, or null for anything the widget can decide. */
+export function questionOf(p: PendingApproval): Question | null {
+  if (p.risk.tier !== "question") return null;
+  const all = Array.isArray(p.input.questions) ? (p.input.questions as Record<string, unknown>[]) : [];
+  const options = Array.isArray(all[0]?.options) ? (all[0].options as Record<string, unknown>[]) : [];
+  return {
+    text: str(all[0]?.question).trim(),
+    options: options.map((o) => ({ label: str(o?.label), description: str(o?.description) })).filter((o) => o.label),
+    count: all.length,
+  };
+}
+
+export const byOldest =(a: PendingApproval, b: PendingApproval) => a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
 
 export const REASONS_KEPT = 3;
 

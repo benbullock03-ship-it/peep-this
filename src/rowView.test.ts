@@ -63,11 +63,11 @@ describe("demo", () => {
   it("holds one card of each tier on waiting rows, and a decision clears it", () => {
     const a = demoSnapshot(0);
     const held = a.sessions.filter((s) => s.pending?.length);
-    expect(held.map((s) => s.pending![0].risk.tier).sort()).toEqual(["destructive", "safe", "shell"]);
+    expect(held.map((s) => s.pending![0].risk.tier).sort()).toEqual(["destructive", "question", "safe", "shell"]);
     expect(held.every((s) => s.state === "waiting")).toBe(true);
     let s = a;
     for (let t = 1; t < 50; t++) s = demoStep(s, t);
-    expect(s.sessions.filter((x) => x.pending?.length)).toHaveLength(3);
+    expect(s.sessions.filter((x) => x.pending?.length)).toHaveLength(4);
     const b = demoDecide(a, held[0].pending![0].id, "deny", 9);
     expect(b.sessions.find((s) => s.id === held[0].id)).toMatchObject({ state: "thinking", pending: undefined });
   });

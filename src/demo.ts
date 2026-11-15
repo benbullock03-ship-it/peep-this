@@ -55,6 +55,26 @@ const PENDING: Record<number, Omit<PendingApproval, "receivedAt" | "releaseAt">>
     input: { command: SHELL_CMD, description: "Build and run the row tests" },
     risk: { tier: "shell", field: "command", span: spanOf(SHELL_CMD, "npm run build"), reason: "shell command" },
   },
+  1: {
+    id: "demo-req-question",
+    tool: "AskUserQuestion",
+    cwd: "C:/demo/research-02",
+    input: {
+      questions: [
+        {
+          question: "The vendor API has two auth schemes. Which one should the client use for the nightly sync?",
+          header: "Auth",
+          options: [
+            { label: "OAuth client credentials", description: "Rotating tokens; needs a client secret in the vault." },
+            { label: "Static API key", description: "Simpler, but the key never expires." },
+          ],
+          multiSelect: false,
+        },
+        { question: "Should failed pages retry?", header: "Retry", options: [{ label: "Yes", description: "Up to 3 times." }, { label: "No", description: "Fail the run." }], multiSelect: false },
+      ],
+    },
+    risk: { tier: "question", reason: "question for you" },
+  },
   5: {
     id: "demo-req-destructive",
     tool: "Bash",

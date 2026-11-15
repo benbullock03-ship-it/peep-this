@@ -1,4 +1,4 @@
-import { byOldest, SHELL_TOOLS, targetOf } from "./approval";
+import { byOldest, questionOf, SHELL_TOOLS, targetOf } from "./approval";
 import type { Agent, LastTool, PendingApproval, Session } from "./model";
 
 /** Mirrors `STUCK_AFTER_MS` in state.rs: a session turns stuck this long after its last event. */
@@ -120,6 +120,8 @@ function riskyPart(p: PendingApproval): string {
 }
 
 function askFor(p: PendingApproval): string {
+  const q = questionOf(p);
+  if (q) return q.text.split("\n")[0] || "I have a question for you.";
   if (SHELL_TOOLS.has(p.tool)) {
     const desc = typeof p.input.description === "string" ? p.input.description.trim().replace(/[.…]+$/, "") : "";
     if (desc) return `Can I ${firstLower(desc)}?`;

@@ -244,6 +244,7 @@ The widget becomes the place a fleet of sessions is run from; the terminal becom
 - After a widget deny no `PostToolUse` follows, so the engine leaves `Waiting` on the widget's own decision and goes to `thinking`. A connection that closes before the widget replies is a release: drop the card, send nothing.
 - `PermissionRequest` has no `tool_use_id`. Join it to the latest unresolved `PreToolUse` with the same session, `agent_id`, tool name and identical input, and take that `tool_use_id` for the trail. Subagent requests use the same contract and carry `agent_id`.
 - Owed to the AV-20 owner check: the terminal prompt while a hold is open and after its release, and a terminal answer racing the hook.
+- `AskUserQuestion` (AV-50) is not an approval: its `PermissionRequest` gets a 204 on arrival and a read-only question card (tier `question`) that stays until the session leaves `waiting` (`PostToolUse` on an answer). No decision, trail entry, rule, window or foreground release. Esc in the terminal fires no hook, so that card stays until the session's next event.
 - Still out: answering questions, free-text replies, writing "always allow" rules into Claude Code's settings.
 
 ### 11.2 Risk tiers (AV-22)

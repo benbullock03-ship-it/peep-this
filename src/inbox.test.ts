@@ -41,6 +41,11 @@ describe("inboxOrder", () => {
     expect(order[0]).toEqual({ id: "a2", receivedAt: 10, agentId: "agent-x", sessionId: "a" });
   });
 
+  it("queues questions after real approvals, however old", () => {
+    const q: PendingApproval = { ...req("q1", 1), tool: "AskUserQuestion", risk: { tier: "question", reason: "" } };
+    expect(ids(inboxOrder([session("a", [q, req("a1", 30)]), session("b", [req("b1", 20)])]))).toEqual(["b1", "a1", "q1"]);
+  });
+
   it("breaks receipt ties by id and is empty with nothing pending", () => {
     expect(ids(inboxOrder([session("a", [req("ap-2", 1)]), session("b", [req("ap-1", 1)])]))).toEqual(["ap-1", "ap-2"]);
     expect(inboxOrder([session("a", [])])).toEqual([]);

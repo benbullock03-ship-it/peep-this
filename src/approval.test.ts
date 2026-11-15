@@ -9,11 +9,41 @@ import {
   formatArgs,
   lineDiff,
   pushReason,
+  questionOf,
   riskParts,
 } from "./approval";
 import type { PendingApproval } from "./model";
 
 const show = (lines: ReturnType<typeof lineDiff>) => lines.map((l) => `${{ same: " ", add: "+", del: "-" }[l.kind]}${l.text}`);
+
+describe("questionOf", () => {
+  const ask = (questions: unknown, tier: PendingApproval["risk"]["tier"] = "question"): PendingApproval => ({
+    id: "q1",
+    tool: "AskUserQuestion",
+    input: { questions },
+    cwd: "C:/w",
+    receivedAt: 1,
+    releaseAt: 1,
+    risk: { tier, reason: "question for you" },
+  });
+  const colour = { question: "Which colour?\nPick one.", header: "Colour", options: [{ label: "Red", description: "Use red." }, { label: "Blue" }, { description: "no label" }] };
+
+  it("gives one question's text, labelled options and tooltips", () => {
+    expect(questionOf(ask([colour]))).toEqual({
+      text: "Which colour?\nPick one.",
+      options: [{ label: "Red", description: "Use red." }, { label: "Blue", description: "" }],
+      count: 1,
+    });
+  });
+  it("shows the first of several and counts them", () => {
+    const q = questionOf(ask([colour, { question: "Which size?", options: [{ label: "Small" }] }]));
+    expect([q?.text.split("\n")[0], q?.options.length, q?.count]).toEqual(["Which colour?", 2, 2]);
+  });
+  it("survives a malformed input and is null for anything decidable", () => {
+    expect(questionOf(ask("nope"))).toEqual({ text: "", options: [], count: 0 });
+    expect(questionOf(ask([colour], "shell"))).toBeNull();
+  });
+});
 
 describe("lineDiff", () => {
   it("keeps shared lines and marks the change", () => {

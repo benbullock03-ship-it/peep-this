@@ -7,6 +7,8 @@ use serde_json::Value;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Tier {
+    /// `AskUserQuestion`: shown read-only, never decided from the widget (AV-50).
+    Question,
     Safe,
     Shell,
     Destructive,
@@ -29,6 +31,7 @@ const DOWNLOAD: &str = "runs downloaded code";
 
 pub fn classify(tool: &str, input: &Value, cwd: &str) -> Verdict {
     match tool {
+        "AskUserQuestion" => plain(Tier::Question, "question for you"),
         "Read" | "Glob" | "Grep" | "LS" | "NotebookRead" | "TodoWrite" | "BashOutput" | "WebFetch"
         | "WebSearch" => plain(Tier::Safe, "read-only tool"),
         "Edit" | "MultiEdit" | "Write" => classify_edit(input, "file_path", cwd),
@@ -1455,6 +1458,13 @@ mod tests {
 
     fn run(tool: &str, cmd: &str) -> Verdict {
         classify(tool, &json!({ "command": cmd }), CWD)
+    }
+
+    #[test]
+    fn ask_user_question_is_a_question_not_a_risk_tier() {
+        let v = classify("AskUserQuestion", &json!({ "questions": [{ "question": "Which colour?" }] }), CWD);
+        assert_eq!((v.tier, v.field, v.span), (Tier::Question, None, None));
+        assert_eq!(classify("AskUserQuestions", &json!({}), CWD).tier, Shell, "unknown tools still fail closed");
     }
 
     #[test]

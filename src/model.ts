@@ -59,7 +59,8 @@ export type Shell = {
   lastLine?: string;
 };
 
-export type RiskTier = "safe" | "shell" | "destructive";
+/** `question` is an `AskUserQuestion` shown read-only (AV-50); it never reaches the trail or a rule. */
+export type RiskTier = "question" | "safe" | "shell" | "destructive";
 
 export type PendingApproval = {
   id: string;

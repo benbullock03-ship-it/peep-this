@@ -55,7 +55,11 @@ pub fn toast_content(s: &Session) -> ToastContent {
     let mut c = ToastContent { title: s.name.clone(), body: s.task.clone(), hint: None, buttons: Vec::new(), request: None };
     if let Some(p) = req {
         c.request = Some(p.id.clone());
-        if p.risk.tier == crate::risk::Tier::Safe {
+        if p.risk.tier == crate::risk::Tier::Question {
+            if let Some(q) = p.input.pointer("/questions/0/question").and_then(|q| q.as_str()) {
+                c.body = q.to_string();
+            }
+        } else if p.risk.tier == crate::risk::Tier::Safe {
             c.buttons = vec![("Allow", format!("allow:{}", p.id)), ("Deny", format!("deny:{}", p.id))];
         } else {
             c.hint = Some(match crate::hotkey::registered() {
@@ -250,6 +254,16 @@ mod tests {
             assert!(c.buttons.is_empty(), "{tier:?}");
             assert!(c.hint.as_deref().is_some_and(|h| h.starts_with("Review it in Peep This")), "{tier:?}");
         }
+    }
+
+    #[test]
+    fn notify_question_toast_carries_the_question_and_no_buttons() {
+        let mut s = session(vec![perm()]);
+        let mut q = held("ap-q", T0, crate::risk::Tier::Question);
+        q.input = serde_json::json!({ "questions": [{ "question": "Which colour?" }] });
+        s.pending = vec![q];
+        let c = toast_content(&s);
+        assert_eq!((c.body.as_str(), c.hint, c.buttons.len(), c.request.as_deref()), ("Which colour?", None, 0, Some("ap-q")));
     }
 
     #[test]
