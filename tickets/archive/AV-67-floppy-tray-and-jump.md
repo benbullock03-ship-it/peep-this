@@ -1,7 +1,7 @@
 ---
 id: AV-67
 title: Floppy tray on the open row with Jump
-status: done
+status: closed
 depends: [AV-63, AV-64]
 attended: true
 ---
