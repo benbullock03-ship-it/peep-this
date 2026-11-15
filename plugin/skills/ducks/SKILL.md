@@ -40,6 +40,8 @@ Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 - **Loose**: what stays as it is and why (failing test named, uncommitted files, free-text wakes kept, not-met wakes with their condition).
 - **Watch**: at most 3 `CLAUDE.md` rules that bite the next ticket, each with its file and a few words; the next ticket goes here too, as `next: <id>`.
 
+If `.peep/reel.md` exists (F§5) and the next ticket or a loose ticket does not serve its `north_star` or hits a `non_goals` entry, add one line under **Watch**: `drift: <id> <why>`. It never blocks and is not a question.
+
 No line outside the groups except F§4's last line.
 
 A correction gets a fresh, complete read-back. "stop" or "no": reply `peep ducks: nothing written.` and stop.

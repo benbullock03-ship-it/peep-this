@@ -1,6 +1,6 @@
 # Pack formats
 
-The four formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
+The five formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
 
 All frontmatter is flat: one `key: value` per line, no nesting, no multi-line values. Lists are `[a, b]` or comma-separated. A missing key takes its default.
 
@@ -72,10 +72,28 @@ last touched: AV-26, 2026-11-15
 - `last touched`: the last ticket that edited the note and the date.
 - `kb/INDEX.md`: heading `# Areas`, then one line per area: `- [<area>](<area>.md): <one-line summary>`, in setup order.
 
-## 4. Read-back (Question Time, Ducks)
+## 4. Read-back (Question Time, Ducks, Reel, Unpack)
 
 What Claude now understands, given after the questions and before anything is written.
 
 - At most 15 lines, grouped under 2 to 4 bold one-word group labels, terse bullets.
 - Last line exactly: `Reply "yes", or name what to change.`
 - Only "yes" (or plain agreement) lets the skill write. A correction gets a fresh, complete read-back, never a patch, and waits again.
+
+## 5. Reel: `.peep/reel.md`
+
+Reel writes it; the owner may hand-edit it. Question Time and Ducks read it only to flag drift.
+
+```
+---
+north_star: One line: who it is for, what it does, why this
+hook: The one thing that beats the alternatives
+niche: The corner of the market it owns
+for: Who uses it
+non_goals: [no thing one, no thing two]
+---
+```
+
+- All keys are single lines; `non_goals` is a `[a, b]` list or comma-separated.
+- Body: comparables when researched (`- <name> (<link>): how it differs`), else empty.
+- Drift: a planned ticket (Question Time) or loose ticket (Ducks) that does not serve `north_star` or hits a `non_goals` entry gets one line naming the ticket and why. Never a block, never a question. No file: no drift line.

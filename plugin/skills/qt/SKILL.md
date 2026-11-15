@@ -43,6 +43,8 @@ When an answer settles what a domain term means, add or update it in `CONTEXT.md
 Give the read-back exactly per formats §4. Use the groups **Goal**, **Scope**, **Tickets**, adding **Open** only for what the user chose to leave undecided.
 The **Tickets** group lists each planned ticket as `<id>: <title>` in dependency order.
 
+If `.peep/reel.md` exists (formats §5) and a planned ticket does not serve its `north_star` or hits a `non_goals` entry, add one line under **Scope**: `drift: <id> <why>`. It never blocks and is not a question.
+
 - "yes" or plain agreement: go to step 6.
 - A correction: a fresh, complete read-back, then wait again.
 - "stop", "no tickets" or similar: reply `peep: read-back kept, nothing written.` and stop.
