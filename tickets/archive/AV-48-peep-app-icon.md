@@ -1,7 +1,7 @@
 ---
 id: AV-48
 title: Peep as the app icon
-status: in-progress
+status: done
 depends: []
 attended: true
 ---
@@ -13,7 +13,7 @@ attended: true
 - [x] Owner picks the peep: colour, accessory, state frame (recommended: the yellow antenna peep already in `icons/tray.png`, which the owner's desktop shortcut uses)
 - [x] Render from `design/peep.js` unchanged; whole-pixel scaling only, no redraw
 - [x] Regenerate every file in `src-tauri/icons/` (`npm run tauri icon` from a 1024px source), keeping `tray.png`
-- [ ] Release build, install, and look at the exe, taskbar, Start menu and installer icons at 100% and 150%
+- [x] Release build, install, and look at the exe, taskbar, Start menu and installer icons at 100% and 150%
 
 **Done when:** the owner saw the peep on the installed app's exe, taskbar and Start menu entry.
 
@@ -27,7 +27,9 @@ Owner ruling 2026-11-15: the yellow antenna peep from `icons/tray.png`. The sour
 - `icon.icns` and the `Square*`/`StoreLogo` files are `tauri icon`'s smoothed output; the NSIS build does not use them.
 - The `android/`, `ios/` and `64x64.png` outputs were not kept.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner looked at the build installed 19:44 and said it looks good. What was owed:
 
 - Owner: look at the exe, taskbar, Start menu and installer icons at 100% and 150% on the reinstalled build.
 
