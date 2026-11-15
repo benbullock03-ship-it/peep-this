@@ -31,6 +31,7 @@
   --diff-add-mark: #5ed68c;
   --diff-del-bg: rgba(255, 93, 93, 0.12);
   --diff-del-text: #ffc2c2;
+  --shadow-lift: 2px 4px 0 rgba(0, 0, 0, 0.45);
   /* Every transition steps (spec §12.3); motion.ts mirrors these. The strip/panel switch has its own timing in fold.ts. */
   --motion-ms: 160ms;
   --motion-steps: steps(5, end);
@@ -67,6 +68,7 @@
   --diff-add-mark: #1f7a3d;
   --diff-del-bg: rgba(194, 47, 47, 0.1);
   --diff-del-text: #8e1f1f;
+  --shadow-lift: 2px 4px 0 rgba(60, 40, 10, 0.28);
 }
 
 .st-idle { --st: var(--st-idle); }
@@ -968,6 +970,250 @@ body[data-fold] > .ps-strip {
   padding-top: 8px;
   border-top: 1px solid var(--ps-line);
   font-size: 11px;
+}
+
+/* ---------- floppy tray, Pack Up and first-run disk box (AV-67, FLOPPY-SPEC §02, §08, §10) ---------- */
+.fl {
+  --px: 1px;
+  flex: none;
+  display: block;
+  width: calc(16 * var(--px));
+  height: calc(16 * var(--px));
+  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(160 * var(--px)) auto;
+  image-rendering: pixelated;
+}
+
+:root[data-theme="light"] .fl {
+  background-image: url("./assets/floppy/floppies-light.png");
+}
+
+.fl-32 {
+  --px: 2px;
+}
+
+.fl-48 {
+  --px: 3px;
+}
+
+.tray {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tray-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.tray-disks {
+  display: flex;
+  gap: 4px;
+}
+
+.tray-disk,
+.tray-pack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border: 2px solid transparent;
+  background: none;
+  color: var(--ps-text);
+  font: inherit;
+  cursor: pointer;
+  transition: transform var(--motion-ms) var(--motion-steps);
+}
+
+.tray-disk {
+  width: 44px;
+  padding: 0;
+}
+
+.tray-pack {
+  gap: 8px;
+  padding: 0 12px;
+  border-color: var(--ps-line);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tray-disk:hover,
+.tray-pack:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+.tray-disk:focus-visible,
+.tray-pack:focus-visible {
+  outline: none;
+  border-color: var(--ps-accent);
+}
+
+/* "Copied" for 1.2s over the pressed button. */
+.is-copied::after {
+  content: "Copied";
+  position: absolute;
+  inset: -2px;
+  display: grid;
+  place-items: center;
+  background: var(--ps-accent);
+  color: var(--ps-on-st);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tray-card {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--ps-panel);
+  border: 2px solid var(--ps-line);
+  box-shadow: var(--shadow-lift);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.tray-card[hidden] {
+  display: none;
+}
+
+.tray-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tray-card-text strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tray-card-when {
+  color: var(--ps-muted);
+}
+
+.tray-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--ps-panel-2);
+  border: 1px solid var(--ps-line);
+  font-size: 12px;
+}
+
+.tray-hint:empty {
+  display: none;
+}
+
+.tray-hint span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tray-hint kbd {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid var(--ps-muted);
+  font: 500 11px var(--mono);
+}
+
+.diskbox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 0 12px 12px;
+  border: 2px solid var(--ps-line);
+  box-shadow: var(--shadow-lift);
+  font-size: 12px;
+}
+
+.diskbox-bar {
+  margin: 0 -12px;
+  padding: 3px 12px;
+  color: var(--ps-accent);
+  font-weight: 600;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, var(--ps-line) 2px 3px);
+  border-bottom: 2px solid var(--ps-line);
+}
+
+.diskbox-title {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.diskbox-text {
+  margin: 0;
+  color: var(--ps-muted);
+}
+
+.diskbox-shelf {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 8px 6px 4px;
+  list-style: none;
+  border-top: 6px solid var(--ps-shelf);
+  background: var(--ps-panel-2);
+}
+
+.diskbox-disk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.diskbox-n {
+  color: var(--ps-accent);
+  font: 600 11px var(--mono);
+}
+
+.diskbox-rot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--ps-muted);
+}
+
+.diskbox-ok {
+  align-self: flex-end;
+  padding: 5px 12px;
+  border: 0;
+  background: var(--ps-accent);
+  color: var(--ps-on-st);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.diskbox-ok:focus-visible {
+  outline: 2px solid var(--ps-text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tray-disk,
+  .tray-pack {
+    transition: none;
+  }
 }
 
 /* ---------- subagent child rows (AV-28) ---------- */

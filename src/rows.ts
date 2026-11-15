@@ -11,6 +11,7 @@ import { createOffers, type AnswerOffer } from "./ruleOffer";
 import { createShells, type ShellsRender } from "./shellRows";
 import { sortSessions } from "./sort";
 import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
+import { createTray, type Jump } from "./tray";
 
 export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
 
@@ -44,6 +45,7 @@ type Facts = {
   cwd: HTMLElement;
   trail: HTMLElement;
   trailKey: string;
+  clearHint: () => void;
 };
 
 type Row = {
@@ -93,8 +95,10 @@ function bubble(parent: HTMLElement): HTMLElement {
   return el("span", "", el("span", "ps-bubble", parent));
 }
 
-function createFacts(): Facts {
+function createFacts(jump: Jump): Facts {
   const box = el("div", "ps-facts");
+  const tray = createTray(jump);
+  box.appendChild(tray.el);
   const tags = el("div", "ps-tags", box);
   const since = el("span", "ps-tag is-st", tags);
   const model = el("span", "ps-tag", tags);
@@ -110,10 +114,10 @@ function createFacts(): Facts {
   const cwd = el("div", "ps-path", box);
   const trail = el("div", "ps-trail", box);
   trail.setAttribute("aria-label", "Recent approval decisions");
-  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-" };
+  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear };
 }
 
-function createRow(s: Session, decide?: Decide, rules?: RowRules): Row {
+function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): Row {
   const item = el("div", "ps-item");
   item.dataset.id = s.id;
 
@@ -140,7 +144,7 @@ function createRow(s: Session, decide?: Decide, rules?: RowRules): Row {
   const openSay = bubble(stage);
 
   const plank = el("span", "ps-plank", item);
-  const facts = createFacts();
+  const facts = createFacts(jump);
 
   let cards: Row["cards"];
   if (decide) {
@@ -186,6 +190,7 @@ function createRow(s: Session, decide?: Decide, rules?: RowRules): Row {
 function updateRow(r: Row, v: RowView) {
   const l = r.last;
   if (l.state !== v.state) {
+    if (l.state) r.facts.clearHint();
     r.peep.setAttribute("state", v.state);
     if (l.state) r.el.classList.remove(`st-${l.state}`);
     r.el.classList.add(`st-${v.state}`);
@@ -372,6 +377,16 @@ export function createList(
     ticker = window.setInterval(() => open && fillFacts(open, Date.now()), TICK_MS);
   }
 
+  // Copy before focusing: the clipboard refuses a write once the terminal has taken focus.
+  const jumpFor =
+    (id: string): Jump =>
+    async (cmd) => {
+      const ok = await (navigator.clipboard?.writeText(cmd).then(() => true, () => false) ?? false);
+      const r = rows.get(id);
+      if (onFocus && r) void requestFocus(onFocus, id, () => flash(r.el));
+      return ok;
+    };
+
   const rowOf = (e: Event) => {
     const id = (e.target as Element).closest<HTMLElement>(".ps-item")?.dataset.id;
     return id ? rows.get(id) : undefined;
@@ -398,7 +413,7 @@ export function createList(
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
-        r = createRow(s, onDecide, rules);
+        r = createRow(s, jumpFor(s.id), onDecide, rules);
         rows.set(s.id, r);
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }
