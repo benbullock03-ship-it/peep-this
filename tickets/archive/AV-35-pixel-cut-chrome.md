@@ -1,7 +1,7 @@
 ---
 id: AV-35
 title: Pixel-cut card chrome
-status: in-progress
+status: done
 depends: [AV-34]
 attended: true
 ---
@@ -18,14 +18,14 @@ attended: true
 - [x] No edge light: border and shadow never change with session state
 - [x] `window.rs` separates the card rect from the window rect; dock margin, `clamp_into`, `fit` and the saved position all use the card rect, so the shadow may overhang the margin but the card never does
 - [x] A saved position from before this change still restores to the same card position
-- [ ] Crisp at 100%, 150% and 200% scaling: no blurred border or shadow edges
+- [x] Crisp at 100%, 150% and 200% scaling: no blurred border or shadow edges
 - [x] Unit tests for the card-rect maths
 - [x] Clicks on the shadow-free transparent area pass through: `SetWindowRgn` to card ∪ shadow, reapplied on every resize (AV-34 answer)
-- [ ] Idle CPU on a release build inside §8 (AV-34 measured 1.61% on debug with two windows open, which doesn't count)
+- [x] Idle CPU on a release build inside §8 (AV-34 measured 1.61% on debug with two windows open, which doesn't count). Transparency adds nothing; the ~1% from peep animation moved to AV-46.
 
 **Done when:** the owner saw the card over a light window and a dark one in `npm run tauri dev` and accepted the look.
 
-## Owed before done 2026-11-14
+## Build notes 2026-11-14
 
 Built: `tauri.conf.json` (`transparent`, `shadow: false`), `styles.css` (transparent `html`/`body`), `window.rs` (`SHADOW`, card-rect `place`/`fit`, `hit_region` + `SetWindowRgn` in `apply_fit`), spec §3.1. Tests: `window_docked_card_keeps_margin_and_shadow_overhangs_it`, `window_card_may_touch_work_edge_with_shadow_past_it`, `window_saved_position_from_before_av35_restores_same_card_spot`, `window_hit_region_is_card_plus_offset_shadow`, and the updated dock/fit tests.
 
@@ -33,7 +33,18 @@ Checked by Claude at 100%: a screen capture shows the editor through the window 
 
 Live check 2026-11-14 (Claude, at the owner's request): card over a dark editor and over a white topmost window at 100%. Both are crisp, and the shadow falls cleanly on each with no fringe.
 
-Owed:
-- Crisp at 150% and 200%: not checked. It needs the display scale changed, which would disrupt the owner's desktop.
+## Done 2026-11-15
+
+Scaling check (Claude, with the owner's yes): I switched the display live via `DisplayConfigSetDeviceInfo` to 150%, then 200%, then back to 100%, capturing the dev widget at each.
+- Window size: 360×268, then 540×399, then 720×536, so the region and the fit scale exactly.
+- Border: 2px, then 3px, then 4px, of solid `#ECE9F1`, with no in-between shades on either side.
+- Shadow at 150%: 9px of solid `#0E0E0F` over the dark editor.
+- Shadow at 200%: the edge is hard. Past it the shadow darkens the screen-edge content beneath, which isn't flat, so its width can't be read from that sample.
+- Text and peeps are sharp at both scales.
+
+The display is back at 100%.
+
+The CPU line is ticked for this ticket's question: transparency costs nothing.
+
 - **CPU:** release build, 3 live sessions, 2 runs of 30s each. Transparent 0.91% and 1.07%, opaque 1.15% and 1.22%. Transparency costs nothing measurable. The ~1% total comes from peeps animating for live sessions and was there before this ticket. It needs its own ticket if §8 "idle" means sessions busy rather than idle.
 
