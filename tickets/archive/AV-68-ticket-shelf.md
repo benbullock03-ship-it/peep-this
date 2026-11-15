@@ -1,7 +1,7 @@
 ---
 id: AV-68
 title: Ticket shelf on the open row
-status: done
+status: closed
 depends: [AV-63, AV-65, AV-67]
 attended: true
 ---

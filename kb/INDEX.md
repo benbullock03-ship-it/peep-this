@@ -1,3 +1,3 @@
 # Areas
 
-- [frontend](frontend.md): widget UI in `src/`: rows, open row, tray, Jump
+- [frontend](frontend.md): widget UI in `src/`: rows, open row, tray, ticket shelf, Jump
