@@ -1,5 +1,6 @@
 mod approve;
 mod away;
+mod closed;
 mod cover;
 mod flyout;
 mod focus;
@@ -141,6 +142,29 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     }));
 }
 
+fn wire_closed(store: &Arc<Store>) {
+    let shelf = Arc::new(closed::Shelf::open(&ingest::server::default_dir(), store::now_ms()));
+    store.set_closed(shelf.entries());
+    let weak = Arc::downgrade(store);
+    store.set_on_end(Box::new(move |ended| {
+        let (shelf, weak) = (Arc::clone(&shelf), weak.clone());
+        // git status can take a while; keep it off the caller's thread.
+        let spawned = std::thread::Builder::new().name("closed-record".into()).spawn(move || {
+            match shelf.record(closed::entry(&ended), store::now_ms()) {
+                Ok(list) => {
+                    if let Some(store) = weak.upgrade() {
+                        store.set_closed(list);
+                    }
+                }
+                Err(e) => eprintln!("peepthis: closed shelf write failed: {e}"),
+            }
+        });
+        if let Err(e) = spawned {
+            eprintln!("peepthis: closed record thread failed: {e}");
+        }
+    }));
+}
+
 fn wire_trail(app: &tauri::App, store: &Arc<Store>, broker: &approve::Broker, away: &Arc<away::Away>) {
     let trail = trail::Trail::open(&ingest::server::default_dir());
     let pruner = Arc::clone(&trail);
@@ -269,6 +293,7 @@ pub fn run() {
             app.manage(Arc::clone(&store));
             mood::load_nudge(&store, store::now_ms());
             wire_alerts(app, &store);
+            wire_closed(&store);
             ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
             let broker = approve::Broker::new(Arc::clone(&store), Box::new(WidgetEnv), approve::HOLD_MS);
             let away = away::wire(app, &store);

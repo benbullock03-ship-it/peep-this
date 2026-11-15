@@ -153,4 +153,18 @@ export type Snapshot = {
   integration: "installed" | "missing" | "outdated";
   /** Always sent by the backend; optional so the browser demo snapshot needs none. */
   repos?: Repo[];
+  /** Ended sessions for the Closed shelf, newest first, kept 8h (AV-80); optional like `repos`. */
+  closed?: ClosedSession[];
+};
+
+/** src-tauri/src/closed.rs `Entry`; colour and accessory come from `cwd` like a live row. */
+export type ClosedSession = {
+  sessionId: string;
+  name: string;
+  cwd: string;
+  bubble: string;
+  state: State;
+  ticket?: { id: string; title?: string };
+  endedAt: number;
+  flags: { uncommitted: boolean; ticketDoing: boolean; noPackup: boolean; attention: boolean };
 };

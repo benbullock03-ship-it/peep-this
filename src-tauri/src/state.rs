@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::approve::PendingApproval;
 use crate::mood::Mood;
@@ -15,7 +15,7 @@ pub const FINISHED_SHELLS_KEPT: usize = 20;
 /// Peep skills that link a session (spec §13.1); any other `peep:` name is ignored.
 pub const PEEP_SKILLS: [&str; 6] = ["ticket", "ducks", "qt", "packup", "shoot", "coderot"];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum State {
     Idle,
@@ -37,10 +37,10 @@ pub struct LastTool {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TicketLink {
     pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 }
 

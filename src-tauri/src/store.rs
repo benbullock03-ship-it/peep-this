@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 
 use crate::away;
+use crate::closed;
 use crate::mood::{self, Mood};
 use crate::notify;
 use crate::source::{SessionInfo, ShellQuery, SourceEvent};
@@ -38,6 +39,8 @@ pub struct Snapshot {
     pub rate_limits: Option<RateLimits>,
     pub integration: Integration,
     pub repos: Vec<Repo>,
+    /// Ended sessions for the Closed shelf, newest first (AV-80).
+    pub closed: Vec<closed::Entry>,
 }
 
 struct Inner {
@@ -45,9 +48,12 @@ struct Inner {
     rate_limits: Option<RateLimits>,
     integration: Integration,
     repos: Vec<Repo>,
+    closed: Vec<closed::Entry>,
     dirty: bool,
     /// Sessions that entered `waiting` during the current mutation; drained outside the lock.
     entered: Vec<Session>,
+    /// Sessions that ended during the current mutation, as they were just before; drained outside the lock.
+    ended: Vec<closed::Ended>,
     /// Behind the away digest; never in the snapshot.
     activity: away::Activity,
     /// The widget's own headless sessions (digest summaries): never a row, never a hook.
@@ -59,18 +65,32 @@ impl Inner {
     fn snapshot(&self) -> Snapshot {
         let mut sessions: Vec<Session> = self.sessions.values().cloned().collect();
         sessions.sort_by(|a, b| a.id.cmp(&b.id));
-        Snapshot { sessions, rate_limits: self.rate_limits, integration: self.integration, repos: self.repos.clone() }
+        Snapshot {
+            sessions,
+            rate_limits: self.rate_limits,
+            integration: self.integration,
+            repos: self.repos.clone(),
+            closed: self.closed.clone(),
+        }
+    }
+
+    fn note_end(&mut self, before: Option<&Session>, after: &Session, now: u64) {
+        if let Some(b) = before.filter(|b| b.alive && !after.alive) {
+            self.ended.push(closed::Ended::new(b, &self.repos, now));
+        }
     }
 }
 
 pub type Emit = Box<dyn Fn(&Snapshot) + Send + Sync>;
 pub type Alert = Box<dyn Fn(&Session) + Send + Sync>;
+pub type OnEnd = Box<dyn Fn(closed::Ended) + Send + Sync>;
 
 /// All session truth. Every mutation runs through `state::apply`; changes are pushed to `emit` at most once per `EMIT_INTERVAL`.
 pub struct Store {
     inner: Mutex<Inner>,
     changed: Condvar,
     alert: Mutex<Option<Alert>>,
+    on_end: Mutex<Option<OnEnd>>,
 }
 
 impl Store {
@@ -81,14 +101,17 @@ impl Store {
                 rate_limits: None,
                 integration: Integration::Missing,
                 repos: Vec::new(),
+                closed: Vec::new(),
                 dirty: false,
                 entered: Vec::new(),
+                ended: Vec::new(),
                 activity: away::Activity::default(),
                 ignored: HashSet::new(),
                 nudge_pct: mood::NUDGE_PCT_DEFAULT,
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
+            on_end: Mutex::new(None),
         });
         let worker = Arc::clone(&store);
         std::thread::Builder::new()
@@ -118,20 +141,37 @@ impl Store {
         *self.alert.lock().unwrap() = Some(alert);
     }
 
+    /// Called with each session that ends, outside the session lock.
+    pub fn set_on_end(&self, on_end: OnEnd) {
+        *self.on_end.lock().unwrap() = Some(on_end);
+    }
+
+    pub fn set_closed(&self, closed: Vec<closed::Entry>) {
+        self.mutate(|inner| {
+            let changed = inner.closed != closed;
+            inner.closed = closed;
+            changed
+        });
+    }
+
     fn mutate(&self, f: impl FnOnce(&mut Inner) -> bool) {
-        let entered = {
+        let (entered, ended) = {
             let mut inner = self.inner.lock().unwrap();
             if f(&mut inner) {
                 inner.dirty = true;
                 self.changed.notify_one();
             }
-            std::mem::take(&mut inner.entered)
+            (std::mem::take(&mut inner.entered), std::mem::take(&mut inner.ended))
         };
-        if entered.is_empty() {
-            return;
+        if !entered.is_empty() {
+            if let Some(alert) = self.alert.lock().unwrap().as_ref() {
+                entered.iter().for_each(|s| alert(s));
+            }
         }
-        if let Some(alert) = self.alert.lock().unwrap().as_ref() {
-            entered.iter().for_each(|s| alert(s));
+        if !ended.is_empty() {
+            if let Some(on_end) = self.on_end.lock().unwrap().as_ref() {
+                ended.into_iter().for_each(on_end);
+            }
         }
     }
 
@@ -173,8 +213,9 @@ impl Store {
             let next = state::apply(s.clone(), ev, now);
             let changed = next != *s;
             let alert = notify::entered_waiting(Some(&*s), &next).then(|| next.clone());
-            *s = next;
+            let before = std::mem::replace(s, next.clone());
             inner.entered.extend(alert);
+            inner.note_end(Some(&before), &next, now);
             refresh_moods(inner, now) || changed
         });
     }
@@ -200,6 +241,7 @@ impl Store {
             if notify::entered_waiting(before.as_ref(), &next) {
                 inner.entered.push(next.clone());
             }
+            inner.note_end(before.as_ref(), &next, now);
             inner.sessions.insert(id.to_string(), next);
             refresh_moods(inner, now) || changed
         });
@@ -494,6 +536,28 @@ mod tests {
     }
 
     #[test]
+    fn ending_hands_over_the_session_as_it_was_and_closed_reaches_the_snapshot() {
+        let (store, _) = recording_store();
+        let got = Arc::new(Mutex::new(Vec::<closed::Ended>::new()));
+        let sink = Arc::clone(&got);
+        store.set_on_end(Box::new(move |e| sink.lock().unwrap().push(e)));
+        store.ingest(upsert("a", Some(false)), 1_000);
+        store.apply("a", Event::Notification { message: "Claude needs your permission".into(), idle: false }, 2_000);
+        store.ingest(SourceEvent::Ended { id: "a".into() }, 3_000);
+        store.apply_or_placeholder("a", None, Event::Ended, 3_500);
+        let got = got.lock().unwrap();
+        assert_eq!(got.len(), 1, "a second Ended for a dead session is not another end");
+        assert_eq!((got[0].session.state, got[0].at), (State::Waiting, 3_000));
+
+        let entry = closed::entry(&got[0]);
+        store.set_closed(vec![entry.clone()]);
+        let v = serde_json::to_value(store.snapshot()).unwrap();
+        assert_eq!(v["closed"][0]["sessionId"], "a");
+        assert_eq!(v["closed"][0]["state"], "waiting");
+        assert_eq!(v["closed"][0]["flags"]["attention"], true);
+    }
+
+    #[test]
     fn events_for_unknown_sessions_are_dropped() {
         let (store, _) = recording_store();
         store.apply("ghost", Event::UserPromptSubmit, 1_000);
@@ -656,6 +720,7 @@ mod tests {
             rate_limits: Some(RateLimits { five_hour_pct: 42.0, seven_day_pct: 18.0, at: 5 }),
             integration: Integration::Installed,
             repos: vec![],
+            closed: vec![],
         };
         let v = serde_json::to_value(snap).unwrap();
         assert_eq!(v["rateLimits"]["fiveHourPct"], 42.0);
