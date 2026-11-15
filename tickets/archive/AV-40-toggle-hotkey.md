@@ -1,7 +1,7 @@
 ---
 id: AV-40
 title: Global hotkey for panel and strip
-status: in-progress
+status: done
 depends: [AV-39]
 attended: false
 ---
@@ -31,7 +31,9 @@ Decide: header collapse control as a visible glyph or the whole title (recommend
 - Clash report: a clickable line at the top of the tray menu ("Ctrl+Alt+P is taken by another app: change it") that opens settings. Settings gets a "Panel/strip hotkey" field next to the inbox one, and the panel shows a warning notice like the inbox's.
 - In a browser (`npm run dev`) `Ctrl+Alt+P` toggles locally while the page has focus.
 
-## Owed before done
+## Done 2026-11-15
+
+Owner closed it 2026-11-15 on the build installed 19:44. What was owed, as it stood:
 
 Live check 2026-11-15 (`npm run tauri dev`, keys sent with `keybd_event`, foreground read with `GetForegroundWindow`, shots in the session scratchpad `AV-40/`):
 
