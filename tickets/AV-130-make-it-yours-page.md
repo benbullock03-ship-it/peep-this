@@ -1,7 +1,9 @@
 ---
 id: AV-130
 title: Make it yours page
-status: open
+status: blocked
+reason: waiting on AV-131 (Q1 earned accessories, Q3 moods setting change the page)
+wake: ticket:AV-131
 depends: [AV-126]
 ---
 
