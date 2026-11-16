@@ -1,7 +1,7 @@
 ---
 id: AV-103
 title: Pack trim - fold Unpack into Ducks, drop hello, invocation diet
-status: doing
+status: done
 depends: []
 ---
 
@@ -23,7 +23,9 @@ depends: []
 - Floppy art column 10 (unpack) stays in the sprite sheet unused; `design/skill-pack-2/` reference left as is.
 - CONTEXT.md: only the Unpack entry edited; the surrounding uncommitted glossary block is not this ticket's, so CONTEXT.md is left uncommitted.
 
-## Owed before done
+## Done 2026-11-16
 
-- Live run: a Pack Up note, then `/peep:ducks` in a fresh session, shows drift in the read-back and runs `Then` on yes.
-- CONTEXT.md Unpack entry (edited in the tree) commits with the owner's uncommitted glossary block.
+- `plugin/skills/` holds 13 skills; only ticket, packup, tweet and shoot lack `disable-model-invocation`.
+- Live run: in a throwaway worktree with a drifted Pack Up note, a child `claude -p /peep:ducks` read back two drift lines (old hash 1413f4c against 891425f, plus an unlisted stray.txt) with `run /peep:tweet` first under Do. On `yes` (resumed session) it ran `/peep:tweet`, which reported the board empty.
+- `npm test` and `cargo test` pass.
+- Still with the owner: the CONTEXT.md Unpack entry is edited in the tree but uncommitted, because it sits inside the owner's uncommitted glossary block.
