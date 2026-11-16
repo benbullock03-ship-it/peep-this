@@ -7,7 +7,7 @@ const base: Session = { id: "s", pid: 1, name: "n", cwd: "C:/x", kind: "interact
 
 describe("emoteFor", () => {
   it("maps each mood to its emote-sheet row", () => {
-    expect(MOOD_EMOTE).toEqual({ startled: "startled", cheer: "sparkle", greet: "wave", worry: "worry", yawn: "yawn", sweat: "sweat", nap: "zzz" });
+    expect(MOOD_EMOTE).toEqual({ startled: "startled", cheer: "sparkle", greet: "wave", tweet: "tweet", worry: "worry", yawn: "yawn", sweat: "sweat", nap: "zzz" });
     expect(emoteFor({ ...base, mood: "nap" }, "idle")).toBe("zzz");
     expect(emoteFor(base, "thinking")).toBeNull();
   });
@@ -17,6 +17,8 @@ describe("emoteFor", () => {
     expect(emoteFor({ ...base, mood: "worry", alive: false }, "idle")).toBeNull();
     expect(toRowView({ ...base, state: "error", mood: "worry" }).emote).toBeNull();
     expect(toRowView({ ...base, mood: "greet" }).emote).toBe("wave");
+    expect(emoteFor({ ...base, mood: "tweet" }, "waiting")).toBeNull();
+    expect(emoteFor({ ...base, mood: "tweet" }, "idle")).toBe("tweet");
   });
 });
 

@@ -188,6 +188,7 @@ const MOODY: { name: string; identity: Identity; state: State; mood: Mood; task:
   { name: "api-10", identity: { color: "green", accessory: "party" }, state: "idle", mood: "cheer", task: "Idle", ticket: { id: "AV-12", title: "rate limit headers" } },
   { name: "infra-11", identity: { color: "yellow", accessory: "crown" }, state: "thinking", mood: "greet", task: "Reading the deploy script" },
   { name: "tests-12", identity: { color: "blue", accessory: "headphones" }, state: "thinking", mood: "worry", task: "Reading the failing test" },
+  { name: "tweets-16", identity: { color: "pink", accessory: "bow" }, state: "working", mood: "tweet", task: "Edit .peep/tweets.md" },
   { name: "notes-13", identity: { color: "green", accessory: "flowers" }, state: "idle", mood: "nap", task: "Idle", agoS: 900 },
   { name: "shell-14", identity: { color: "yellow", accessory: "beanie" }, state: "working", mood: "startled", task: "Edit src/shell.css", agoS: 20, clash: "C:/demo/peep-this/src/shell.css" },
   { name: "shell-15", identity: { color: "lavender", accessory: "glasses" }, state: "working", mood: "startled", task: "Edit src/shell.css", agoS: 20, clash: "C:/demo/peep-this/src/shell.css" },

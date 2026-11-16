@@ -853,7 +853,7 @@ body[data-fold] > .ps-strip {
   height: 16px;
   margin-left: auto;
   /* The sheet is chosen by the bubble's own fill: dark bubbles in the dark theme take the light-ink sheet. */
-  background: url("./assets/emotes/emotes-on-dark.png") no-repeat 0 calc(var(--row, 0) * -16px) / 64px 112px;
+  background: url("./assets/emotes/emotes-on-dark.png") no-repeat 0 calc(var(--row, 0) * -16px) / 64px 128px;
   image-rendering: pixelated;
   animation: em-frames 500ms steps(4, end) infinite;
 }
@@ -1060,7 +1060,7 @@ body[data-fold] > .ps-strip {
   right: 2px;
   width: calc(16 * var(--px));
   height: calc(16 * var(--px));
-  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(208 * var(--px)) auto;
+  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(288 * var(--px)) auto;
   image-rendering: pixelated;
   clip-path: inset(0 0 calc(5 * var(--px)) 0);
   pointer-events: none;
@@ -1370,7 +1370,7 @@ body[data-fold] > .ps-strip {
   display: block;
   width: calc(16 * var(--px));
   height: calc(16 * var(--px));
-  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(208 * var(--px)) auto;
+  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(288 * var(--px)) auto;
   image-rendering: pixelated;
 }
 
@@ -1606,10 +1606,15 @@ body[data-fold] > .ps-strip {
 
 .diskbox-rot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin: 0;
   color: var(--ps-muted);
+}
+
+.diskbox-rot > span:last-child {
+  flex: 1 1 160px;
 }
 
 .diskbox-ok {

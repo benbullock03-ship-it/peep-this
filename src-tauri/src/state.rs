@@ -13,7 +13,7 @@ const PENDING_AGENTS_MAX: usize = 8;
 pub const SHELL_QUIET_MS: u64 = 2 * 60 * 1000;
 pub const FINISHED_SHELLS_KEPT: usize = 20;
 /// Peep skills that link a session (spec §13.1); any other `peep:` name is ignored.
-pub const PEEP_SKILLS: [&str; 8] = ["ticket", "ducks", "qt", "packup", "shoot", "coderot", "walk", "reel"];
+pub const PEEP_SKILLS: [&str; 11] = ["ticket", "ducks", "qt", "packup", "shoot", "coderot", "walk", "reel", "bigpeep", "tweet", "goose"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

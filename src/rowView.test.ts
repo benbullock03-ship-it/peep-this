@@ -47,7 +47,7 @@ describe("demo", () => {
   it("renders the six design agents with their design identities, then one row per mood", () => {
     const snap = demoSnapshot(1_000_000);
     expect(snap.sessions.slice(0, 6).map((x) => x.name)).toEqual(["ingest-01", "research-02", "triage-03", "digest-04", "sync-05", "scrape-06"]);
-    expect(new Set(snap.sessions.map((x) => x.mood).filter(Boolean))).toEqual(new Set(["startled", "cheer", "greet", "worry", "yawn", "sweat", "nap"]));
+    expect(new Set(snap.sessions.map((x) => x.mood).filter(Boolean))).toEqual(new Set(["startled", "cheer", "greet", "tweet", "worry", "yawn", "sweat", "nap"]));
     expect(toRowView(snap.sessions[2], demoIdentity, 1_000_000)).toMatchObject({
       color: "pink",
       accessory: "headphones",

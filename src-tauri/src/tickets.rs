@@ -76,6 +76,41 @@ pub struct Repo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub north_star: Option<String>,
     pub arc: ArcLine,
+    /// Open tweets on `.peep/tweets.md` (formats.md §7, AV-94 mood).
+    #[serde(skip)]
+    pub tweets: Vec<Tweet>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Tweet {
+    pub from: String,
+    /// Repo-relative; a folder ends in `/`.
+    pub files: Vec<String>,
+}
+
+/// The board's `open` tweets; answered ones and malformed blocks are skipped.
+pub fn open_tweets(board: &str) -> Vec<Tweet> {
+    let mut out = Vec::new();
+    for block in board.split("\n## ").skip(1) {
+        let mut lines = block.lines();
+        if !lines.next().is_some_and(|h| h.trim_end().ends_with("· open")) {
+            continue;
+        }
+        let mut t = Tweet::default();
+        for l in lines {
+            if let Some(v) = l.strip_prefix("from:") {
+                t.from = v.trim().to_string();
+            } else if let Some(v) = l.strip_prefix("files:") {
+                t.files = v.split(',').map(|f| f.trim().to_string()).filter(|f| !f.is_empty()).collect();
+            }
+        }
+        out.push(t);
+    }
+    out
+}
+
+fn tweets(repo: &Path) -> Vec<Tweet> {
+    std::fs::read_to_string(repo.join(".peep").join("tweets.md")).map(|b| open_tweets(&b.replace("\r\n", "\n"))).unwrap_or_default()
 }
 
 fn north_star(repo: &Path) -> Option<String> {
@@ -275,6 +310,7 @@ impl Shelf {
                     stale,
                     north_star: north_star(&root),
                     arc,
+                    tweets: tweets(&root),
                 }
             })
             .collect()
@@ -355,6 +391,16 @@ mod tests {
 
     fn s(id: &str, cwd: &Path) -> (String, String) {
         (id.into(), cwd.to_string_lossy().into_owned())
+    }
+
+    #[test]
+    fn board_lists_only_open_tweets() {
+        let board = "# Tweets\n\n## 1 · AV-3 · answered\nfrom: AV-3\nkind: clash\nfiles: a.rs\nask: x\nreply: AV-4: y\n\n## 2 · - · open\nfrom: ducks\nkind: stuck\nfiles: src/, docs/spec.md\nask: z\n";
+        assert_eq!(open_tweets(board), vec![Tweet { from: "ducks".into(), files: vec!["src/".into(), "docs/spec.md".into()] }]);
+        assert!(open_tweets("").is_empty());
+        let dir = repo("board");
+        write(dir.join(".peep/tweets.md"), &board.replace('\n', "\r\n"));
+        assert_eq!(Shelf::default().read(&[s("a", &dir)], 0)[0].tweets.len(), 1, "CRLF board");
     }
 
     #[test]

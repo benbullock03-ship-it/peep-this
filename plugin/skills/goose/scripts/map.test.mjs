@@ -2,7 +2,23 @@ import { expect, test } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildImportMap, callersOf, fixBrief, liveSessions, parseAreas, parsePatterns, renderPage, renderReport, run } from "./map.mjs";
+import { areaLinks, buildImportMap, callersOf, fixBrief, layoutAreas, liveSessions, openTweets, parseAreas, parsePatterns, renderPage, renderReport, run } from "./map.mjs";
+
+test("area links fold file imports; layout puts needers left of what they need, cycles bounded", () => {
+  const map = { nodes: [{ id: "a1", area: "ui" }, { id: "a2", area: "ui" }, { id: "b", area: "core" }, { id: "c", area: "io" }], edges: [["a1", "b"], ["a2", "b"], ["a1", "a2"], ["b", "c"]] };
+  expect(areaLinks(map)).toEqual([["ui", "core"], ["core", "io"]]);
+  expect(layoutAreas(["ui", "core", "io", "lone"], areaLinks(map))).toEqual({ ui: [0, 0], core: [1, 0], io: [2, 0], lone: [0, 1] });
+  const cyc = layoutAreas(["x", "y"], [["x", "y"], ["y", "x"]]);
+  expect(Math.max(cyc.x[0], cyc.y[0])).toBeLessThan(2);
+});
+
+test("only open tweets reach the graph page", () => {
+  const board = "# Tweets\r\n\r\n## 1 · AV-1 · answered\r\nfrom: AV-1\r\nfiles: a\r\n\r\n## 2 · - · open\r\nfrom: ducks\r\nfiles: src/, docs/x.md\r\nask: who is in src?\r\n";
+  expect(openTweets(board)).toEqual([{ from: "ducks", ask: "who is in src?", files: ["src/", "docs/x.md"] }]);
+  const html = renderPage({ map: { nodes: [{ id: "src/a.ts", area: "frontend" }], edges: [] }, areas: [{ name: "frontend", prefixes: ["src/"] }], sessions: [], peepJs: "", title: "t", tweets: openTweets(board) });
+  expect(html).toContain("Peep This · graph");
+  expect(html).toContain("who is in src?");
+});
 
 test("import map links ts and rust files and finds callers", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "goose-"));

@@ -50,6 +50,24 @@ export const TRAY: readonly { skill: string; name: string; what: string; when: s
     what: "Pins down what the project is for in one line, plus its hook and what it will not do.",
     when: "Use when starting out, or when the work starts to drift.",
   },
+  {
+    skill: "bigpeep",
+    name: "Big Peep",
+    what: "Runs a batch of tickets, one little peep per ticket, and checks on any that go quiet.",
+    when: "Use when several tickets are ready and none needs you in between.",
+  },
+  {
+    skill: "tweet",
+    name: "Tweet Tweet",
+    what: "Tells the other sessions on this repo that this one is stuck, or is about to touch their files.",
+    when: "Use when another session may know the answer, or before changing a file one of them is in.",
+  },
+  {
+    skill: "goose",
+    name: "Duck Duck Goose",
+    what: "Maps what depends on what across the codebase and draws it as a graph.",
+    when: "Use when you need to know what a change will touch.",
+  },
 ];
 
 /** FLOPPY-SPEC §02: six disks show; the rest sit behind a `+N` cell. */

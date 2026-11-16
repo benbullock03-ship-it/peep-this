@@ -12,6 +12,7 @@ export const EMOTES = {
   wave: { row: 4, play: "twice" },
   worry: { row: 5, play: "loop" },
   zzz: { row: 6, play: "loop" },
+  tweet: { row: 7, play: "twice-hold" },
 } as const satisfies Record<string, { row: number; play: Play }>;
 
 export type Emote = keyof typeof EMOTES;
@@ -20,6 +21,7 @@ export const MOOD_EMOTE: Record<Mood, Emote> = {
   startled: "startled",
   cheer: "sparkle",
   greet: "wave",
+  tweet: "tweet",
   worry: "worry",
   yawn: "yawn",
   sweat: "sweat",

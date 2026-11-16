@@ -36,7 +36,7 @@ export type Session = {
   pending?: PendingApproval[];
 };
 
-export type Mood = "startled" | "cheer" | "greet" | "worry" | "yawn" | "sweat" | "nap";
+export type Mood = "startled" | "cheer" | "greet" | "tweet" | "worry" | "yawn" | "sweat" | "nap";
 
 /** A subagent of a session (state.rs `Agent`); finished once `endedAt` is set. */
 export type Agent = {

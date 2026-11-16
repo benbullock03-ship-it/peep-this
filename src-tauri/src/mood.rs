@@ -32,6 +32,7 @@ pub enum Mood {
     Startled,
     Cheer,
     Greet,
+    Tweet,
     Worry,
     Yawn,
     Sweat,
@@ -61,6 +62,7 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
         (clash(s, sessions, now).is_some(), Mood::Startled),
         (cheer, Mood::Cheer),
         (greet, Mood::Greet),
+        (own().any(|r| tweeting(s, r)), Mood::Tweet),
         (limit_pct >= crate::limit::WARN_PCT, Mood::Sweat),
         (worry, Mood::Worry),
         (pct >= nudge_pct, Mood::Yawn),
@@ -69,6 +71,21 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
     ]
     .into_iter()
     .find_map(|(on, m)| on.then_some(m))
+}
+
+/// An open tweet `s` posted (its ticket is the `from`, or it edited the board) or got (it edited a file the tweet names).
+fn tweeting(s: &Session, repo: &Repo) -> bool {
+    let norm = |p: &str| p.replace('\\', "/").to_ascii_lowercase();
+    let root = norm(&repo.root);
+    let under = |abs: &str, rel: &str| {
+        let want = format!("{}/{}", root.trim_end_matches('/'), norm(rel));
+        let abs = norm(abs);
+        if want.ends_with('/') { abs.starts_with(&want) } else { abs == want }
+    };
+    repo.tweets.iter().any(|t| {
+        s.ticket.as_ref().is_some_and(|k| k.id.eq_ignore_ascii_case(&t.from))
+            || s.edits.iter().any(|(p, _)| under(p, ".peep/tweets.md") || t.files.iter().any(|f| under(p, f)))
+    })
 }
 
 /// Windows paths: one file may arrive with either slash or another letter case.
@@ -215,6 +232,33 @@ mod tests {
         let all = [&a, &elsewhere];
         assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + NAP_AFTER_MS), Some(Mood::Worry), "worry beats nap");
         assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0), None);
+    }
+
+    #[test]
+    fn tweet_while_an_open_tweet_names_the_session_and_clash_wins() {
+        use crate::tickets::Tweet;
+        let mut poster = session("a", T0);
+        poster.ticket = Some(TicketLink { id: "AV-7".into(), title: None });
+        let mut addressee = session("b", T0);
+        addressee.edits.push((r"F:\P\src\Rows.ts".into(), T0));
+        let mut replier = session("c", T0);
+        replier.edits.push(("F:/p/.peep/tweets.md".into(), T0));
+        let bystander = session("d", T0);
+        let tweets = vec![Tweet { from: "AV-7".into(), files: vec!["src/".into()] }];
+        let repo = Repo { root: "F:/p".into(), sessions: vec!["a".into(), "b".into(), "c".into(), "d".into()], tweets, ..Default::default() };
+        let repos = [repo];
+        let all = [&poster, &addressee, &replier, &bystander];
+        let at = |s: &Session| derive(s, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + 1);
+        assert_eq!(at(&poster), Some(Mood::Tweet));
+        assert_eq!(at(&addressee), Some(Mood::Tweet), "a file the tweet names, any slash or case");
+        assert_eq!(at(&replier), Some(Mood::Tweet));
+        assert_eq!(at(&bystander), None);
+        assert_eq!(derive(&poster, &all, &[], NUDGE_PCT_DEFAULT, 0.0, T0 + 1), None, "answered tweets leave the board's open list");
+        let mut clasher = session("e", T0);
+        clasher.edits.push((r"F:\P\src\Rows.ts".into(), T0));
+        let both = [&addressee, &clasher];
+        assert_eq!(derive(&addressee, &both, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + 1), Some(Mood::Startled), "clash takes the slot");
+        assert_eq!(derive(&addressee, &all, &repos, NUDGE_PCT_DEFAULT, 90.0, T0 + 1), Some(Mood::Tweet), "tweet outranks sweat");
     }
 
     #[test]
