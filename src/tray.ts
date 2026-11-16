@@ -52,6 +52,18 @@ export const TRAY: readonly { skill: string; name: string; what: string; when: s
     when: "Use when starting out, or when the work starts to drift.",
   },
   {
+    skill: "sneak",
+    name: "Sneak Peep",
+    what: "Mocks up two or three versions of a screen on a local server, side by side, before anything is built. You pick one.",
+    when: "Use when you can only say what it should look like once you see it.",
+  },
+  {
+    skill: "scrub",
+    name: "Scrubadubdub",
+    what: "Finds the AI-made tells in a UI, plus messy spacing and text, says where each one comes from, and fixes only the ones you approve.",
+    when: "Use when a screen works but looks generated.",
+  },
+  {
     skill: "bigpeep",
     name: "Big Peep",
     what: "Runs a batch of tickets, one little peep per ticket, and checks on any that go quiet.",

@@ -25,7 +25,7 @@ describe("hintText", () => {
 });
 
 it("every unlock rule names a skill the tray or the tour knows", () => {
-  const known = new Set([...TRAY.map((f) => f.skill), "sneak", "scrub"]);
+  const known = new Set(TRAY.map((f) => f.skill));
   for (const s of Object.keys(UNLOCKS)) expect(known.has(s)).toBe(true);
 });
 
@@ -34,7 +34,15 @@ it("every tray floppy has sprite art", () => {
 });
 
 it("shows the six spec floppies and puts the rest behind +N", () => {
-  expect(TRAY.map((f) => f.skill)).toEqual(["ducks", "qt", "ticket", "shoot", "packup", "coderot", "walk", "reel", "bigpeep", "tweet", "goose"]);
-  expect(TRAY.slice(TRAY_SHOWN).map((f) => jumpCommand(f.skill))).toEqual(["/peep:walk", "/peep:reel", "/peep:bigpeep", "/peep:tweet", "/peep:goose"]);
+  expect(TRAY.map((f) => f.skill)).toEqual(["ducks", "qt", "ticket", "shoot", "packup", "coderot", "walk", "reel", "sneak", "scrub", "bigpeep", "tweet", "goose"]);
+  expect(TRAY.slice(TRAY_SHOWN).map((f) => jumpCommand(f.skill))).toEqual([
+    "/peep:walk",
+    "/peep:reel",
+    "/peep:sneak",
+    "/peep:scrub",
+    "/peep:bigpeep",
+    "/peep:tweet",
+    "/peep:goose",
+  ]);
   expect(new Set(TRAY.map((f) => FLOPPIES[f.skill].col)).size).toBe(TRAY.length);
 });

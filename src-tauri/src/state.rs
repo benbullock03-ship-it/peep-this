@@ -13,7 +13,8 @@ const PENDING_AGENTS_MAX: usize = 8;
 pub const SHELL_QUIET_MS: u64 = 2 * 60 * 1000;
 pub const FINISHED_SHELLS_KEPT: usize = 20;
 /// Peep skills that link a session (spec §13.1); any other `peep:` name is ignored.
-pub const PEEP_SKILLS: [&str; 11] = ["ticket", "ducks", "qt", "packup", "shoot", "coderot", "walk", "reel", "bigpeep", "tweet", "goose"];
+pub const PEEP_SKILLS: [&str; 13] =
+    ["ticket", "ducks", "qt", "packup", "shoot", "coderot", "walk", "reel", "sneak", "scrub", "bigpeep", "tweet", "goose"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -1919,8 +1920,8 @@ mod tests {
     }
 
     #[test]
-    fn phase_1_skills_seat_their_floppy() {
-        for name in ["walk", "reel"] {
+    fn phase_1_and_2_skills_seat_their_floppy() {
+        for name in ["walk", "reel", "sneak", "scrub"] {
             let s = run(vec![(skill(name, None, Event::UserPromptSubmit), T0 + 1)]);
             assert_eq!(s.skill.as_deref(), Some(name));
         }
