@@ -1,7 +1,7 @@
 ---
 id: AV-106
 title: Tweet hook - clash and stuck nudges
-status: doing
+status: closed
 depends: []
 ---
 
@@ -23,7 +23,8 @@ depends: []
 - Stuck = the last two tool results in this session's transcript both `is_error` for the same tool; nudged once per failure pair.
 - Reuses goose's `editedFiles` (imported from `skills/goose/scripts/map.mjs`); nudge memory lives in `<tmpdir>/peep-tweet-nudge/<session>.json`.
 - "Live" = has a `~/.claude/sessions/*.json`, same as goose; no PID check.
+- Closed from `doing` on the owner's "it worked close it" after the live run, without a separate `done` step.
 
-## Owed before done
+## Done
 
-- Live run: two Claude Code sessions with the plugin loaded edit one file; each gets the nudge once and a tweet lands on `.peep/tweets.md`. Fixture tests pass (`plugin/hooks/tweet-nudge.test.mjs`, 6 tests); the script exits 0 silently on garbage input.
+- 2026-11-16: fixtures pass (`npx vitest run plugin/hooks/tweet-nudge.test.mjs`); garbage and empty stdin exit 0 silent. Live: two sessions edited `.peep/clash-test.md` after `/reload-plugins`; each got the clash nudge naming the other once, the repeat edit stayed silent, and a clash tweet landed on the board and was answered. Owner confirmed.

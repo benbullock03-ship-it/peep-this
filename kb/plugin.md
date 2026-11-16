@@ -18,6 +18,7 @@
 - `map.mjs --report <candidates.json>` puts Ducks' architecture candidates above the map (Ducks level 5, `ducks/references/report.md` holds the JSON schema). Legend, the top pick beside a 96px house peep, then cards. Each card has a peep whose state shows strength (Strong waiting, Worth exploring thinking, Speculative idle), a pattern lesson from `references/patterns.md`, a stuck/working/success comic strip with before and after SVGs, an ELI5 fold with its source, and a "Copy fix brief" button.
 - `/peep:bigpeep` is the global `/batch` rebuilt on the repo setup: little peeps follow `work.md` but never stage, commit or set status; Big Peep sets `doing`, reviews the diff, commits one per ticket. A little peep quiet 10 minutes gets one SendMessage status ask (`references/watch.md`), never a stop, and answers by SendMessage to `main`. An in-batch dep that reaches `done` earlier in the run counts as met.
 - `/peep:tweet` posts to `.peep/tweets.md` (F§7), never staged or committed; a live ping via SendMessage is only a nudge to read the board. `/peep:ticket` reads the board before building (work.md 1.5) and folds answered tweets into area notes on close (close.md 4).
+- `plugin/hooks/tweet-nudge.mjs` is the plugin's `PreToolUse` hook (`Edit|Write|MultiEdit|Bash`). It tells Claude to post a clash tweet when another live session in the repo edited the same file in the last 30 minutes (goose's `editedFiles`), and a stuck tweet (or `/clear` with no peer) after two failures of one tool in a row. It never blocks and fails silent.
 - `/peep:shoot` checks a desktop app's webview over CDP (`shoot/references/webview.md`: debug port, `Runtime.evaluate`, the app's own commands, OS screenshots for native chrome) and applies `references/stable.md` before every fact and shot; a verdict that changes on rerun is `flaky`.
 - A blocked `/peep:ticket <id>` still parks it on the first direct dep not `closed`, then walks the depends tree depth-first (`ticket/references/work.md`) and names the next step in `owed`: `next: /peep:ticket <dep>` for the first open dep whose own depends are closed, or `/peep:ticket close <dep>` for a `done` one. `doing` deps are skipped; with none unblocked it names the nearest wake.
 - `/peep:packup` writes `.peep/handoff.md` (template in `skills/packup/references/note.md`) with `First command: /peep:ducks` when the next step is clear. Ducks reads the note first, checks branch, commit, uncommitted files and named ticket statuses against it (`ducks/references/drift.md`), reads back the drift, and on yes runs the note's `Then` before its other Do lines.
@@ -37,6 +38,8 @@
 - A new skill adds itself to Walk's Extras block in `walk/references/tour.md` with a use-when line.
 - A grep rule's good snippet must hit no rule at all; a false positive is a bug. The scanner always skips the pack's own catalogue and `skills/scrub/fixtures/` (they hit every rule by design); repo reference folders like `design/` are passed as `--skip`.
 - Scrubadubdub never writes an earned line (those are the owner's), never stages or commits, and never picks a design choice; Sneak does that. Anything declared in the repo's DESIGN.md is never flagged; this repo's seed earns only the AV-44 shell choices.
+- The plugin loads from `plugin/` directly; a changed skill or hook reaches a running session only after `/reload-plugins` or a restart, and `claude plugin update` is a no-op.
+- The tweet nudge fires once per file per session, remembered in `<tmpdir>/peep-tweet-nudge/<sessionId>.json`. Running the hook by hand with a real session id spends that nudge; delete the file before a live check.
 - A live ping only lands when the peer runs in the same permission mode; otherwise its harness holds the message for approval and the board carries it alone.
 - `map.test.mjs` pins the report's place and shape on the graph page: report above `#board`, top pick first, two `<details>` folds, stuck/working/success panels, no `http` URLs (the page works offline). A graph change must keep all five.
 - A graph link to any column but the next runs in the gap under the target's row; a straight run would pass behind the cards in between and read as a chain.
@@ -53,4 +56,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-104, 2026-11-16
+last touched: AV-106, 2026-11-16
