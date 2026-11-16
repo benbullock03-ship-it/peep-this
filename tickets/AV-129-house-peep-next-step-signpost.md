@@ -27,11 +27,17 @@ depends: [AV-124]
 6. pass: the house shows "Install the integration" with Install when `missing`, otherwise "Start Claude Code in a project" with `claude`. Evidence: vitest `houseSign`; `av129-empty-dark.png`, `av129-empty-light.png`.
 7. pass: `Repo.setup` follows `.peep/setup.md`. Evidence: cargo `repo_reports_whether_it_has_a_setup`.
 8. pass: build and tests are green. `npm run build`, `cargo check` clean; vitest 375 passed; cargo 425 passed (1 ignored), 17 passed.
-9. owed to the owner: confirm in `npm run tauri dev`.
+9. Live in `tauri dev`, 2026-11-16, run myself over CDP with real `Input.dispatchMouseEvent` clicks. Each session was held open by a stream-json driver in a visible console.
+   - pass: in a repo with no setup, a live `success` row showed `Next: /peep:walk` (`Repo.setup` false); a click put `/peep:walk` on the clipboard. Evidence: `.playwright-mcp/live-av129-walk.png`.
+   - pass: after a headless `/peep:packup`, the row showed `Next: /clear, then paste .peep/handoff.md` and a click copied `/clear`. Evidence: `live-av129-next.png`.
+   - pass: after `/peep:ducks` acted, the row showed `Next: /peep:ticket LO-2` (`Session.next`) and a click copied it. Evidence: `live-av129-ducks.png`.
+   - noted: a dead (`alive: false`) row shows "Session closed. Bye!" and no signpost, since there is no terminal to Jump to.
+   - not proven: focus. `focus_session` returned `true`, but the foreground window stayed put. A CDP click gives the widget no OS activation, so Windows' foreground lock refuses `SetForegroundWindow`. The trust-prompt keystroke I would have needed for an interactive session was refused by the auto-mode classifier.
+   - not run: house Install, because it would rewrite the owner's `~/.claude/settings.json`.
 
 ## Owed before done
 
-- Owner: in `npm run tauri dev`, an idle row in a repo without `.peep/setup.md` offers `/peep:walk`; after `/peep:ducks` the row offers that run's `next:` command; clicking it copies the command and focuses the terminal; the house Install button installs.
+- Owner, in `npm run tauri dev`: click a row's `Next:` chip with the real mouse and confirm the session's terminal comes to the front. Then check the house Install button on a machine, or a profile, without the integration.
 
 ## Decisions taken without a ruling
 
