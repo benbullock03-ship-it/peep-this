@@ -30,6 +30,8 @@ export type Session = {
   skill?: string;
   /** Linked ticket; `title` is absent when the ticket file was not found. */
   ticket?: { id: string; title?: string };
+  /** Value of the last `next:` line since the latest Peep skill started (formats.md §8). */
+  next?: string;
   contextPct?: number;
   /** mood.rs: at most one, still set during attention states (the bubble hides it there). */
   mood?: Mood;
@@ -156,6 +158,8 @@ export type Repo = {
   stale?: string[];
   /** `north_star` from `.peep/reel.md`; absent without a reel. */
   northStar?: string;
+  /** `.peep/setup.md` exists; always sent by the backend, absent in demo repos that do not care. */
+  setup?: boolean;
   arc: ArcLine;
 };
 

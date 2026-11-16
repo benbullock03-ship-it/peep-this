@@ -10,7 +10,11 @@
 - Ended sessions go to the closed shelf (`closed.rs` `Shelf`): `store.rs` hands the session over as it was on end, `closed::entry` records its end-state flags (uncommitted, no Pack Up, attention, ticket doing), and `Snapshot.closed` carries the shelf to the frontend (`ClosedSession` in `src/model.ts`). Wired in `lib.rs` `wire_closed`.
 - `end_session(session_id)` (`focus.rs`, a Tauri command only, never on the event server) re-reads `sessions/<pid>.json`, compares `procStart` with the OS start time and kills through the same process handle. `Ok(true)` killed, `Ok(false)` already gone, `Err` otherwise; the normal lifecycle then takes the row to done and fades it.
 
+- Signpost (AV-129): `transcript.rs` emits `Event::TranscriptNext` for a main-thread assistant text block whose last line is `next: <value>`; `state.rs` keeps it in `Session.next` only once a Peep skill has run in that session (`peep_ran`), clears it when a new Peep skill starts, and keeps it across plain turns. `Repo.setup` says whether `.peep/setup.md` exists.
+
 ## Watch out
+
+- A first transcript scan ignores `next:` lines, and `peep_ran` is not persisted, so a widget restart shows no signpost until the next Peep skill run.
 
 - The token never goes in `settings.json`; install and uninstall recognise both old http hook entries and command ones, so upgrades replace them.
 - The relay's `PermissionRequest` read waits 70s (hold 60s, under the 75s hook timeout); the constant is duplicated because the bin cannot include `approve.rs`.
@@ -27,4 +31,4 @@
 - Cheer and greet outrank the rest because they are brief and would otherwise never be seen.
 - Command hooks instead of http hooks: Claude Code reported every refused connection as a hook error while the widget was closed; the relay stays silent.
 
-last touched: AV-96, 2026-11-16
+last touched: AV-129, 2026-11-16

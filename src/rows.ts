@@ -5,10 +5,10 @@ import { createBar, type Bar } from "./bar";
 import { createArc } from "./arc";
 import { openFacts } from "./details";
 import { clashLinks, clashTags, EMOTES, type Emote } from "./emote";
-import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
+import { createHousePeep, HOUSE_SIZE_PANEL, houseShown, houseSign, START_CMD } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
 import { limitWarning, type LimitWarning } from "./limits";
-import type { RateLimits, Repo, RepoTicket, RuleOffer, Session, Tip, TrailEntry } from "./model";
+import type { RateLimits, Repo, RepoTicket, RuleOffer, Session, Snapshot, Tip, TrailEntry } from "./model";
 import { MOTION_MS, motionMs, reducedMotion } from "./motion";
 import type { LookStore } from "./look";
 import { createPicker } from "./picker";
@@ -256,6 +256,15 @@ function setEmote(r: Row, emote: Emote | null) {
   }
 }
 
+/** The stage copy is outside the row's button, so only there can the signpost command take keyboard focus. */
+function signKeys(stageSay: HTMLElement) {
+  const cmd = stageSay.querySelector<HTMLElement>(".bb-cmd");
+  if (!cmd) return;
+  cmd.tabIndex = 0;
+  cmd.setAttribute("role", "button");
+  cmd.setAttribute("aria-label", `Next step: copy ${cmd.textContent}`);
+}
+
 // Writes only fields that changed, so <peep-bot> never sees redundant attribute sets.
 function updateRow(r: Row, v: RowView) {
   const l = r.last;
@@ -276,8 +285,10 @@ function updateRow(r: Row, v: RowView) {
     }
   }
   if (l.label !== v.label) for (const x of r.labels) x.textContent = v.label;
-  if (!r.endNote && (l.say !== v.say || l.bubble?.tab !== v.bubble.tab || l.bubble?.bolt !== v.bubble.bolt))
+  if (!r.endNote && (l.say !== v.say || l.bubble?.tab !== v.bubble.tab || l.bubble?.bolt !== v.bubble.bolt)) {
     for (const x of r.says) fillBubble(x, v.bubble);
+    signKeys(r.says[1]);
+  }
   if (l.emote !== v.emote) setEmote(r, v.emote);
   if (l.nudge !== v.nudge || l.tip !== v.tip) {
     r.el.classList.toggle("is-nudge", !!v.nudge || !!v.tip);
@@ -430,12 +441,54 @@ export function createList(
   onEnd?: EndSession,
   looks?: LookStore,
   onDismissTip?: (sessionId: string) => Promise<unknown>,
+  onInstall?: () => Promise<unknown>,
 ) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
-  el("div", "empty-stage", empty).appendChild(createHousePeep(HOUSE_SIZE_PANEL));
-  el("span", "ps-plank empty-plank", empty);
-  el("p", "empty-text", empty).textContent = HOUSE_TEXT;
+  const emptyStage = el("div", "empty-stage", empty);
+  const housePeep = el("div", "empty-peep", emptyStage);
+  housePeep.appendChild(createHousePeep(HOUSE_SIZE_PANEL));
+  el("span", "ps-plank empty-plank", housePeep);
+  const houseBubble = el("span", "ps-bubble empty-bubble", emptyStage);
+  const houseText = el("span", "empty-text", houseBubble);
+  const houseAct = button("bb-cmd empty-act", houseBubble);
+  let integration: Snapshot["integration"] | undefined;
+  let installing = false;
+  const fillHouse = () => {
+    const sign = houseSign(integration);
+    houseText.textContent = sign.text;
+    houseAct.hidden = !sign.action || (sign.action === "install" && !onInstall);
+    houseAct.dataset.action = sign.action ?? "";
+    houseAct.disabled = installing;
+    houseAct.textContent = sign.action === "install" ? (installing ? "Installing…" : "Install") : START_CMD;
+    houseAct.setAttribute("aria-label", sign.action === "install" ? "Install the Claude Code integration" : `Copy ${START_CMD}`);
+  };
+  fillHouse();
+  houseAct.addEventListener("click", async () => {
+    if (houseAct.dataset.action === "install") {
+      if (installing) return;
+      installing = true;
+      fillHouse();
+      let failed = "";
+      try {
+        await onInstall!();
+      } catch (err) {
+        failed = String(err);
+      }
+      installing = false;
+      fillHouse();
+      if (failed) houseText.textContent = `Couldn't install: ${failed}`;
+      return;
+    }
+    // No session yet, so there is no terminal to focus: copy only.
+    const ok = await (navigator.clipboard?.writeText(START_CMD).then(() => true, () => false) ?? false);
+    if (!ok) {
+      houseText.textContent = `Type ${START_CMD} in a terminal in your project`;
+      return;
+    }
+    houseAct.classList.add("is-copied");
+    setTimeout(() => houseAct.classList.remove("is-copied"), COPIED_MS);
+  });
   let current: readonly Session[] = [];
   const syncEmpty = () => {
     let fading = 0;
@@ -500,16 +553,23 @@ export function createList(
     }, ok ? COPIED_MS : HINT_MS);
   }
 
-  function showEndError(r: Row, text: string) {
+  function showEndError(r: Row, text: string, err = true) {
     r.endNote = text;
-    r.el.classList.add("is-end-err");
+    r.el.classList.toggle("is-end-err", err);
     for (const x of r.says) fillBubble(x, { text });
     clearTimeout(r.endTimer);
     r.endTimer = window.setTimeout(() => {
       r.endNote = undefined;
       r.el.classList.remove("is-end-err");
       if (r.last.bubble) for (const x of r.says) fillBubble(x, r.last.bubble);
+      signKeys(r.says[1]);
     }, HINT_MS);
+  }
+
+  async function signJump(r: Row, chip: HTMLElement, cmd: string) {
+    if (!(await jumpFor(r.session.id)(cmd))) return showEndError(r, `Couldn't copy. Type ${cmd} in the terminal.`, false);
+    chip.classList.add("is-copied");
+    setTimeout(() => chip.classList.remove("is-copied"), COPIED_MS);
   }
 
   function bindEnd(r: Row, b: HTMLButtonElement) {
@@ -568,14 +628,35 @@ export function createList(
       void packUp(r.session.id, pack);
       return;
     }
+    const chip = target.closest<HTMLElement>(".bb-cmd");
+    const cmd = r.last.bubble?.cmd;
+    if (chip && cmd && !r.endNote) {
+      void signJump(r, chip, cmd);
+      return;
+    }
     if (target.closest(".ps-row, .ps-openhead")) toggle(r);
+  });
+  list.addEventListener("keydown", (e) => {
+    const chip = (e.target as Element).closest?.<HTMLElement>(".ps-stage .bb-cmd");
+    if (!chip || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    chip.click();
   });
 
   let repos: readonly Repo[] = [];
   let limit: LimitWarning | null = null;
-  /** `nextRepos` and `nextLimits` omitted keep the last ones, for re-renders that only carry sessions; null limits clear. */
-  function render(sessions: readonly Session[], nextRepos?: readonly Repo[], nextLimits?: RateLimits | null) {
+  /** `nextRepos`, `nextLimits` and `nextIntegration` omitted keep the last ones, for re-renders that only carry sessions; null limits clear. */
+  function render(
+    sessions: readonly Session[],
+    nextRepos?: readonly Repo[],
+    nextLimits?: RateLimits | null,
+    nextIntegration?: Snapshot["integration"],
+  ) {
     if (nextRepos) repos = nextRepos;
+    if (nextIntegration && nextIntegration !== integration) {
+      integration = nextIntegration;
+      fillHouse();
+    }
     if (nextLimits !== undefined) limit = limitWarning(nextLimits ?? undefined);
     const sorted = sortSessions(sessions);
     const tags = clashTags(sorted);
@@ -600,7 +681,7 @@ export function createList(
       }
       if (s.mood !== "yawn") snoozed.delete(s.id);
       if (s.tip !== dismissed.get(s.id)) dismissed.delete(s.id);
-      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id), limit, dismissed.get(s.id));
+      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id), limit, dismissed.get(s.id), r.repo?.setup);
       updateRow(r, view);
       const kids = r.kids(s, view.color, now);
       const shellFold = r.shells(s, now).foldAt;

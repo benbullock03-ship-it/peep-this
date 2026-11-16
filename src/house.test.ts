@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { flyWants } from "./flyout";
-import { houseShown } from "./house";
+import { houseShown, houseSign } from "./house";
 import type { Session } from "./model";
 import { stripView } from "./strip";
 
@@ -25,6 +25,15 @@ describe("houseShown", () => {
   it("stays away until the last fading row is gone", () => {
     expect(houseShown([], 1)).toBe(false);
     expect(houseShown([], 2)).toBe(false);
+  });
+});
+
+describe("houseSign", () => {
+  it("names the next step: install first, then start Claude Code", () => {
+    expect(houseSign("missing")).toEqual({ text: "Install the integration", action: "install" });
+    expect(houseSign("installed")).toEqual({ text: "Start Claude Code in a project", action: "copy" });
+    expect(houseSign("outdated").action, "the banner offers the update").toBe("copy");
+    expect(houseSign(undefined)).toEqual({ text: "No sessions running" });
   });
 });
 

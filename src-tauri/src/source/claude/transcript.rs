@@ -54,6 +54,15 @@ pub enum Item {
     Title { title: String, user: bool },
     /// An auto-compact `compact_boundary`; manual `/compact` is the user's own choice and teaches nothing.
     Compacted,
+    /// An assistant text block whose last line is `next: <value>` (formats.md §8).
+    Next(String),
+}
+
+/// The value of a block's last non-empty line when it matches `^next: (.+)$`.
+fn next_line(text: &str) -> Option<String> {
+    let last = text.lines().rev().find(|l| !l.trim().is_empty())?.trim_end();
+    let value = last.strip_prefix("next: ")?.trim();
+    (!value.is_empty()).then(|| value.to_string())
 }
 
 /// Parses one transcript line. Sidechain (subagent) lines and unrelated line types yield nothing.
@@ -83,6 +92,11 @@ pub fn parse_line(line: &str, cwd: &str) -> Result<Vec<Item>, String> {
                 }
                 let target = b.get("input").and_then(|i| tool_target(i, cwd));
                 items.push(Item::ToolUse { id: str_of(b, "id"), name, target });
+            }
+            for b in blocks.iter().filter(|b| block_type(b) == "text") {
+                if let Some(next) = b.get("text").and_then(Value::as_str).and_then(next_line) {
+                    items.push(Item::Next(next));
+                }
             }
         }
         Some("user") => {
@@ -283,7 +297,7 @@ pub fn translate(items: Vec<Item>, first: bool, last_model: &mut Option<String>)
                 Item::ToolResult { id } => pending.retain(|(p, _, _)| *p != id),
                 Item::ApiError { .. } => pending.clear(),
                 Item::Title { title, user } => titles[user as usize] = Some(title),
-                Item::Compacted => {}
+                Item::Compacted | Item::Next(_) => {}
             }
         }
         if let Some(m) = model {
@@ -307,6 +321,7 @@ pub fn translate(items: Vec<Item>, first: bool, last_model: &mut Option<String>)
             Item::ApiError { summary } => out.push(Event::TranscriptApiError { summary }),
             Item::Title { title, user } => out.push(Event::TranscriptTitle { title, user }),
             Item::Compacted => out.push(Event::TranscriptCompacted),
+            Item::Next(line) => out.push(Event::TranscriptNext { line }),
         }
     }
     out
@@ -600,6 +615,28 @@ mod tests {
         assert_eq!(parse_line(&line("manual"), "C:/w").unwrap(), vec![]);
         assert_eq!(translate(vec![Item::Compacted], true, &mut None), vec![], "a first scan replays history");
         assert_eq!(translate(vec![Item::Compacted], false, &mut None), vec![Event::TranscriptCompacted]);
+    }
+
+    #[test]
+    fn transcript_next_line_from_the_last_line_of_main_text_blocks() {
+        let (items, bad) = parse_all(&fixture("next_line.jsonl"));
+        assert_eq!(bad, 0);
+        let next: Vec<&Item> = items.iter().filter(|i| matches!(i, Item::Next(_))).collect();
+        assert_eq!(
+            next,
+            [&Item::Next("/peep:ticket AV-12".into()), &Item::Next("/clear, then paste .peep/handoff.md".into())],
+            "not mid-block, not from a subagent"
+        );
+        assert_eq!(next_line("next: "), None);
+        assert_eq!(next_line("Next: /x"), None);
+        assert_eq!(
+            translate(items.clone(), false, &mut None).into_iter().filter(|e| matches!(e, Event::TranscriptNext { .. })).count(),
+            2
+        );
+        assert!(
+            !translate(items, true, &mut None).iter().any(|e| matches!(e, Event::TranscriptNext { .. })),
+            "a first scan replays history"
+        );
     }
 
     #[test]

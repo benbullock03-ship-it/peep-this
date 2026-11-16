@@ -177,6 +177,9 @@ const REPOS: Repo[] = [
   // AV-83: no north star (sync-05), and nothing closed yet (research-02).
   { root: "C:/demo/sync-05", sessions: ["demo-5"], tickets: LONG, arc: { closed: 6, open: 13, parked: 4, last: { id: "AV-06", title: "" } } },
   { root: "C:/demo/research-02", sessions: ["demo-2"], tickets: [], northStar: "Ward maps anyone can read", arc: { closed: 0, open: 0, parked: 0 } },
+  // AV-129 signposts: no setup (walk-17), and three repos with one.
+  { root: "C:/demo/walk-17", sessions: ["demo-17"], tickets: [], setup: false, arc: { closed: 0, open: 0, parked: 0 } },
+  { root: "C:/demo/ducks-18", sessions: ["demo-18", "demo-19", "demo-20"], tickets: [], setup: true, arc: { closed: 0, open: 0, parked: 0 } },
 ];
 
 // AV-70: one row per mood, both nudges, plus sync-05 (error) holding a worry the bubble must hide. They sit out demoStep.
@@ -194,6 +197,33 @@ const MOODY: { name: string; identity: Identity; state: State; mood: Mood; task:
   { name: "shell-15", identity: { color: "lavender", accessory: "glasses" }, state: "working", mood: "startled", task: "Edit src/shell.css", agoS: 20, clash: "C:/demo/peep-this/src/shell.css" },
 ];
 const MOOD_FROM = AGENTS.length;
+
+// AV-129: one row per signpost kind; they sit out demoStep like the moody rows.
+const SIGNS: { name: string; identity: Identity; state: State; next?: string }[] = [
+  { name: "walk-17", identity: { color: "green", accessory: "hardhat" }, state: "idle" },
+  { name: "ducks-18", identity: { color: "pink", accessory: "crown" }, state: "success", next: "/peep:ticket AV-12" },
+  { name: "packup-19", identity: { color: "blue", accessory: "beanie" }, state: "success", next: "/clear, then paste .peep/handoff.md" },
+  { name: "ticket-20", identity: { color: "lavender", accessory: "bow" }, state: "idle", next: "none unblocked; nearest wake AV-26 date:2026-12-01" },
+];
+
+function signSessions(now: number): Session[] {
+  return SIGNS.map((m, k) => ({
+    id: demoId(MOOD_FROM + MOODY.length + k),
+    pid: 1100 + k,
+    name: m.name,
+    cwd: `C:/demo/${m.name === "walk-17" ? m.name : "ducks-18"}`,
+    kind: "interactive",
+    entrypoint: "cli",
+    model: "Opus 5.5",
+    state: m.state,
+    stateSince: now - 120_000,
+    task: m.state === "success" ? "Done" : "Idle",
+    subagents: 0,
+    contextPct: 30,
+    next: m.next,
+    alive: true,
+  }));
+}
 const ATTENTION_MOOD: Record<number, Mood> = { 4: "worry" };
 
 function moodySessions(now: number): Session[] {
@@ -225,7 +255,7 @@ function arm(p: Omit<PendingApproval, "receivedAt" | "releaseAt">, now: number):
 }
 
 const demoId = (i: number) => `demo-${i + 1}`;
-const identities = new Map([...AGENTS, ...MOODY].map((a, i) => [demoId(i), a.identity]));
+const identities = new Map([...AGENTS, ...MOODY, ...SIGNS].map((a, i) => [demoId(i), a.identity]));
 
 export function demoIdentity(s: Session): Identity {
   return identities.get(s.id) ?? { color: "yellow", accessory: "none" };
@@ -265,7 +295,7 @@ export function demoSnapshot(now: number): Snapshot {
       ticket: LINKS[i]?.ticket,
       skill: skillIn(i, a.state),
       mood: ATTENTION_MOOD[i],
-    }, i, now)).concat(moodySessions(now)),
+    }, i, now)).concat(moodySessions(now), signSessions(now)),
   };
 }
 

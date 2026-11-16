@@ -920,6 +920,46 @@ body[data-fold] > .ps-strip {
   shape-rendering: crispEdges;
 }
 
+/* AV-129 signpost: `Next:` then the command chip a click Jumps; never an attention fill, never a pulse. */
+.bb-label {
+  opacity: 0.78;
+}
+
+.bb-label::after {
+  content: ":";
+  margin-right: 0.4em;
+}
+
+.bb-cmd {
+  position: relative;
+  padding: 0 4px;
+  border: 1px solid currentColor;
+  background: none;
+  color: inherit;
+  font: 500 11px/1.4 var(--mono);
+  cursor: pointer;
+}
+
+/* The command keeps its width; the trailing prose ellipsises first. */
+.bb > .bb-cmd {
+  flex: 0 0.001 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bb-cmd:hover,
+.bb-cmd:focus-visible {
+  outline: none;
+  background: var(--ps-accent);
+  border-color: var(--ps-accent);
+  color: var(--ps-on-st);
+}
+
+.bb.is-sign > .bb-text {
+  margin-left: 0.15em;
+}
+
 /* Adjacent clash rows only: a dotted bracket in the gutter from plank to plank; never pins or moves a row. */
 .ps-item.clash-down::after,
 .ps-item.clash-up::before {
@@ -2514,15 +2554,31 @@ body[data-fold] > .ps-strip {
 .empty-stage {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-peep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .empty-plank {
   width: 120px;
-  margin: 0 auto;
 }
 
-.empty-text {
-  margin: 12px 0 0;
+.empty-bubble {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+}
+
+.empty-act {
+  padding: 1px 6px;
 }
 
 /* ---------- closed shelf (AV-82, skill-pack-2 SPEC §01) ---------- */

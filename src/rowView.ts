@@ -1,4 +1,4 @@
-import { BLANK_COL, bubbleFor, bubbleLine, FLOPPIES, type Bubble } from "./bubble";
+import { BLANK_COL, bubbleFor, bubbleLine, FLOPPIES, signFor, type Bubble } from "./bubble";
 import { clashText, emoteFor, nudgeFor, nudgeText, type ClashTag, type Emote, type Nudge } from "./emote";
 import { identityFor, type Identity } from "./identity";
 import type { LimitWarning } from "./limits";
@@ -49,7 +49,10 @@ export async function requestFocus(onFocus: OnFocus, id: string, flash: () => vo
   if (!ok) flash();
 }
 
-/** `snoozed`: "Not yet" was pressed on this session's first nudge. `clash`: this row's entry from `clashTags`. `dismissed`: the tip "Got it" waved off. */
+/**
+ * `snoozed`: "Not yet" was pressed on this session's first nudge. `clash`: this row's entry from `clashTags`. `dismissed`: the tip "Got it" waved off.
+ * `setup`: the session's repo has `.peep/setup.md`; undefined when the repo is unknown.
+ */
 export function toRowView(
   s: Session,
   identityOf: IdentityOf = (x) => identityFor(x.cwd),
@@ -58,6 +61,7 @@ export function toRowView(
   clash?: ClashTag,
   limit?: LimitWarning | null,
   dismissed?: Tip,
+  setup?: boolean,
 ): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
   const { color, accessory } = identityOf(s);
@@ -65,13 +69,14 @@ export function toRowView(
   const nudge = nudgeFor(s, state, snoozed);
   const tip = tipFor(s, state, !!nudge, dismissed);
   const emote = emoteFor(s, state);
+  const sign = nudge || tip || emote ? null : signFor(s, state, setup);
   const bubble: Bubble = nudge
     ? { text: nudgeText(nudge, s.contextPct) }
     : tip
       ? { text: TIP_TEXT[tip] }
       : clash && emote === "startled"
       ? { text: clashText(clash), bolt: clash.tag }
-        : bubbleFor(s, sayFor({ ...s, state }, now), attention, emote === "sweat" ? limit : null);
+        : sign ?? bubbleFor(s, sayFor({ ...s, state }, now), attention, emote === "sweat" ? limit : null);
   return {
     id: s.id,
     name: s.title || s.name || s.id.slice(0, 8),

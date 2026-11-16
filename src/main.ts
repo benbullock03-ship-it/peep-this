@@ -350,10 +350,10 @@ function runDemo() {
 
 /** `?empty` shows the house peep; `?empty=banner` adds the first-run banner, `?empty=cycle` brings one session in and out. */
 function runEmpty(mode: string) {
-  const render = createList(root, demoIdentity);
+  const render = createList(root, demoIdentity, undefined, undefined, undefined, undefined, undefined, undefined, undefined, async () => {});
   const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
   if (mode === "banner") createBanner(root, { install: async () => {} }).render("missing");
-  render([]);
+  render([], undefined, undefined, mode === "banner" ? "missing" : "installed");
   renderStrip([]);
   if (mode !== "cycle") return;
   const one = demoSnapshot(Date.now()).sessions.slice(0, 1);
@@ -398,6 +398,7 @@ async function runLive() {
     (id) => invoke<boolean>("end_session", { sessionId: id }),
     looks,
     (id) => invoke("dismiss_tip", { sessionId: id }),
+    () => invoke("install_integration"),
   );
   const renderStrip = createStrip(stripEl, stripActions, looks.identityOf);
   const renderClosed = createClosedShelf(root, undefined, looks.forCwd);
@@ -517,7 +518,7 @@ async function runLive() {
     lastSnap = snap;
     sessions = snap.sessions;
     toastIcons(snap.sessions, looks.identityOf);
-    renderList(snap.sessions, snap.repos ?? [], snap.rateLimits ?? null);
+    renderList(snap.sessions, snap.repos ?? [], snap.rateLimits ?? null, snap.integration);
     renderStrip(snap.sessions);
     renderClosed(snap.closed ?? [], liveIds(snap.sessions));
     flySessions = snap.sessions;

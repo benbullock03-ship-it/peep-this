@@ -79,6 +79,12 @@ pub struct Session {
     /// Kept across turns until the next `/peep:` prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ticket: Option<TicketLink>,
+    /// Value of the last `next:` line since the latest Peep skill started (formats.md §8); kept across turns.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next: Option<String>,
+    /// A Peep skill has run since the widget started tracking this session; `next:` lines count only then.
+    #[serde(skip)]
+    pub peep_ran: bool,
     /// Set by the mood engine in the store, never by `apply`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mood: Option<Mood>,
@@ -266,6 +272,8 @@ pub enum Event {
     TranscriptModel { model: String },
     /// `user`: a `/rename` title; otherwise the ai-title.
     TranscriptTitle { title: String, user: bool },
+    /// The value of a `next:` line ending an assistant text block.
+    TranscriptNext { line: String },
     Statusline { model: Option<String>, context_pct: Option<f64>, tokens: Option<u64>, cache_ttl_ms: Option<u64> },
     /// A main-session `PostToolUseFailure` that was not an interrupt.
     ToolFailed { tool: String, event: Box<Event> },
@@ -319,6 +327,8 @@ impl Session {
             pending: Vec::new(),
             skill: None,
             ticket: None,
+            next: None,
+            peep_ran: false,
             mood: None,
             clash: None,
             context_pct: None,
@@ -739,6 +749,10 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             if from_prompt || ticket.is_some() {
                 s.ticket = ticket;
             }
+            if s.skill.as_deref() != Some(skill.as_str()) {
+                s.next = None;
+            }
+            s.peep_ran = true;
             s.skill = Some(skill);
         }
         return s;
@@ -813,6 +827,12 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
                 s.ai_title = Some(title);
             }
             s.refresh_title();
+            return s;
+        }
+        Event::TranscriptNext { line } => {
+            if s.peep_ran {
+                s.next = Some(line);
+            }
             return s;
         }
         Event::ShellProbe { id, obs } => {
@@ -1006,6 +1026,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         | Event::Statusline { .. }
         | Event::TranscriptModel { .. }
         | Event::TranscriptTitle { .. }
+        | Event::TranscriptNext { .. }
         | Event::Shell { .. }
         | Event::Skill { .. }
         | Event::TestRun { .. }
@@ -2004,6 +2025,30 @@ mod tests {
             let s = run(vec![(skill(name, None, Event::UserPromptSubmit), T0 + 1)]);
             assert_eq!(s.skill.as_deref(), Some(name));
         }
+    }
+
+    #[test]
+    fn next_line_needs_a_peep_skill_and_a_new_run_clears_it() {
+        let next = |l: &str| Event::TranscriptNext { line: l.into() };
+        let s = run(vec![(Event::UserPromptSubmit, T0 + 1), (next("/peep:ticket AV-1"), T0 + 2)]);
+        assert_eq!(s.next, None, "no Peep skill has run");
+
+        // The text line can land after Stop; a plain prompt in between (a read-back answer) keeps the run's line.
+        let s = run(vec![
+            (skill("ducks", None, Event::UserPromptSubmit), T0 + 1),
+            (Event::Stop, T0 + 2),
+            (Event::UserPromptSubmit, T0 + 3),
+            (next("/peep:ticket AV-12"), T0 + 4),
+            (Event::Stop, T0 + 5),
+        ]);
+        assert_eq!(s.next.as_deref(), Some("/peep:ticket AV-12"));
+        assert_eq!(s.last_event_at, T0 + 5, "a next line is not activity");
+        assert_eq!(serde_json::to_value(&s).unwrap()["next"], "/peep:ticket AV-12");
+
+        let s = apply(s, Event::UserPromptSubmit, T0 + 6);
+        assert_eq!(s.next.as_deref(), Some("/peep:ticket AV-12"), "kept across turns");
+        let s = apply(s, skill("packup", None, Event::UserPromptSubmit), T0 + 7);
+        assert_eq!(s.next, None, "a new Peep skill run starts clean");
     }
 
     // --- AV-109 signal tips ---

@@ -22,6 +22,9 @@
 - Own your peep: the open row's "Change peep" picker (`src/picker.ts`) writes an override through `set_peep_look`, stored as `peepLooks` in the widget `settings.json`, keyed by `cwdKey` (FNV-1a of the normalised cwd, 8 hex; `look.rs` `cwd_key` matches). `createLookStore` (`src/look.ts`) resolves the override over the hash for row, strip, children (colour only), closed shelf (`forCwd`) and, through the `peep-looks` event, the flyout. A pick equal to the hash is dropped, so picking the hash back is a reset.
 - Toast icons: `src/toastIcon.ts` draws each live project's `waiting` peep and hands it to `set_toast_icon` (`%APPDATA%/PeepThis/icons/<key>.png`); the waiting toast uses it as its app logo. The goose page reads the same `peepLooks`.
 
+- Signpost (AV-129): an idle or done row with no mood, nudge or tip shows `Next: <cmd>` (`signFor`, `nextStep` in `src/bubble.ts`): `/peep:walk` when `Repo.setup` is false, else `Session.next`. A click on the `.bb-cmd` chip Jumps (copy, then focus) without toggling the row; only the stage copy is keyboard focusable. A command's Jump stops at the first `,` or `;`; a note shows no chip, and `clear to proceed` shows nothing.
+- The house bubble (`houseSign` in `src/house.ts`): `missing` shows Install (the `install_integration` call); otherwise it shows `claude`, which is copied only because there is no terminal to focus.
+
 ## Watch out
 
 - The disk seats only when the snapshot reports the skill; there is no optimistic seating.
@@ -47,4 +50,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-113, 2026-11-16
+last touched: AV-129, 2026-11-16

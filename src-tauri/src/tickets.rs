@@ -75,6 +75,8 @@ pub struct Repo {
     /// `north_star` from `.peep/reel.md` (formats.md §5).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub north_star: Option<String>,
+    /// `.peep/setup.md` exists (AV-129: without it the signpost offers `/peep:walk`).
+    pub setup: bool,
     pub arc: ArcLine,
     /// Open tweets on `.peep/tweets.md` (formats.md §7, AV-94 mood).
     #[serde(skip)]
@@ -309,6 +311,7 @@ impl Shelf {
                     last_closed: last.clone(),
                     stale,
                     north_star: north_star(&root),
+                    setup: root.join(".peep").join("setup.md").is_file(),
                     arc,
                     tweets: tweets(&root),
                 }
@@ -425,6 +428,15 @@ mod tests {
         assert_eq!(archive_dir(&dir), dir.join("work/issues/").join("archive"));
         write(dir.join(".peep/setup.md"), "---\ntickets: work/issues/\narchive: done/\n---\n");
         assert_eq!(archive_dir(&dir), dir.join("done/"));
+    }
+
+    #[test]
+    fn repo_reports_whether_it_has_a_setup() {
+        let bare = repo("nosetup");
+        write(bare.join(".git/HEAD"), "ref: refs/heads/main\n");
+        assert!(!Shelf::default().read(&[s("a", &bare)], 0)[0].setup);
+        write(bare.join(".peep/setup.md"), "---\nprefix: AV\n---\n");
+        assert!(Shelf::default().read(&[s("a", &bare)], 0)[0].setup);
     }
 
     #[test]
