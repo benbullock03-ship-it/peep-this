@@ -1,7 +1,9 @@
 ---
 id: AV-85
 title: Sneak Peep skill - 2 or 3 UI variants, pick one
-status: doing
+status: deferred
+reason: scripted parts verified; the owed live run needs the owner to answer the rounds and pick a variant
+wake: owner runs a live /peep:sneak on a test repo and picks a variant
 depends: [AV-74]
 ---
 
