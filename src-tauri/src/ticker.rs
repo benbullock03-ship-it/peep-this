@@ -17,7 +17,7 @@ pub fn tick(sessions: &mut HashMap<String, Session>, now: u64) -> bool {
     for s in sessions.values_mut() {
         // Stuck is ticked too so its "No response for N min" keeps counting.
         let busy = matches!(s.state, State::Thinking | State::Working | State::Stuck) || s.agents.iter().any(|a| a.is_busy());
-        if !s.alive || !busy {
+        if !s.alive || !(busy || s.cold_due(now)) {
             continue;
         }
         let next = state::apply(s.clone(), Event::Tick, now);

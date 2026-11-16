@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -13,6 +14,7 @@ use crate::source::{SessionInfo, ShellQuery, SourceEvent};
 use crate::state::{self, Event, Session};
 use crate::ticker;
 use crate::tickets::Repo;
+use crate::tip::{self, Tip};
 
 pub const EMIT_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -65,6 +67,9 @@ struct Inner {
     /// The widget's own headless sessions (digest summaries): never a row, never a hook.
     ignored: HashSet<String>,
     nudge_pct: f64,
+    tips_seen: HashSet<Tip>,
+    /// Where `tips_seen` persists; None in tests.
+    tips_path: Option<PathBuf>,
 }
 
 impl Inner {
@@ -116,6 +121,8 @@ impl Store {
                 activity: away::Activity::default(),
                 ignored: HashSet::new(),
                 nudge_pct: mood::NUDGE_PCT_DEFAULT,
+                tips_seen: HashSet::new(),
+                tips_path: None,
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
@@ -171,7 +178,7 @@ impl Store {
     fn mutate(&self, f: impl FnOnce(&mut Inner) -> bool) {
         let (entered, ended) = {
             let mut inner = self.inner.lock().unwrap();
-            if f(&mut inner) {
+            if f(&mut inner) | refresh_tips(&mut inner) {
                 inner.dirty = true;
                 self.changed.notify_one();
             }
@@ -354,6 +361,18 @@ impl Store {
         });
     }
 
+    pub fn set_tips_seen(&self, seen: HashSet<Tip>, path: Option<PathBuf>) {
+        self.mutate(|inner| {
+            inner.tips_seen = seen;
+            inner.tips_path = path;
+            false
+        });
+    }
+
+    pub fn dismiss_tip(&self, id: &str) {
+        self.mutate(|inner| inner.sessions.get_mut(id).and_then(|s| s.tip.take()).is_some());
+    }
+
     pub fn nudge_pct(&self) -> f64 {
         self.inner.lock().unwrap().nudge_pct
     }
@@ -401,6 +420,26 @@ impl Store {
             refresh_moods(inner, now) || changed
         });
     }
+}
+
+/// Takes every raised signal: it becomes the tip unless one is on show or a once-ever tip was seen. True if a tip was set.
+fn refresh_tips(inner: &mut Inner) -> bool {
+    let mut shown = false;
+    for s in inner.sessions.values_mut() {
+        let Some(t) = s.signal.take() else { continue };
+        if s.tip.is_some() || (tip::once_ever(t) && inner.tips_seen.contains(&t)) {
+            continue;
+        }
+        s.tip = Some(t);
+        shown = true;
+        if tip::once_ever(t) {
+            inner.tips_seen.insert(t);
+            if let Some(path) = &inner.tips_path {
+                tip::save(path, &inner.tips_seen);
+            }
+        }
+    }
+    shown
 }
 
 /// Rederives every session's mood; true if any changed.
@@ -497,11 +536,41 @@ mod tests {
     }
 
     #[test]
+    fn tips_show_once_ever_except_crowded_and_never_over_another() {
+        let (store, _) = recording_store();
+        let tip_of = |id: &str| store.snapshot().sessions.into_iter().find(|s| s.id == id).unwrap().tip;
+        let helper = || Event::SubagentStart { agent_id: "x".into(), agent_type: "Explore".into() };
+        let crowded = Event::Statusline { model: None, context_pct: Some(70.0), tokens: Some(140_000), cache_ttl_ms: None };
+        store.ingest(upsert("a", None), 1_000);
+        store.ingest(upsert("b", None), 1_000);
+        store.apply("a", helper(), 2_000);
+        assert_eq!(tip_of("a"), Some(Tip::Helper));
+        store.apply("a", crowded.clone(), 3_000);
+        assert_eq!(tip_of("a"), Some(Tip::Helper), "one tip at a time; the dropped one is not seen");
+        store.apply("b", helper(), 4_000);
+        assert_eq!(tip_of("b"), None, "helper is once ever");
+        store.apply("b", crowded, 5_000);
+        assert_eq!(tip_of("b"), Some(Tip::Crowded), "crowded is once per session");
+        store.dismiss_tip("b");
+        assert_eq!(tip_of("b"), None);
+        assert!(store.inner.lock().unwrap().sessions.values().all(|s| s.signal.is_none()), "every signal is taken");
+    }
+
+    #[test]
+    fn cold_tip_fires_from_the_ticker_on_an_idle_session() {
+        let store = Store::new(Box::new(|_| {}));
+        store.ingest(upsert("a", None), 1_000);
+        store.apply("a", Event::Statusline { model: None, context_pct: Some(5.0), tokens: Some(9_000), cache_ttl_ms: None }, 1_000);
+        store.tick(1_000 + tip::CACHE_TTL_DEFAULT_MS);
+        assert_eq!(store.snapshot().sessions[0].tip, Some(Tip::Cold));
+    }
+
+    #[test]
     fn nudge_setting_moves_the_yawn_live() {
         let (store, _) = recording_store();
         let mood_of = || store.snapshot().sessions[0].mood;
         store.ingest(upsert("a", None), 1_000);
-        store.apply("a", Event::Statusline { model: None, context_pct: Some(72.0) }, 2_000);
+        store.apply("a", Event::Statusline { model: None, context_pct: Some(72.0), tokens: None, cache_ttl_ms: None }, 2_000);
         assert_eq!(mood_of(), Some(Mood::Sweat));
         store.set_nudge_pct(70.0, 3_000);
         assert_eq!(mood_of(), Some(Mood::Yawn));

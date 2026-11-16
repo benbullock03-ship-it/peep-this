@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::approve::PendingApproval;
 use crate::mood::Mood;
+use crate::tip::{self, Tip};
 
 pub const STUCK_AFTER_MS: u64 = 6 * 60 * 1000;
 pub const HOOK_FRESH_MS: u64 = 10 * 1000;
@@ -86,6 +87,9 @@ pub struct Session {
     pub clash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<f64>,
+    /// Signal tip on show; the store sets it from `signal`, a prompt or a dismissal clears it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tip: Option<Tip>,
     pub alive: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ended_at: Option<u64>,
@@ -121,6 +125,21 @@ pub struct Session {
     /// (absolute path, last edit) within the clash window, for the clash mood.
     #[serde(skip)]
     pub edits: Vec<(String, u64)>,
+    /// Raised by `apply`, taken by the store on every mutation.
+    #[serde(skip)]
+    pub signal: Option<Tip>,
+    #[serde(skip)]
+    pub context_tokens: Option<u64>,
+    #[serde(skip)]
+    pub cache_ttl_ms: Option<u64>,
+    /// Failures per tool name since the last prompt.
+    #[serde(skip)]
+    pub fails: Vec<(String, u32)>,
+    #[serde(skip)]
+    pub crowded_raised: bool,
+    /// Once per idle stretch; a prompt resets it.
+    #[serde(skip)]
+    pub cold_raised: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -247,7 +266,11 @@ pub enum Event {
     TranscriptModel { model: String },
     /// `user`: a `/rename` title; otherwise the ai-title.
     TranscriptTitle { title: String, user: bool },
-    Statusline { model: Option<String>, context_pct: Option<f64> },
+    Statusline { model: Option<String>, context_pct: Option<f64>, tokens: Option<u64>, cache_ttl_ms: Option<u64> },
+    /// A main-session `PostToolUseFailure` that was not an interrupt.
+    ToolFailed { tool: String, event: Box<Event> },
+    /// An auto-compact boundary in the transcript.
+    TranscriptCompacted,
     /// A hook event that also carries a background shell update; `event` is applied as usual afterwards.
     Shell { update: ShellEvent, event: Box<Event> },
     /// A `/peep:<skill>` prompt or `Skill` tool call; `event` is applied as usual first.
@@ -299,6 +322,7 @@ impl Session {
             mood: None,
             clash: None,
             context_pct: None,
+            tip: None,
             alive: true,
             ended_at: None,
             last_event_at: now,
@@ -313,7 +337,22 @@ impl Session {
             ai_title: None,
             worried_at: None,
             edits: Vec::new(),
+            signal: None,
+            context_tokens: None,
+            cache_ttl_ms: None,
+            fails: Vec::new(),
+            crowded_raised: false,
+            cold_raised: false,
         }
+    }
+
+    /// Idle past the cache lifetime after at least one request (a statusline reported usage).
+    pub fn cold_due(&self, now: u64) -> bool {
+        self.alive
+            && !self.cold_raised
+            && matches!(self.state, State::Idle | State::Success)
+            && (self.context_tokens.is_some() || self.context_pct.is_some())
+            && now.saturating_sub(self.last_event_at) >= self.cache_ttl_ms.unwrap_or(tip::CACHE_TTL_DEFAULT_MS)
     }
 
     pub fn refresh_title(&mut self) {
@@ -671,6 +710,22 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         s.worried_at = (!passed).then_some(now);
         return apply(s, *event, now);
     }
+    if let Event::ToolFailed { tool, event } = event {
+        let n = match s.fails.iter_mut().find(|(t, _)| *t == tool) {
+            Some((_, n)) => {
+                *n += 1;
+                *n
+            }
+            None => {
+                s.fails.push((tool, 1));
+                1
+            }
+        };
+        if n == tip::MISSES {
+            s.signal = Some(Tip::Misses);
+        }
+        return apply(s, *event, now);
+    }
     if let Event::Edited { path, event } = event {
         s.edits.retain(|(p, at)| !crate::mood::same_path(p, &path) && now.saturating_sub(*at) <= crate::mood::CLASH_WINDOW_MS);
         s.edits.push((path, now));
@@ -713,11 +768,15 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
                     s.task = stuck_task(quiet);
                 }
                 State::Stuck => s.task = stuck_task(quiet),
+                State::Idle | State::Success if s.cold_due(now) => {
+                    s.cold_raised = true;
+                    s.signal = Some(Tip::Cold);
+                }
                 _ => {}
             }
             return s;
         }
-        Event::Statusline { model, context_pct } => {
+        Event::Statusline { model, context_pct, tokens, cache_ttl_ms } => {
             if model.is_some() {
                 s.model = model;
                 s.model_from_statusline = true;
@@ -725,6 +784,20 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             if context_pct.is_some() {
                 s.context_pct = context_pct;
             }
+            if tokens.is_some() {
+                s.context_tokens = tokens;
+            }
+            if cache_ttl_ms.is_some() {
+                s.cache_ttl_ms = cache_ttl_ms;
+            }
+            if !s.crowded_raised && tip::crowded(s.context_tokens, s.context_pct) {
+                s.crowded_raised = true;
+                s.signal = Some(Tip::Crowded);
+            }
+            return s;
+        }
+        Event::TranscriptCompacted => {
+            s.signal = Some(Tip::Compacted);
             return s;
         }
         Event::TranscriptModel { model } => {
@@ -812,6 +885,9 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::SessionStart => s.enter(State::Idle, "Idle".into(), now),
         Event::UserPromptSubmit => {
             s.skill = None;
+            s.tip = None;
+            s.fails.clear();
+            s.cold_raised = false;
             s.enter(State::Thinking, "Thinking".into(), now);
         }
         Event::PreToolUse { .. } | Event::TranscriptToolUse { .. } => {
@@ -854,6 +930,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             s.enter(State::Error, task, now);
         }
         Event::SubagentStart { agent_id, agent_type } => {
+            s.signal = Some(Tip::Helper);
             let a = s.agent_mut(&agent_id, &agent_type, now);
             if a.ended_at.is_some() {
                 // Resumed subagent or agent-team teammate taking a new message.
@@ -932,6 +1009,8 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         | Event::Shell { .. }
         | Event::Skill { .. }
         | Event::TestRun { .. }
+        | Event::ToolFailed { .. }
+        | Event::TranscriptCompacted
         | Event::Edited { .. }
         | Event::ShellProbe { .. }
         | Event::Ended
@@ -1183,7 +1262,7 @@ mod tests {
         let s = run(vec![
             (Event::UserPromptSubmit, T0),
             (Event::Tick, T0 + 3 * MIN),
-            (Event::Statusline { model: None, context_pct: Some(10.0) }, T0 + 4 * MIN),
+            (Event::Statusline { model: None, context_pct: Some(10.0), tokens: None, cache_ttl_ms: None }, T0 + 4 * MIN),
             (Event::Tick, T0 + 6 * MIN),
         ]);
         assert_eq!(s.state, State::Stuck);
@@ -1779,7 +1858,7 @@ mod tests {
     fn statusline_model_wins_over_transcript_model() {
         let s = run(vec![
             (Event::TranscriptModel { model: "Opus 5.5".into() }, T0),
-            (Event::Statusline { model: Some("Opus 5.5 (1M context)".into()), context_pct: None }, T0 + 1),
+            (Event::Statusline { model: Some("Opus 5.5 (1M context)".into()), context_pct: None, tokens: None, cache_ttl_ms: None }, T0 + 1),
             (Event::TranscriptModel { model: "Opus 5.5".into() }, T0 + 2),
         ]);
         assert_eq!(s.model.as_deref(), Some("Opus 5.5 (1M context)"));
@@ -1791,8 +1870,8 @@ mod tests {
     fn statusline_fills_model_and_context_without_state_change() {
         let s = run(vec![
             (Event::UserPromptSubmit, T0),
-            (Event::Statusline { model: Some("Opus".into()), context_pct: Some(42.5) }, T0 + 1),
-            (Event::Statusline { model: None, context_pct: None }, T0 + 2),
+            (Event::Statusline { model: Some("Opus".into()), context_pct: Some(42.5), tokens: None, cache_ttl_ms: None }, T0 + 1),
+            (Event::Statusline { model: None, context_pct: None, tokens: None, cache_ttl_ms: None }, T0 + 2),
         ]);
         assert_eq!(s.state, State::Thinking);
         assert_eq!(s.model.as_deref(), Some("Opus"));
@@ -1826,7 +1905,7 @@ mod tests {
     fn serialises_to_snapshot_shape() {
         let s = run(vec![
             (pre("Edit", Some("src/main.ts")), T0 + 1),
-            (Event::Statusline { model: None, context_pct: Some(12.0) }, T0 + 2),
+            (Event::Statusline { model: None, context_pct: Some(12.0), tokens: None, cache_ttl_ms: None }, T0 + 2),
         ]);
         let v = serde_json::to_value(&s).unwrap();
         let obj = v.as_object().unwrap();
@@ -1925,5 +2004,71 @@ mod tests {
             let s = run(vec![(skill(name, None, Event::UserPromptSubmit), T0 + 1)]);
             assert_eq!(s.skill.as_deref(), Some(name));
         }
+    }
+
+    // --- AV-109 signal tips ---
+
+    fn usage(pct: Option<f64>, tokens: Option<u64>) -> Event {
+        Event::Statusline { model: None, context_pct: pct, tokens, cache_ttl_ms: None }
+    }
+
+    fn failed(tool: &str) -> Event {
+        Event::ToolFailed { tool: tool.into(), event: Box::new(Event::PostToolUse) }
+    }
+
+    #[test]
+    fn crowded_raises_once_per_session_on_tokens_or_percent_fallback() {
+        let s = run(vec![(Event::UserPromptSubmit, T0 + 1), (usage(Some(12.0), Some(119_000)), T0 + 2)]);
+        assert_eq!(s.signal, None, "12% of a 1M window and under 120k");
+        let s = apply(s, usage(Some(12.0), Some(120_000)), T0 + 3);
+        assert_eq!(s.signal, Some(Tip::Crowded));
+        let mut s = s;
+        s.signal = None;
+        assert_eq!(apply(s, usage(Some(13.0), Some(130_000)), T0 + 4).signal, None, "once per session");
+        assert_eq!(run(vec![(usage(Some(60.0), None), T0 + 1)]).signal, Some(Tip::Crowded), "no tokens: % of window");
+    }
+
+    #[test]
+    fn same_tool_failing_twice_in_a_turn_raises_misses() {
+        let s = run(vec![(Event::UserPromptSubmit, T0 + 1), (failed("Bash"), T0 + 2), (failed("Edit"), T0 + 3)]);
+        assert_eq!(s.signal, None);
+        assert_eq!(s.state, State::Thinking, "the wrapped PostToolUse still applies");
+        assert_eq!(apply(s.clone(), failed("Bash"), T0 + 4).signal, Some(Tip::Misses));
+        let s = apply(s, Event::UserPromptSubmit, T0 + 4);
+        assert_eq!(apply(s, failed("Bash"), T0 + 5).signal, None, "a prompt resets the count");
+    }
+
+    #[test]
+    fn idle_past_the_cache_lifetime_raises_cold_once_per_stretch() {
+        let s = run(vec![(Event::UserPromptSubmit, T0 + 1), (usage(Some(10.0), Some(20_000)), T0 + 2), (Event::Stop, T0 + 3)]);
+        let ttl = tip::CACHE_TTL_DEFAULT_MS;
+        assert!(!s.cold_due(T0 + 3 + ttl - 1));
+        assert!(s.cold_due(T0 + 3 + ttl));
+        let s = apply(s, Event::Tick, T0 + 3 + ttl);
+        assert_eq!(s.signal, Some(Tip::Cold));
+        assert!(!s.cold_due(T0 + 3 + 2 * ttl), "once per idle stretch");
+
+        let short = run(vec![
+            (Event::Statusline { model: None, context_pct: Some(5.0), tokens: Some(9_000), cache_ttl_ms: tip::ttl_ms("5m") }, T0 + 1),
+            (Event::Stop, T0 + 2),
+        ]);
+        assert!(short.cold_due(T0 + 2 + 5 * MIN), "an API-key session's 5m cache");
+        assert!(!fresh().cold_due(T0 + ttl), "no request yet, no cache to go cold");
+        let busy = run(vec![(Event::UserPromptSubmit, T0 + 1), (usage(Some(10.0), None), T0 + 2)]);
+        assert!(!busy.cold_due(T0 + 2 + ttl), "busy sessions go stuck, not cold");
+    }
+
+    #[test]
+    fn first_subagent_and_auto_compact_raise_their_tips() {
+        let s = run(vec![(Event::SubagentStart { agent_id: "a1".into(), agent_type: "Explore".into() }, T0 + 1)]);
+        assert_eq!(s.signal, Some(Tip::Helper));
+        assert_eq!(run(vec![(Event::TranscriptCompacted, T0 + 1)]).signal, Some(Tip::Compacted));
+    }
+
+    #[test]
+    fn a_prompt_clears_the_tip_on_show() {
+        let mut s = run(vec![(Event::Stop, T0 + 1)]);
+        s.tip = Some(Tip::Helper);
+        assert_eq!(apply(s, Event::UserPromptSubmit, T0 + 2).tip, None);
     }
 }

@@ -2,10 +2,11 @@ import { BLANK_COL, bubbleFor, bubbleLine, FLOPPIES, type Bubble } from "./bubbl
 import { clashText, emoteFor, nudgeFor, nudgeText, type ClashTag, type Emote, type Nudge } from "./emote";
 import { identityFor, type Identity } from "./identity";
 import type { LimitWarning } from "./limits";
-import { STATES, type Session, type State } from "./model";
+import { STATES, type Session, type State, type Tip } from "./model";
 import { sayFor } from "./say";
 import { failNote } from "./shells";
 import { isAttention, STATE_LABEL } from "./stateMeta";
+import { TIP_TEXT, tipFor } from "./tip";
 
 export type RowView = {
   id: string;
@@ -25,6 +26,7 @@ export type RowView = {
   shellNote: string;
   emote: Emote | null;
   nudge: Nudge | null;
+  tip: Tip | null;
 };
 
 export type IdentityOf = (s: Session) => Identity;
@@ -47,7 +49,7 @@ export async function requestFocus(onFocus: OnFocus, id: string, flash: () => vo
   if (!ok) flash();
 }
 
-/** `snoozed`: "Not yet" was pressed on this session's first nudge. `clash`: this row's entry from `clashTags`. */
+/** `snoozed`: "Not yet" was pressed on this session's first nudge. `clash`: this row's entry from `clashTags`. `dismissed`: the tip "Got it" waved off. */
 export function toRowView(
   s: Session,
   identityOf: IdentityOf = (x) => identityFor(x.cwd),
@@ -55,17 +57,21 @@ export function toRowView(
   snoozed = false,
   clash?: ClashTag,
   limit?: LimitWarning | null,
+  dismissed?: Tip,
 ): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
   const { color, accessory } = identityOf(s);
   const attention = isAttention(state);
   const nudge = nudgeFor(s, state, snoozed);
+  const tip = tipFor(s, state, !!nudge, dismissed);
   const emote = emoteFor(s, state);
   const bubble: Bubble = nudge
     ? { text: nudgeText(nudge, s.contextPct) }
-    : clash && emote === "startled"
+    : tip
+      ? { text: TIP_TEXT[tip] }
+      : clash && emote === "startled"
       ? { text: clashText(clash), bolt: clash.tag }
-      : bubbleFor(s, sayFor({ ...s, state }, now), attention, emote === "sweat" ? limit : null);
+        : bubbleFor(s, sayFor({ ...s, state }, now), attention, emote === "sweat" ? limit : null);
   return {
     id: s.id,
     name: s.title || s.name || s.id.slice(0, 8),
@@ -82,5 +88,6 @@ export function toRowView(
     shellNote: failNote(s.shells),
     emote,
     nudge,
+    tip,
   };
 }

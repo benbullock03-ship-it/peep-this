@@ -52,6 +52,8 @@ pub enum Item {
     ApiError { summary: String },
     /// `custom-title` (`/rename`, `user`) or `ai-title` line.
     Title { title: String, user: bool },
+    /// An auto-compact `compact_boundary`; manual `/compact` is the user's own choice and teaches nothing.
+    Compacted,
 }
 
 /// Parses one transcript line. Sidechain (subagent) lines and unrelated line types yield nothing.
@@ -87,6 +89,12 @@ pub fn parse_line(line: &str, cwd: &str) -> Result<Vec<Item>, String> {
             for b in blocks.iter().filter(|b| block_type(b) == "tool_result") {
                 items.push(Item::ToolResult { id: str_of(b, "tool_use_id") });
             }
+        }
+        Some("system")
+            if obj.get("subtype").and_then(Value::as_str) == Some("compact_boundary")
+                && v.pointer("/compactMetadata/trigger").and_then(Value::as_str) == Some("auto") =>
+        {
+            items.push(Item::Compacted);
         }
         Some(kind @ ("custom-title" | "ai-title")) => {
             let user = kind == "custom-title";
@@ -275,6 +283,7 @@ pub fn translate(items: Vec<Item>, first: bool, last_model: &mut Option<String>)
                 Item::ToolResult { id } => pending.retain(|(p, _, _)| *p != id),
                 Item::ApiError { .. } => pending.clear(),
                 Item::Title { title, user } => titles[user as usize] = Some(title),
+                Item::Compacted => {}
             }
         }
         if let Some(m) = model {
@@ -297,6 +306,7 @@ pub fn translate(items: Vec<Item>, first: bool, last_model: &mut Option<String>)
             Item::ToolResult { .. } => out.push(Event::TranscriptToolResult),
             Item::ApiError { summary } => out.push(Event::TranscriptApiError { summary }),
             Item::Title { title, user } => out.push(Event::TranscriptTitle { title, user }),
+            Item::Compacted => out.push(Event::TranscriptCompacted),
         }
     }
     out
@@ -579,6 +589,17 @@ mod tests {
                 Item::ToolResult { id: "toolu_placeholder_1".into() },
             ]
         );
+    }
+
+    #[test]
+    fn transcript_auto_compact_boundary_only() {
+        let line = |trigger: &str| {
+            format!(r#"{{"type":"system","subtype":"compact_boundary","content":"Conversation compacted","compactMetadata":{{"trigger":"{trigger}","preTokens":215572}}}}"#)
+        };
+        assert_eq!(parse_line(&line("auto"), "C:/w").unwrap(), vec![Item::Compacted]);
+        assert_eq!(parse_line(&line("manual"), "C:/w").unwrap(), vec![]);
+        assert_eq!(translate(vec![Item::Compacted], true, &mut None), vec![], "a first scan replays history");
+        assert_eq!(translate(vec![Item::Compacted], false, &mut None), vec![Event::TranscriptCompacted]);
     }
 
     #[test]

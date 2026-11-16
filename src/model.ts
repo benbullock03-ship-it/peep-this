@@ -35,12 +35,16 @@ export type Session = {
   mood?: Mood;
   /** Absolute path of the clashed file while `mood` is startled. */
   clash?: string;
+  /** tip.rs: a signal tip waiting to be seen; the row shows it only while idle or done. */
+  tip?: Tip;
   alive: boolean;
   endedAt?: number;
   pending?: PendingApproval[];
 };
 
-export type Mood = "startled" | "cheer" | "greet" | "tweet" | "worry" | "yawn" | "sweat" | "nap";
+export type Tip = "crowded" | "misses" | "cold" | "helper" | "compacted";
+
+export type Mood = "startled"| "cheer" | "greet" | "tweet" | "worry" | "yawn" | "sweat" | "nap";
 
 /** A subagent of a session (state.rs `Agent`); finished once `endedAt` is set. */
 export type Agent = {

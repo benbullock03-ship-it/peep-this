@@ -8,7 +8,8 @@
   "version": "2.0.0",
   "output_style": { "name": "default" },
   "cost": { "total_cost_usd": 0.01, "total_duration_ms": 45000 },
-  "context_window": { "remaining_percentage": 62.5 },
+  "context_window": { "remaining_percentage": 62.5, "total_input_tokens": 75000, "context_window_size": 200000 },
+  "prompt_cache": { "warm": true, "ttl": "1h" },
   "rate_limits": {
     "five_hour": { "used_percentage": 42.0, "resets_at": "2026-11-13T18:00:00Z" },
     "seven_day": { "used_percentage": 18.0, "resets_at": "2026-11-18T00:00:00Z" }

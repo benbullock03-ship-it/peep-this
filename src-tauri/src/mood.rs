@@ -176,7 +176,7 @@ mod tests {
     }
 
     fn with_pct(pct: f64) -> Session {
-        apply(session("a", T0), Event::Statusline { model: None, context_pct: Some(pct) }, T0)
+        apply(session("a", T0), Event::Statusline { model: None, context_pct: Some(pct), tokens: None, cache_ttl_ms: None }, T0)
     }
 
     fn test_run(s: Session, passed: bool, now: u64) -> Session {

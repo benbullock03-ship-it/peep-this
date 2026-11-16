@@ -2,14 +2,14 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { createClosedShelf } from "./closedShelf";
-import { demoClosed, demoDecide, demoDigest, demoEnd, demoIdentity, demoLimits, demoSnapshot, demoStep } from "./demo";
+import { demoClosed, demoDecide, demoDigest, demoEnd, demoIdentity, demoLimits, demoSnapshot, demoStep, demoTips } from "./demo";
 import { NUDGE_RANGE } from "./emote";
 import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createDigestCard } from "./digestCard";
 import { createInbox, type InboxDeps } from "./inboxView";
 import { createLimits } from "./limits";
-import type { Digest, RulesView, Session, Snapshot, TrailEntry } from "./model";
+import type { Digest, RulesView, Session, Snapshot, Tip, TrailEntry } from "./model";
 import { EMPTY_RULES, offersFor, ruleLive } from "./rules";
 import { reducedMotion } from "./motion";
 import { pinsPeek } from "./peek";
@@ -235,7 +235,11 @@ function createHotkeyNotice(openSettings: () => void, name: string) {
 
 function runDemo() {
   const lim = params.get("limits")?.split(",").map(Number);
-  const withLimits = (s: Snapshot, now: number) => (lim?.length === 2 ? demoLimits(s, lim[0], lim[1], now) : s);
+  const tip = params.get("tip") as Tip | null;
+  const withLimits = (s: Snapshot, now: number) => {
+    const t = tip ? demoTips(s, tip) : s;
+    return lim?.length === 2 ? demoLimits(t, lim[0], lim[1], now) : t;
+  };
   let snap = withLimits(demoSnapshot(Date.now()), Date.now());
   let inbox: ReturnType<typeof mountInbox> | null = null;
   let saved: Looks = {};
@@ -372,6 +376,7 @@ async function runLive() {
     },
     (id) => invoke<boolean>("end_session", { sessionId: id }),
     looks,
+    (id) => invoke("dismiss_tip", { sessionId: id }),
   );
   const renderStrip = createStrip(stripEl, stripActions, looks.identityOf);
   const renderClosed = createClosedShelf(root, undefined, looks.forCwd);

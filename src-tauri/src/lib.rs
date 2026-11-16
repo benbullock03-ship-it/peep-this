@@ -27,6 +27,7 @@ mod store;
 mod summary;
 mod ticker;
 mod tickets;
+mod tip;
 mod trail;
 
 use std::sync::Arc;
@@ -309,6 +310,7 @@ pub fn run() {
             away::set_digest_summary,
             mood::nudge_pct,
             mood::set_nudge_pct,
+            tip::dismiss_tip,
             notify::alert_sound,
             notify::set_alert_sound,
             look::peep_looks,
@@ -332,6 +334,7 @@ pub fn run() {
             }));
             app.manage(Arc::clone(&store));
             mood::load_nudge(&store, store::now_ms());
+            tip::load(&store);
             wire_alerts(app, &store);
             wire_limits(app, &store);
             wire_closed(&store);

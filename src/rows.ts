@@ -8,7 +8,7 @@ import { clashLinks, clashTags, EMOTES, type Emote } from "./emote";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
 import { limitWarning, type LimitWarning } from "./limits";
-import type { RateLimits, Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
+import type { RateLimits, Repo, RepoTicket, RuleOffer, Session, Tip, TrailEntry } from "./model";
 import { MOTION_MS, motionMs, reducedMotion } from "./motion";
 import type { LookStore } from "./look";
 import { createPicker } from "./picker";
@@ -92,7 +92,9 @@ type Row = {
   repo?: Repo;
   /** FLOPPY-SPEC §09 buttons; under the plank, since the closed row is itself a button. */
   nudge: HTMLElement;
+  nudgePack: HTMLButtonElement;
   nudgeLater: HTMLButtonElement;
+  tipOk: HTMLButtonElement;
   /** A failed end, shown in the bubble over the snapshot's text until it times out. */
   endNote?: string;
   endTimer?: number;
@@ -193,6 +195,8 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, wi
   pack.setAttribute("aria-label", `Pack up: copy ${jumpCommand("packup")}`);
   const nudgeLater = button("nudge-later", nudge);
   nudgeLater.textContent = "Not yet";
+  const tipOk = button("nudge-later tip-ok", nudge);
+  tipOk.textContent = "Got it";
   const facts = createFacts(jump, withEnd, looks);
 
   let cards: Row["cards"];
@@ -233,7 +237,9 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, wi
     shells: createShells(shellsHost),
     fail,
     nudge,
+    nudgePack: pack,
     nudgeLater,
+    tipOk,
   };
 }
 
@@ -274,10 +280,12 @@ function updateRow(r: Row, v: RowView) {
   if (!r.endNote && (l.say !== v.say || l.bubble?.tab !== v.bubble.tab || l.bubble?.bolt !== v.bubble.bolt))
     for (const x of r.says) fillBubble(x, v.bubble);
   if (l.emote !== v.emote) setEmote(r, v.emote);
-  if (l.nudge !== v.nudge) {
-    r.el.classList.toggle("is-nudge", !!v.nudge);
-    r.nudge.hidden = !v.nudge;
+  if (l.nudge !== v.nudge || l.tip !== v.tip) {
+    r.el.classList.toggle("is-nudge", !!v.nudge || !!v.tip);
+    r.nudge.hidden = !v.nudge && !v.tip;
+    r.nudgePack.hidden = !v.nudge && v.tip !== "crowded";
     r.nudgeLater.hidden = v.nudge !== "first";
+    r.tipOk.hidden = !v.tip;
   }
   if (l.floppy !== v.floppy) seat(r, v.floppy);
   if (l.shellNote !== v.shellNote) {
@@ -423,6 +431,7 @@ export function createList(
   rules?: RowRules,
   onEnd?: EndSession,
   looks?: LookStore,
+  onDismissTip?: (sessionId: string) => Promise<unknown>,
 ) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
@@ -478,6 +487,8 @@ export function createList(
     };
 
   const snoozed = new Set<string>();
+  /** Hides a waved-off tip before the snapshot without it arrives. */
+  const dismissed = new Map<string, Tip>();
 
   async function packUp(id: string, b: HTMLButtonElement) {
     const cmd = jumpCommand("packup");
@@ -543,6 +554,12 @@ export function createList(
       void requestFocus(onFocus, r.session.id, () => flash(r.el));
       return;
     }
+    if (target.closest(".tip-ok")) {
+      if (r.session.tip) dismissed.set(r.session.id, r.session.tip);
+      void onDismissTip?.(r.session.id);
+      render(current);
+      return;
+    }
     if (target.closest(".nudge-later")) {
       snoozed.add(r.session.id);
       render(current);
@@ -584,7 +601,8 @@ export function createList(
         r.el.classList.remove("leaving");
       }
       if (s.mood !== "yawn") snoozed.delete(s.id);
-      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id), limit);
+      if (s.tip !== dismissed.get(s.id)) dismissed.delete(s.id);
+      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id), limit, dismissed.get(s.id));
       updateRow(r, view);
       const kids = r.kids(s, view.color, now);
       const shellFold = r.shells(s, now).foldAt;

@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { Agent, ClosedSession, Digest, LastTool, Mood, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State } from "./model";
+import type { Agent, ClosedSession, Digest, LastTool, Mood, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State, Tip } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
@@ -376,6 +376,11 @@ export function demoLimits(snap: Snapshot, fiveHourPct: number, sevenDayPct: num
   if (Math.max(fiveHourPct, sevenDayPct) < 80) return { ...snap, rateLimits };
   const sessions = snap.sessions.map((s) => (s.alive && !BRIEF.includes(s.mood) ? { ...s, mood: "sweat" as const } : s));
   return { ...snap, sessions, rateLimits };
+}
+
+/** `?demo&tip=<name>`: every session holds the tip; only idle and done rows show it. */
+export function demoTips(snap: Snapshot, tip: Tip): Snapshot {
+  return { ...snap, sessions: snap.sessions.map((s) => ({ ...s, tip })) };
 }
 
 // Mirrors the design's simulation: one agent changes state per step.

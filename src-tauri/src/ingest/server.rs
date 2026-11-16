@@ -256,6 +256,10 @@ pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
                     Some(passed) => Event::TestRun { passed, event: Box::new(e) },
                     None => e,
                 };
+                let e = match failed_tool(name, &v) {
+                    Some(tool) => Event::ToolFailed { tool, event: Box::new(e) },
+                    None => e,
+                };
                 let e = match edited_path(name, &v) {
                     Some(path) => Event::Edited { path, event: Box::new(e) },
                     None => e,
@@ -282,7 +286,12 @@ pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
                 });
             Routed {
                 label: "statusline".into(),
-                event: Some(Event::Statusline { model, context_pct }),
+                event: Some(Event::Statusline {
+                    model,
+                    context_pct,
+                    tokens: v.pointer("/context_window/total_input_tokens").and_then(Value::as_u64),
+                    cache_ttl_ms: str_at(&v, "/prompt_cache/ttl").and_then(|t| crate::tip::ttl_ms(&t)),
+                }),
                 rate_limits,
                 session_id,
                 cwd,
@@ -360,6 +369,14 @@ fn test_run(name: &str, v: &Value, cwd: Option<&str>) -> Option<bool> {
     let command = str_at(v, "/tool_input/command")?;
     let setup = tickets::setup_test(cwd.filter(|c| !c.is_empty())?)?;
     mood::is_test_run(&command, &setup).then_some(passed)
+}
+
+/// The tool of a main-session failure, for the misses tip; subagent failures and interrupts don't count.
+fn failed_tool(name: &str, v: &Value) -> Option<String> {
+    if name != "PostToolUseFailure" || agent_id(v).is_some() || v.get("is_interrupt").and_then(Value::as_bool) == Some(true) {
+        return None;
+    }
+    str_at(v, "/tool_name")
 }
 
 /// Absolute path of a file a finished edit changed (AV-54); a `PostToolUseFailure` changed nothing.
@@ -632,7 +649,11 @@ mod tests {
                 },
             ),
             ("PostToolUse", "post_tool_use.json", Event::PostToolUse),
-            ("PostToolUseFailure", "post_tool_use_failure.json", Event::PostToolUse),
+            (
+                "PostToolUseFailure",
+                "post_tool_use_failure.json",
+                Event::ToolFailed { tool: "Bash".into(), event: Box::new(Event::PostToolUse) },
+            ),
             (
                 "PermissionRequest",
                 "permission_request.json",
@@ -1090,12 +1111,20 @@ mod tests {
     fn statusline_reduces_to_model_context_and_rate_limits() {
         let r = parse(&Route::Statusline, fixture("statusline.json").as_bytes()).unwrap();
         assert_eq!(r.session_id, SID);
-        assert_eq!(r.event, Some(Event::Statusline { model: Some("Opus".into()), context_pct: Some(37.5) }));
+        assert_eq!(
+            r.event,
+            Some(Event::Statusline {
+                model: Some("Opus".into()),
+                context_pct: Some(37.5),
+                tokens: Some(75_000),
+                cache_ttl_ms: Some(3_600_000)
+            })
+        );
         assert_eq!(r.rate_limits, Some(((42.0, 18.0), (Some(1_794_592_800_000), Some(1_794_960_000_000)))));
 
         let bare = format!(r#"{{"session_id":"{SID}"}}"#);
         let r = parse(&Route::Statusline, bare.as_bytes()).unwrap();
-        assert_eq!(r.event, Some(Event::Statusline { model: None, context_pct: None }));
+        assert_eq!(r.event, Some(Event::Statusline { model: None, context_pct: None, tokens: None, cache_ttl_ms: None }));
         assert_eq!(r.rate_limits, None);
     }
 
@@ -1314,11 +1343,12 @@ mod tests {
             parse_value(&Route::Hook(name.into()), &v).unwrap()
         };
         let failed = routed("PostToolUseFailure", "post_tool_use_failure_bash.json", "cd src-tauri && cargo test");
-        assert_eq!(failed.event, Some(Event::TestRun { passed: false, event: Box::new(Event::PostToolUse) }));
+        let bash_failed = |event: Event| Some(Event::ToolFailed { tool: "Bash".into(), event: Box::new(event) });
+        assert_eq!(failed.event, bash_failed(Event::TestRun { passed: false, event: Box::new(Event::PostToolUse) }));
         let passed = routed("PostToolUse", "post_tool_use_bash.json", "npm test");
         assert_eq!(passed.event, Some(Event::TestRun { passed: true, event: Box::new(Event::PostToolUse) }));
         let other = routed("PostToolUseFailure", "post_tool_use_failure_bash.json", "ls nonexistent_dir_zz");
-        assert_eq!(other.event, Some(Event::PostToolUse));
+        assert_eq!(other.event, bash_failed(Event::PostToolUse));
 
         let store = quiet_store();
         store.apply_or_placeholder(SID, failed.cwd.as_deref(), Event::UserPromptSubmit, 1_000);
@@ -1339,7 +1369,11 @@ mod tests {
         let a = routed("PostToolUse", "post_tool_use_edit.json", "a");
         assert_eq!(a.event, edited("C:\\work\\demo\\a.txt"));
         assert_eq!(routed("PostToolUse", "pre_tool_use_notebook_edit.json", "a").event, edited("C:\\work\\demo\\n.ipynb"));
-        assert_eq!(routed("PostToolUseFailure", "post_tool_use_edit.json", "a").event, Some(Event::PostToolUse), "a failed edit changed nothing");
+        assert_eq!(
+            routed("PostToolUseFailure", "post_tool_use_edit.json", "a").event,
+            Some(Event::ToolFailed { tool: "Edit".into(), event: Box::new(Event::PostToolUse) }),
+            "a failed edit changed nothing"
+        );
         assert_eq!(routed("PreToolUse", "pre_tool_use_edit.json", "a").event.map(|e| matches!(e, Event::Edited { .. })), Some(false));
 
         let store = quiet_store();

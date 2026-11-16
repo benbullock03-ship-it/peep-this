@@ -949,6 +949,11 @@ body[data-fold] > .ps-strip {
   border-color: var(--ps-accent);
 }
 
+/* AV-109: tips run longer than a status line and must not lose their ending. */
+.is-nudge .ps-bubble > span {
+  -webkit-line-clamp: 4;
+}
+
 .is-nudge .ps-bubble::before {
   background: var(--ps-accent);
   box-shadow: -4px 4px 0 var(--ps-accent);
