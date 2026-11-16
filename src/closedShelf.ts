@@ -1,5 +1,5 @@
 import { EMOTES } from "./emote";
-import { identityFor } from "./identity";
+import { identityFor, type Identity } from "./identity";
 import type { ClosedSession } from "./model";
 import { isAttention } from "./stateMeta";
 
@@ -52,7 +52,7 @@ export type Copy = (text: string) => Promise<boolean>;
 const clipboardCopy: Copy = (text) => navigator.clipboard?.writeText(text).then(() => true, () => false) ?? Promise.resolve(false);
 
 /** SPEC §01: the closed shelf under the live rows, inside the same scroll. */
-export function createClosedShelf(parent: HTMLElement, copy: Copy = clipboardCopy) {
+export function createClosedShelf(parent: HTMLElement, copy: Copy = clipboardCopy, identityOf: (cwd: string) => Identity = identityFor) {
   const sec = el("section", "cl", parent);
   sec.setAttribute("aria-label", "Closed sessions");
   const head = el("button", "cl-head", sec);
@@ -126,7 +126,7 @@ export function createClosedShelf(parent: HTMLElement, copy: Copy = clipboardCop
     fit();
   });
 
-  function build(c: ClosedSession, copiedNow: boolean): Row {
+  function build(c: ClosedSession, copiedNow: boolean, id: Identity): Row {
     const flags = closedFlags(c);
     const b = el("button", "cl-row");
     b.type = "button";
@@ -135,7 +135,6 @@ export function createClosedShelf(parent: HTMLElement, copy: Copy = clipboardCop
     b.classList.toggle("is-copied-row", copiedNow);
     const pcol = el("span", "cl-pcol", b);
     const peep = document.createElement("peep-bot");
-    const id = identityFor(c.cwd);
     for (const [k, v] of [["state", "idle"], ["color", id.color], ["accessory", id.accessory], ["size", "32"], ["hover", "off"]])
       peep.setAttribute(k, v);
     if (!copiedNow) peep.setAttribute("energy", "1");
@@ -216,10 +215,11 @@ export function createClosedShelf(parent: HTMLElement, copy: Copy = clipboardCop
     for (const c of shown) {
       seen.add(c.sessionId);
       const isCopied = copied?.id === c.sessionId;
-      const key = `${JSON.stringify(c)}|${isCopied}`;
+      const id = identityOf(c.cwd);
+      const key = `${JSON.stringify(c)}|${isCopied}|${id.color}|${id.accessory}`;
       let r = rows.get(c.sessionId);
       if (!r || r.key !== key) {
-        const fresh = build(c, isCopied);
+        const fresh = build(c, isCopied, id);
         fresh.key = key;
         const hadFocus = r?.el === document.activeElement;
         if (r) r.el.replaceWith(fresh.el);

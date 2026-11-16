@@ -2,6 +2,8 @@
 import "./vendor/peep.js";
 import { fillBubble } from "./bubble";
 import { layOut, SHADOW, type Side } from "./flyout";
+import { createLookStore, type Looks } from "./look";
+import { identityFor } from "./identity";
 import type { Session, Snapshot } from "./model";
 import { MOTION_MS, motionMs } from "./motion";
 import { toRowView, type RowView } from "./rowView";
@@ -147,6 +149,8 @@ async function start() {
     if (!frame) frame = requestAnimationFrame(layout);
   };
   const ro = new ResizeObserver(schedule);
+  // Picks are made in the main window; this one only follows them.
+  const looks = createLookStore((s) => identityFor(s.cwd), () => Promise.reject(new Error("read-only")), () => render());
 
   const render = () => {
     const want = (view?.items ?? []).filter((i) => sessions.has(i.id));
@@ -172,7 +176,7 @@ async function start() {
         ro.observe(f.el);
       }
       f.since = s.stateSince;
-      updateFly(f, toRowView(s, undefined, now));
+      updateFly(f, toRowView(s, looks.identityOf, now));
     }
     if (!want.length) lastRegion = "";
     schedule();
@@ -199,6 +203,8 @@ async function start() {
     sessions = new Map(e.payload.sessions.map((s) => [s.id, s]));
     render();
   });
+  await listen<Looks>("peep-looks", (e) => looks.load(e.payload));
+  invoke<Looks>("peep_looks").then(looks.load, (err) => console.error("peepthis: peep_looks failed", err));
   await listen<FlyView | null>("flyouts", (e) => {
     view = e.payload;
     // The backend clears the region whenever it moves or shows the window.

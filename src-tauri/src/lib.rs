@@ -9,6 +9,7 @@ mod hotkey;
 mod ingest;
 mod install;
 mod limit;
+mod look;
 mod mood;
 mod motion;
 mod notify;
@@ -135,7 +136,8 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
                 }
                 let content = notify::toast_content(fresh.as_ref().unwrap_or(&s));
                 let (id, request) = (s.id.clone(), content.request.clone());
-                notify::toast(&bundle_id, &content, true, move |action| {
+                let icon = look::icon_for(&s.cwd);
+                notify::toast(&bundle_id, &content, icon.as_deref(), true, move |action| {
                     let Some(store) = weak.upgrade() else { return };
                     toast_clicked(&handle, &store, &id, request.as_deref(), action);
                 });
@@ -165,7 +167,7 @@ fn wire_limits(app: &tauri::App, store: &Arc<Store>) {
             let (handle, bundle_id) = (handle.clone(), bundle_id.clone());
             let spawned = std::thread::Builder::new().name("limit-toast".into()).spawn(move || {
                 let opener = handle.clone();
-                notify::toast(&bundle_id, &content, false, move |_| window::summon(&opener));
+                notify::toast(&bundle_id, &content, None, false, move |_| window::summon(&opener));
             });
             if let Err(e) = spawned {
                 eprintln!("peepthis: limit toast thread failed: {e}");
@@ -309,6 +311,9 @@ pub fn run() {
             mood::set_nudge_pct,
             notify::alert_sound,
             notify::set_alert_sound,
+            look::peep_looks,
+            look::set_peep_look,
+            look::set_toast_icon,
             hotkey::inbox_hotkey,
             hotkey::set_inbox_hotkey,
             hotkey::toggle_hotkey,

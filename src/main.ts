@@ -13,7 +13,10 @@ import type { Digest, RulesView, Session, Snapshot, TrailEntry } from "./model";
 import { EMPTY_RULES, offersFor, ruleLive } from "./rules";
 import { reducedMotion } from "./motion";
 import { pinsPeek } from "./peek";
+import { identityFor } from "./identity";
+import { createLookStore, type Look, type Looks } from "./look";
 import { createList } from "./rows";
+import { createToastIcons } from "./toastIcon";
 import { createSettings, type HotkeyStatus, type SettingsApi } from "./settings";
 import { createStrip, slotCenter, type StripActions } from "./stripPlate";
 import { initTheme } from "./theme";
@@ -235,9 +238,21 @@ function runDemo() {
   const withLimits = (s: Snapshot, now: number) => (lim?.length === 2 ? demoLimits(s, lim[0], lim[1], now) : s);
   let snap = withLimits(demoSnapshot(Date.now()), Date.now());
   let inbox: ReturnType<typeof mountInbox> | null = null;
+  let saved: Looks = {};
+  let redraw = () => {};
+  const looks = createLookStore(
+    demoIdentity,
+    async (key, look) => {
+      const next: Record<string, Look> = { ...saved };
+      if (look) next[key] = look;
+      else delete next[key];
+      return (saved = next);
+    },
+    () => redraw(),
+  );
   const render = createList(
     root,
-    demoIdentity,
+    looks.identityOf,
     undefined,
     async (id, decision) => {
       snap = demoDecide(snap, id, decision, Date.now());
@@ -252,10 +267,16 @@ function runDemo() {
       render(snap.sessions);
       return true;
     },
+    looks,
   );
-  const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
-  const renderClosed = createClosedShelf(root);
+  const renderStrip = createStrip(stripEl, stripActions, looks.identityOf);
+  const renderClosed = createClosedShelf(root, undefined, looks.forCwd);
   const closed = demoClosed(Date.now(), params.get("closed"));
+  redraw = () => {
+    render(snap.sessions);
+    renderStrip(snap.sessions);
+    renderClosed(closed, liveIds(snap.sessions));
+  };
   let trailOn = true;
   let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
   let toggleHotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+P", registered: true };
@@ -330,9 +351,16 @@ async function runLive() {
   let recent: Record<string, TrailEntry[]> = {};
   let sessions: Session[] = [];
   let rulesView: RulesView = EMPTY_RULES;
+  let lastSnap: Snapshot | null = null;
+  const toastIcons = createToastIcons((cwd, png) => invoke("set_toast_icon", { cwd, png }));
+  const looks = createLookStore(
+    (s) => identityFor(s.cwd),
+    (key, look) => invoke<Looks>("set_peep_look", { key, look }),
+    () => lastSnap && render(lastSnap),
+  );
   const renderList = createList(
     root,
-    undefined,
+    looks.identityOf,
     (id) => invoke<boolean>("focus_session", { sessionId: id }),
     (requestId, decision, reason) => invoke<boolean>("decide_approval", { requestId, decision, reason }),
     (id) => recent[id],
@@ -343,9 +371,10 @@ async function runLive() {
       live: (id) => ruleLive(rulesView, id),
     },
     (id) => invoke<boolean>("end_session", { sessionId: id }),
+    looks,
   );
-  const renderStrip = createStrip(stripEl, stripActions);
-  const renderClosed = createClosedShelf(root);
+  const renderStrip = createStrip(stripEl, stripActions, looks.identityOf);
+  const renderClosed = createClosedShelf(root, undefined, looks.forCwd);
   const settings = mountSettings({
     log: () => invoke<TrailEntry[]>("trail_log"),
     enabled: () => invoke<boolean>("trail_enabled"),
@@ -450,8 +479,10 @@ async function runLive() {
   const banner = createBanner(root, { install: () => invoke("install_integration") });
   await listen<TrayResult>("integration-result", (e) => banner.trayResult(e.payload));
   await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
-  const render = (snap: Snapshot) => {
+  function render(snap: Snapshot) {
+    lastSnap = snap;
     sessions = snap.sessions;
+    toastIcons(snap.sessions, looks.identityOf);
     renderList(snap.sessions, snap.repos ?? [], snap.rateLimits ?? null);
     renderStrip(snap.sessions);
     renderClosed(snap.closed ?? [], liveIds(snap.sessions));
@@ -460,7 +491,9 @@ async function runLive() {
     inbox.sync(snap.sessions);
     renderLimits(snap.rateLimits);
     banner.render(snap.integration);
-  };
+  }
+  await listen<Looks>("peep-looks", (e) => looks.load(e.payload));
+  invoke<Looks>("peep_looks").then(looks.load, (err) => console.error("peepthis: peep_looks failed", err));
   // Subscribe before fetching so no change is lost; a pushed snapshot beats the initial fetch.
   let pushed = false;
   await listen<Snapshot>("sessions", (e) => {

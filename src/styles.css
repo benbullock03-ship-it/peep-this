@@ -1284,6 +1284,108 @@ body[data-fold] > .ps-strip {
   overflow-wrap: anywhere;
 }
 
+/* AV-113 look picker. */
+.ps-pick-toggle {
+  align-self: flex-start;
+  padding: 3px 9px;
+  border: 2px solid var(--ps-edge);
+  background: var(--ps-panel-2);
+  color: var(--ps-text);
+  font: 600 12px var(--sans);
+  cursor: pointer;
+}
+
+.ps-pick-toggle::after {
+  content: " \25B8";
+}
+
+.ps-pick-toggle[aria-expanded="true"]::after {
+  content: " \25BE";
+}
+
+.ps-pick-toggle:hover {
+  box-shadow: var(--shadow-lift);
+}
+
+.ps-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ps-pick-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid var(--ps-edge);
+  background: var(--ps-panel-2);
+}
+
+.ps-pick-body[hidden] {
+  display: none;
+}
+
+.ps-pick-colors,
+.ps-pick-accs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ps-swatch {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--ps-edge);
+  background: var(--sw);
+  cursor: pointer;
+}
+
+.ps-acc {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid transparent;
+  background: var(--ps-panel);
+  cursor: pointer;
+}
+
+.ps-swatch:hover,
+.ps-acc:hover {
+  transform: translateY(-2px);
+}
+
+.ps-acc:hover {
+  border-color: var(--ps-line);
+}
+
+.ps-swatch[aria-pressed="true"],
+.ps-acc[aria-pressed="true"] {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 1px;
+}
+
+.ps-swatch:focus-visible,
+.ps-acc:focus-visible,
+.ps-pick-toggle:focus-visible {
+  outline: 2px dashed var(--ps-accent);
+  outline-offset: 2px;
+}
+
+.ps-pick-reset {
+  font-size: 12px;
+}
+
+.ps-pick-reset:disabled,
+.ps-pick-reset:disabled:hover {
+  border-color: var(--ps-line);
+  color: var(--ps-muted);
+  cursor: default;
+}
+
 .ps-trail {
   display: flex;
   flex-direction: column;

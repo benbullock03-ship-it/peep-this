@@ -10,6 +10,8 @@ import { createKids, type KidsRender } from "./kidRows";
 import { limitWarning, type LimitWarning } from "./limits";
 import type { RateLimits, Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
 import { MOTION_MS, motionMs, reducedMotion } from "./motion";
+import type { LookStore } from "./look";
+import { createPicker } from "./picker";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { createOffers, type AnswerOffer } from "./ruleOffer";
 import { createShelf } from "./shelf";
@@ -62,6 +64,7 @@ type Facts = {
   arc: (repo: Repo | undefined) => void;
   locks: (repo: Repo | undefined) => void;
   end?: HTMLButtonElement;
+  pick?: (s: Session) => void;
 };
 
 type Row = {
@@ -118,7 +121,7 @@ function bubble(parent: HTMLElement): HTMLElement {
   return el("span", "", el("span", "ps-bubble", parent));
 }
 
-function createFacts(jump: Jump, withEnd: boolean): Facts {
+function createFacts(jump: Jump, withEnd: boolean, looks?: LookStore): Facts {
   const box = el("div", "ps-facts");
   const tray = createTray(jump);
   box.appendChild(tray.el);
@@ -140,6 +143,8 @@ function createFacts(jump: Jump, withEnd: boolean): Facts {
   ctxRow.appendChild(ctx.el);
   const ctxValue = el("span", "", ctxRow);
   const cwd = el("div", "ps-path", box);
+  const picker = looks ? createPicker(looks) : null;
+  if (picker) box.appendChild(picker.el);
   const trail = el("div", "ps-trail", box);
   trail.setAttribute("aria-label", "Recent approval decisions");
   let end: HTMLButtonElement | undefined;
@@ -148,10 +153,10 @@ function createFacts(jump: Jump, withEnd: boolean): Facts {
     end.textContent = END_LABEL;
     end.title = "Hold for 1 second to end this session's process";
   }
-  return { el: box, since, model, kind, branch, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, locks: tray.lock, end };
+  return { el: box, since, model, kind, branch, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, locks: tray.lock, end, pick: picker?.fill };
 }
 
-function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, withEnd = false): Row {
+function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, withEnd = false, looks?: LookStore): Row {
   const item = el("div", "ps-item");
   item.dataset.id = s.id;
 
@@ -188,7 +193,7 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, wi
   pack.setAttribute("aria-label", `Pack up: copy ${jumpCommand("packup")}`);
   const nudgeLater = button("nudge-later", nudge);
   nudgeLater.textContent = "Not yet";
-  const facts = createFacts(jump, withEnd);
+  const facts = createFacts(jump, withEnd, looks);
 
   let cards: Row["cards"];
   if (decide) {
@@ -328,6 +333,7 @@ function fillFacts(r: Row, now: number) {
   x.arc(r.repo);
   x.locks(r.repo);
   x.shelf(r.repo?.tickets);
+  x.pick?.(r.session);
 }
 
 function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined, rules?: RowRules) {
@@ -416,6 +422,7 @@ export function createList(
   trailOf?: TrailOf,
   rules?: RowRules,
   onEnd?: EndSession,
+  looks?: LookStore,
 ) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
@@ -565,7 +572,7 @@ export function createList(
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
-        r = createRow(s, jumpFor(s.id), onDecide, rules, !!onEnd);
+        r = createRow(s, jumpFor(s.id), onDecide, rules, !!onEnd, looks);
         if (r.facts.end) bindEnd(r, r.facts.end);
         rows.set(s.id, r);
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);

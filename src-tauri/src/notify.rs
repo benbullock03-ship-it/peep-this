@@ -196,14 +196,17 @@ pub fn chime() {}
 /// Shows the toast on the calling thread; `on_click` gets the button argument (None for the body) while the widget runs.
 /// `silent` because the waiting toast's sound is the opt-in alert sound, played apart from it.
 #[cfg(windows)]
-pub fn toast(bundle_id: &str, c: &ToastContent, silent: bool, on_click: impl Fn(Option<String>) + Send + 'static) {
-    use tauri_winrt_notification::{Duration, Sound, Toast};
+pub fn toast(bundle_id: &str, c: &ToastContent, icon: Option<&std::path::Path>, silent: bool, on_click: impl Fn(Option<String>) + Send + 'static) {
+    use tauri_winrt_notification::{Duration, IconCrop, Sound, Toast};
     // Dev builds have no installed Start-menu shortcut carrying the bundle AUMID, so Windows would drop their toasts.
     let app_id = if cfg!(debug_assertions) { Toast::POWERSHELL_APP_ID.to_string() } else { bundle_id.to_string() };
     let sound = if silent { None } else { Some(Sound::Default) };
     let mut t = Toast::new(&app_id).title(&c.title).text1(&c.body).duration(Duration::Short).sound(sound);
     if let Some(hint) = &c.hint {
         t = t.text2(hint);
+    }
+    if let Some(path) = icon {
+        t = t.icon(path, IconCrop::Square, "");
     }
     for (label, action) in &c.buttons {
         t = t.add_button(label, action);
@@ -220,7 +223,7 @@ pub fn toast(bundle_id: &str, c: &ToastContent, silent: bool, on_click: impl Fn(
 }
 
 #[cfg(not(windows))]
-pub fn toast(_bundle_id: &str, c: &ToastContent, _silent: bool, _on_click: impl Fn(Option<String>) + Send + 'static) {
+pub fn toast(_bundle_id: &str, c: &ToastContent, _icon: Option<&std::path::Path>, _silent: bool, _on_click: impl Fn(Option<String>) + Send + 'static) {
     println!("peepthis: toast {}: {}", c.title, c.body);
 }
 

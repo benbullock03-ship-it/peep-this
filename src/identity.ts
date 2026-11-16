@@ -6,7 +6,14 @@ export const ACCESSORIES = [
 
 export type Color = (typeof COLORS)[number];
 export type Accessory = (typeof ACCESSORIES)[number];
-export type Identity = { color: Color; accessory: Accessory };
+// `accessory` is a string so an unlocked one (AV-115) can be worn as well as the hashed 14.
+export type Identity = { color: Color; accessory: string };
+
+/** The one list the peep picker offers: the free 14, then unlocked ones in unlock order. */
+export function pickerAccessories(unlocked: readonly string[] = []): string[] {
+  const free: readonly string[] = ACCESSORIES;
+  return [...free, ...unlocked.filter((a, i) => !free.includes(a) && unlocked.indexOf(a) === i)];
+}
 
 export function normaliseCwd(cwd: string): string {
   return cwd.trim().toLowerCase().replace(/\\/g, "/").replace(/\/+$/, "");
