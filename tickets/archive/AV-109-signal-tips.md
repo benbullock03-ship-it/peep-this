@@ -1,7 +1,7 @@
 ---
 id: AV-109
 title: Signal tips with a Pack Up Jump at the context line
-status: done
+status: closed
 depends: []
 ---
 
@@ -30,7 +30,7 @@ Yes. Per the Claude Code statusline docs, `context_window.total_input_tokens` (i
 - `store.rs` `refresh_tips` runs in every `mutate`: a signal becomes `Session.tip` unless one is already showing or a once-ever tip was seen; seen tips persist in the widget's `settings.json` under `tipsSeen` (`tip.rs`). A prompt or `dismiss_tip` clears the tip.
 - The row (`src/tip.ts` `tipFor`) shows the tip only while `idle` or `success`, with no nudge; text in the dashed suggestion bubble (now up to 4 lines), Pack up (crowded only) and Got it under the plank. `?demo&tip=<name>` for Shoot.
 
-## Decisions taken without a ruling
+## Decisions (owner agreed all, 2026-11-16)
 
 - A tip counts as seen when it fires, not when the user looks at it; a once-ever tip missed while away is gone. Simpler than tracking what reached the screen.
 - A signal that arrives while another tip is showing is dropped and not marked seen, so it can fire again on a later signal.
@@ -45,4 +45,4 @@ In `npm run tauri dev` with CDP:
 - A throwaway CLI session reached `success`. A statusline POST with `total_input_tokens: 140000` raised `tip: crowded`. The row showed "Getting crowded; answers get fuzzier from here." in the dashed bubble, with Pack up and Got it under the plank.
 - A CDP mouse click on Pack up put `/peep:packup` on the clipboard. The foreground window became that session's Windows Terminal tab. The tip stayed up after the click; only Got it or a prompt clears it.
 
-Owed: the owner rules on the two decisions above, then closes the ticket.
+Closed by the owner 2026-11-16.
