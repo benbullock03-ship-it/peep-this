@@ -40,7 +40,6 @@ const SKILLS: Record<string, Omit<Lesson, "kind" | "id">> = {
   tweet: { topic: "working with sessions", line: "a question on the board costs a minute; a clash found at commit costs the afternoon.", eli5: "Ask \"is anyone using the oven?\" before you start baking.", source: S.practices },
   coderot: { topic: "testing", line: "a test that cannot fail proves nothing.", eli5: "A smoke alarm that never beeps, even in smoke, is just a plastic disc.", source: S.mutation },
   shoot: { topic: "testing", line: "a shot you checked proves it works; reading the code does not.", eli5: "Taste the soup instead of reading the recipe again.", source: S.practices },
-  scrub: { topic: "testing", line: "a re-scan after the fix proves it works; a default you can name is one you can choose against.", eli5: "Look in the mirror after washing your face, not just before.", source: S.practices },
   sneak: { topic: "testing", line: "seeing three directions costs minutes, rebuilding the wrong one costs a day.", eli5: "Try on three jumpers in the shop rather than knitting the wrong one.", source: S.practices },
   goose: { topic: "architecture", line: "know what a change touches before making it, so you think before code.", eli5: "Check which lights a switch controls before you rewire it.", source: S.ousterhout },
 };

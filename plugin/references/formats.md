@@ -104,7 +104,7 @@ non_goals: [no thing one, no thing two]
 
 ## 6. Scrub exceptions: `.peep/scrub.md`
 
-What Scrubadubdub must not flag. IDs are entries in `references/ai-tells.md`. The owner adds `earned` lines; Scrubadubdub writes `debt` lines only on the owner's yes.
+What `/peep:shoot --scrub` must not flag. IDs are entries in `references/ai-tells.md`. The owner adds `earned` lines; the scrub pass writes `debt` lines only on the owner's yes.
 
 ```
 # Scrub exceptions

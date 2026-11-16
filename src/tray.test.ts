@@ -34,11 +34,10 @@ it("every tray floppy has sprite art", () => {
 });
 
 it("shows the six spec floppies and puts the rest behind +N", () => {
-  expect(TRAY.map((f) => f.skill)).toEqual(["ducks", "qt", "ticket", "shoot", "packup", "coderot", "walk", "sneak", "scrub", "bigpeep", "tweet", "goose"]);
+  expect(TRAY.map((f) => f.skill)).toEqual(["ducks", "qt", "ticket", "shoot", "packup", "coderot", "walk", "sneak", "bigpeep", "tweet", "goose"]);
   expect(TRAY.slice(TRAY_SHOWN).map((f) => jumpCommand(f.skill))).toEqual([
     "/peep:walk",
     "/peep:sneak",
-    "/peep:scrub",
     "/peep:bigpeep",
     "/peep:tweet",
     "/peep:goose",

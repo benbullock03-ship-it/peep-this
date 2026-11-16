@@ -1,6 +1,6 @@
 # Pass 2: eye
 
-Entries marked `eye` in the catalogue need a render or a read of intent. Half of Scrubadubdub's job is messy spacing and text, so every run covers these entries even when no grep rule fired:
+Entries marked `eye` in the catalogue need a render or a read of intent. Half of the scrub pass is messy spacing and text, so every `--scrub` run covers these entries even when no grep rule fired:
 
 - Spacing: monotonous-spacing, off-scale-spacing (measured against the house spacing scale), nested-boxes, rule-overuse, overstuffed.
 - Text: title-case, said-twice, numbers-as-words, forced-contrast, code-crumbs, low-contrast, flat-scale.
@@ -8,7 +8,7 @@ Entries marked `eye` in the catalogue need a render or a read of intent. Half of
 
 ## With a `url`
 
-Run `/peep:shoot` on the pages in scope at the setup's themes and widths. Its pass/fail questions are the eye entries above, phrased against the house style:
+Judge the shots this run already took (same pages, themes and widths); take more only for a page in scope that has none. The pass/fail questions are the eye entries above, phrased against the house style:
 
 - "muted text on `--panel` reaches 4.5:1"
 - "every gap is a step of the 4px scale"
@@ -18,7 +18,7 @@ A failed question becomes a finding at the file and line that styles the element
 
 ## Without a `url`
 
-Read the markup and styles instead. Mark every eye finding `inferred`. Contrast is computed from the token values. Spacing is read from the declared values.
+(Shoot stops at step 1 without a `url`, so `--scrub` never reaches here from Shoot; kept for a scan run by hand.) Read the markup and styles instead. Mark every eye finding `inferred`. Contrast is computed from the token values. Spacing is read from the declared values.
 
 ## Rules
 

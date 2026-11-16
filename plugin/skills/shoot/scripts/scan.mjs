@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Scrubadubdub pass 1. Usage: node scan.mjs [repoRoot] [--full] [--base <ref>] [--skip <prefix>]...
+// Shoot --scrub pass 1. Usage: node scan.mjs [repoRoot] [--full] [--base <ref>] [--skip <prefix>]...
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

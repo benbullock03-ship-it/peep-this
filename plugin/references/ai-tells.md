@@ -1,6 +1,6 @@
 # AI hallmarks
 
-The checklist Scrubadubdub (`/peep:scrub`, AV-87) reads. An AI hallmark is a pattern that marks a UI as made by default: nobody chose it. Exceptions live in `.peep/scrub.md` (`formats.md` §6).
+The checklist `/peep:shoot --scrub` (AV-87, AV-119) reads. An AI hallmark is a pattern that marks a UI as made by default: nobody chose it. Exceptions live in `.peep/scrub.md` (`formats.md` §6).
 
 Each entry: `ID · severity · how · signal · where it comes from · alternatives · [credit]`.
 
@@ -145,6 +145,6 @@ Borrowed entries carry these tags. Entries are paraphrased; no text is copied be
 - **paralect**: "Signs of AI slop in design", paralect.com/blog/signs-of-ai-slop-in-design. Numbers are the article's sign order. Ideas paraphrased with credit; no licence stated.
 - **tropes**: the owner's design-tropes skill (28 tropes, the earned test, the motion bans). Numbers are its trope order.
 - **crit**: the owner's critique reports (off-system palettes, tracked caps left behind, panels hand-built many times, drift between routes).
-- **own**: added for this pack; the "messy spacing and text" half of Scrubadubdub.
+- **own**: added for this pack; the "messy spacing and text" half of the scrub pass.
 
 Licences for aad, slopcop and imp were read from each repo's `LICENSE` via the GitHub API on 2026-11-15.

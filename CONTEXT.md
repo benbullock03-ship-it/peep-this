@@ -11,7 +11,7 @@ The product: the widget and the skill pack, installed as one.
 _Avoid_: AgentView (code working name only)
 
 **Widget**:
-The desktop window that shows sessions. It shows and hands off; it never types into a session or starts one.
+The desktop window that shows sessions. It shows and hands off; it never types into a session or starts one. It may end one, on a hold.
 _Avoid_: tray, app, monitor
 
 **Skill pack**:
@@ -64,6 +64,58 @@ _Avoid_: handoff, summary, recap
 
 ### Skill pack
 
+**Unpack**:
+Opening a session from a Pack Up note: Ducks checks the repo still matches it, reads back any drift, then runs the note's `Then` on a yes. No longer a skill of its own (AV-103).
+_Avoid_: resume, restore, load handoff, /peep:unpack
+
+**Walk Through**:
+The first-run skill: tours the skills in rhythm order, asks batched questions about the repo and how the owner works, and writes the repo setup with per-skill preferences.
+_Avoid_: onboarding, tutorial, wizard
+
+**North star**:
+The one line in `.peep/reel.md` that says what the project is for, written by Walk Through with the hook and non-goals. Question Time and Ducks flag work that does not serve it, never block it.
+_Avoid_: mission, goal
+
+**Why line**:
+The one line a skill adds about why its habit matters, shown for a skill's first 3 runs and then dropped.
+_Avoid_: tip, hint, tutorial text
+
+**Sneak Peep**:
+UI prototyping before building: 2 or 3 throwaway variants served side by side; the picked one becomes the design reference.
+_Avoid_: mockup, spike
+
+**AI hallmark**:
+A pattern that marks UI as AI-made by default (purple gradients, emoji headers, generic card grids, filler copy), listed in the pack's checklist.
+_Avoid_: slop (fine in conversation, not in UI)
+
+**Big Peep**:
+The orchestrator skill that runs a batch of tickets, one little peep per ticket, and asks a stale little peep for its status without stopping it.
+_Avoid_: manager, supervisor
+
+**Little peep**:
+A subagent working one ticket under Big Peep.
+_Avoid_: worker, child agent
+
+**Tweet Tweet**:
+Sessions telling each other when stuck or seeing a possible conflict: a post on the tweet board, plus a live ping to a peer when one is reachable.
+_Avoid_: chat, message bus
+
+**Tweet board**:
+`.peep/tweets.md`, the repo's open tweets. An answered tweet is folded into its area note when its ticket closes, then removed.
+_Avoid_: log, inbox
+
+**Duck Duck Goose**:
+The skill that maps a codebase's dependencies for agents to query, using graphify when installed, and writes an interactive peep graph page.
+_Avoid_: knowledge graph (fine in docs), map
+
+**Closed shelf**:
+The widget's list of sessions that ended in the last 8 hours, flagging uncommitted changes, a ticket left `doing`, no Pack Up, or an ending in an attention state.
+_Avoid_: history, recent, graveyard
+
+**Arc line**:
+One line per repo on the open row: north star, closed / open / parked ticket counts, last ticket closed.
+_Avoid_: progress bar, roadmap
+
 **Question Time**:
 The forward-looking grill: batched rounds of questions about a new idea or problem, then a read-back, then tickets.
 _Avoid_: grill, interview, brainstorm
@@ -77,8 +129,8 @@ Question Time's or Ducks' short statement of what Claude now understands, given 
 _Avoid_: summary, recap, plan
 
 **Shoot**:
-Checking a web UI change yourself in a real browser, against pass/fail questions written before the screenshots.
-_Avoid_: visual test, QA
+Checking a web UI change yourself in a real browser, against pass/fail questions written before the screenshots. `--scrub` adds a pass that scrubs the UI of AI hallmarks and messy spacing and text, reporting where each comes from with alternatives, and fixing only what the owner approves (AV-119).
+_Avoid_: visual test, QA, lint, design review
 
 **Repo setup**:
 The per-repo record of conventions (ticket prefix, build and test commands, areas) that every Peep skill reads instead of guessing. Ducks writes it on first run.

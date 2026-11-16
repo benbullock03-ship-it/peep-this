@@ -12,7 +12,6 @@ export const UNLOCKS: Readonly<Record<string, { met: (f: Facts) => boolean; hint
   coderot: { met: (f) => f.test && f.closed >= 1, hint: "unlocks after your first ticket closed with a test command in setup" },
   goose: { met: (f) => f.closed >= 3, hint: "unlocks after 3 tickets closed" },
   sneak: { met: (f) => f.closedUi, hint: "unlocks after your first UI ticket closed" },
-  scrub: { met: (f) => f.closedUi, hint: "unlocks after your first UI ticket closed" },
   shoot: { met: (f) => f.url, hint: "unlocks when the setup has a url" },
 };
 

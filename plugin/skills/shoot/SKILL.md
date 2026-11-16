@@ -1,7 +1,7 @@
 ---
 name: shoot
 description: "Shoot: check a web UI change (or a desktop app's webview) in a real browser with DOM asserts and screenshots judged against questions written first. Use when the user runs /peep:shoot, after a UI change before calling it done, or asks to 'check it in the browser'."
-argument-hint: "[change in one line] [selectors...]"
+argument-hint: "[change in one line] [selectors...] [--scrub [--full]]"
 label: Shoot
 ---
 
@@ -52,6 +52,8 @@ Owed to the owner: <anything outside the page: native dialogs, OS notifications,
 ```
 
 Never claim what is owed.
+
+**`--scrub`:** after that report, follow `references/scrub.md` (hallmark grep pass plus an eye pass on these shots) and end on its numbered findings and reply line.
 
 ## 7. Housekeeping
 

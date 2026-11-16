@@ -17,7 +17,7 @@ Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, se
 ## 2. Look before asking
 
 Read `CONTEXT.md`, `CLAUDE.md`, any existing `design/` folder (its look is the starting point, never restyled), and the code the UI will live in. Facts are yours to find, never the user's. Decisions are the user's.
-If the answers already exist from a Question Time or Scrubadubdub run in this session, use them and skip step 3.
+If the answers already exist from a Question Time or `/peep:shoot --scrub` run in this session, use them and skip step 3.
 
 ## 3. Rounds
 

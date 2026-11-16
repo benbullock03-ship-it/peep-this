@@ -6,7 +6,7 @@ const repo = (closed: number, u: Partial<Unlock> = {}) => ({ arc: { closed }, un
 
 describe("lockHint", () => {
   it("locks every ruled Extra in a fresh repo", () => {
-    for (const s of ["bigpeep", "coderot", "goose", "sneak", "scrub", "shoot"]) expect(lockHint(s, repo(0))).not.toBeNull();
+    for (const s of ["bigpeep", "coderot", "goose", "sneak", "shoot"]) expect(lockHint(s, repo(0))).not.toBeNull();
     expect(lockHint("bigpeep", repo(0))).toBe("unlocks after 5 tickets");
   });
 
@@ -23,7 +23,6 @@ describe("lockHint", () => {
     expect(lockHint("goose", repo(2))).not.toBeNull();
     expect(lockHint("goose", repo(3))).toBeNull();
     expect(lockHint("sneak", repo(1, { closedUi: true }))).toBeNull();
-    expect(lockHint("scrub", repo(1, { closedUi: true }))).toBeNull();
     expect(lockHint("shoot", repo(0, { url: true }))).toBeNull();
   });
 

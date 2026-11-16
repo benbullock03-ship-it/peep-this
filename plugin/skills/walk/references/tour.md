@@ -13,7 +13,6 @@ Core: the everyday rhythm. What, build, prove, carry on, check in.
 Extras: reach for these when the moment comes.
 /peep:sneak    use when you want to compare 2 or 3 UI directions before building
 /peep:goose    use when you need to know what calls what before changing it
-/peep:scrub    use when a screen works but looks generated
 /peep:coderot  use between tickets, to check the tests can actually fail
 /peep:bigpeep  use when several tickets are ready and you want them worked in order, one commit each
 /peep:tweet    use when stuck on something another session may know, or about to change a file another session is in
@@ -30,7 +29,7 @@ An Extra whose unlock is not met prints after the unlocked Extras, under `Locked
 | bigpeep | `ticket` in `.peep/runs` is 5 or more | `unlocks after 5 tickets` |
 | coderot | the setup has `test` and 1 or more tickets are closed | `unlocks after your first ticket closed with a test command in setup` |
 | goose | 3 or more tickets are closed | `unlocks after 3 tickets closed` |
-| sneak, scrub | a closed ticket's file names a path under a UI area | `unlocks after your first UI ticket closed` |
+| sneak | a closed ticket's file names a path under a UI area | `unlocks after your first UI ticket closed` |
 | shoot | the setup has `url` | `unlocks when the setup has a url` |
 
 Closed tickets are the files in the setup's `archive` folder plus any `status: closed` left in `tickets`. A UI area is an `area.<name>` setup key whose name, split on `-`, `_` and `.`, has a part `frontend`, `front`, `ui`, `web`, `client`, `app`, `site` or `www`; the ticket names its path when the path appears at the start of a word (so `src/` does not match inside `src-tauri/src/`). Tweet has no rule and is never locked.
