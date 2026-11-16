@@ -10,6 +10,7 @@
 - The ticket shelf (`src/shelf.ts`) sits after the tray and lists the repo's tickets from `Snapshot.repos`, passed as `render(sessions, repos?)` in `src/main.ts`; a click Jumps `/peep:ticket <id>` through the tray's hint bar (`createTray().fire`).
 - Shelf sort: blocked, doing, done (shown as review), open, deferred (parked); file order within a status. `closed` never reaches the shelf.
 - A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/`.
+- Rate limits: header meters with % on a second header line and title pressure at 80/95/100 (`src/limits.ts`); from 80% every non-attention peep sweats and the limit takes the bubble's verb slot. Toasts at 95 and 100 come from the backend (`src-tauri/src/limit.rs`), once per window keyed by `resets_at`. `?demo&limits=82,30` fakes them.
 - The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`).
 - Clash: sessions with `mood: startled` and the same `Session.clash` path get a lettered bolt tag (`Bubble.bolt` in `src/bubble.ts`), "Both in <file>" bubble text (`clashTags`, `clashText` in `src/emote.ts`) and, when adjacent, a dotted plank-to-plank bracket in `--st-waiting` (`clash-down`/`clash-up`, `--plank-y` in `src/rows.ts`).
 
@@ -22,6 +23,7 @@
 - Attention rows hide the emote; the mood is still in the snapshot. An attention row also drops out of a clash: no tag, no bracket; its partner keeps the clash bubble.
 - Clash letters are assigned per render in list order, so a letter can change when an earlier pair expires. The strip shows no clash.
 - Emotes loop at 8 fps per `emotes.json`, not the 160ms transition rule; sparkle and wave play twice then hide while the mood holds.
+- Busy sessions post real statusline payloads every second or so, overwriting a faked one; a live limit check reposts in a loop while it samples.
 - Not yet snoozes in memory per session until 95% or the yawn clears; it does not survive a restart.
 
 ## Why it's like this
@@ -33,4 +35,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-84, 2026-11-16
+last touched: AV-81, 2026-11-16

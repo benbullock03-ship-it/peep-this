@@ -1,7 +1,7 @@
 ---
 id: AV-81
 title: Rate-limit warning in header, bubble, toast and title
-status: doing
+status: closed
 depends: [AV-69, AV-70, AV-79]
 attended: true
 ---
@@ -30,7 +30,8 @@ attended: true
 - The once-per-window toast rule lives in Rust, so its tests are `cargo test limit` rather than Vitest; Vitest covers the thresholds and bubble text.
 - `?demo&limits=82,30` sets demo limits (with the sweat `mood.rs` would give) for Shoot.
 
-## Owed before done
+## Done 2026-11-16
 
-- Owner sees the header numbers, the 80% bubble and the 95% toast in `npm run tauri dev` with a faked statusline payload (POST `/statusline` with `rate_limits.five_hour.used_percentage` 82, then 96).
-- Owner rules on the second header line for the meters.
+- Live in `npm run tauri dev` with faked `/statusline` payloads over the real loopback port: at 82 the header read "5h 82%" in amber, the title plate took the amber inset, and every peep had `mood: sweat` with "5h limit 82%" in the bubble. At 96 the plate filled amber and the meters went red; 97 sent no second toast; at 100 the title read "PEEP THIS · FULL" on the red hatch.
+- Windows notification database holds "5-hour limit at 95%" / "Resets at 13:10…" and "5-hour limit reached" / "…in 2h 59m", once each.
+- Meters on a second header line stay (owner closed it as built).
