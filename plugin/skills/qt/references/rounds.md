@@ -1,24 +1,12 @@
 # Rounds
 
-## Two modes
+## Mode
 
-- **Ask** (`qt` run count below 3, or any `qt.round` in the setup): AskUserQuestion rounds per the shape below, `qt.round` questions each, default 4.
-- **List** (`qt` run count 3 or more, no `qt.round`): the whole frontier as one numbered text list, see "List shape". The reply is "agree all" or named overrides (`2: SQLite, 5: drop it`); unnamed items take their recommendation. Loose ends and the next frontier come back as a fresh list.
-
-## List shape
-
-```
-1. <Header>: <question>? Recommend: <option>, <why in a few words>. Else: <alt>; <alt>.
-2. ...
-Reply "agree all", or name overrides (e.g. "2: <alt>").
-```
-
-- Same rules as the ask shape: one sentence per question, recommendation first with its reason, real alternatives only, each item readable alone.
-- No "Keep going" item: the list is the whole frontier. When the next frontier is empty, go to the read-back.
+Always AskUserQuestion rounds of `qt.round` questions (default 4), whatever the run count. Without the AskUserQuestion tool (headless), say so in one line and ask the whole frontier once as a numbered text list: `1. <Header>: <question>? Recommend: <option>, <why>. Else: <alt>; <alt>.` The reply is "agree all" or named overrides (`2: SQLite`); unnamed items take their recommendation. Then go to the read-back.
 
 ## AskUserQuestion shape
 
-- One call per round, up to 4 questions. The tool allows 2 to 4 options per question and adds "Other" itself; do not add your own "Other".
+- One call per round, up to `qt.round` questions (default 4). The tool allows 2 to 4 options per question and adds "Other" itself; do not add your own "Other".
 - `header`: at most 12 characters, a noun naming the decision (`Storage`, `Auth`, `Scope`).
 - `question`: one sentence ending in `?`, naming the thing decided, readable without the rest of the round.
 - First option is the recommendation; its label ends ` (recommended)`. Its `description` says why in one line, citing the code, ticket or term that supports it when there is one.
@@ -47,7 +35,7 @@ While the frontier is not empty after this round, the round's last question is:
 - header `Keep going`, question `Keep going with more questions?`
 - options `More questions (recommended)` / `That's enough`
 
-That question counts toward the 4. "That's enough" goes straight to the read-back; unsettled decisions go under **Open**.
+That question counts toward the round size. "That's enough" goes straight to the read-back; unsettled decisions go under **Open**.
 
 ## Between rounds
 
