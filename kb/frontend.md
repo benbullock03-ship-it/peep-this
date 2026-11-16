@@ -11,6 +11,7 @@
 - The arc line (`src/arc.ts`) sits between tray and shelf: north star from `.peep/reel.md`, closed/open/parked counts and the last closed id, all from `Repo.northStar` and `Repo.arc` (`src-tauri/src/tickets.rs`). Counts that do not fit drop whole from the end; closed always stays. No north star shows a Jump to `/peep:reel`.
 - Shelf sort: blocked, doing, done (shown as review), open, deferred (parked); file order within a status. `closed` never reaches the shelf.
 - The closed shelf (`src/closedShelf.ts`, mounted in `src/main.ts` after the list) renders `Snapshot.closed` newest first; a click copies `claude --resume <id>` with no terminal focus. An entry hides while its id is live again. Demo states: `?demo&closed=none|one|many|long`.
+- End session: a "Hold to end session" button on the open row only, wired by `bindHold` (`src/hold.ts`, shared with the destructive Allow) to `end_session`; a failure shows in the bubble for 6s.
 - A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/`.
 - Rate limits: header meters with % on a second header line and title pressure at 80/95/100 (`src/limits.ts`); from 80% every non-attention peep sweats and the limit takes the bubble's verb slot. Toasts at 95 and 100 come from the backend (`src-tauri/src/limit.rs`), once per window keyed by `resets_at`. `?demo&limits=82,30` fakes them.
 - The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`).
@@ -38,4 +39,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-83, 2026-11-16
+last touched: AV-97, 2026-11-16

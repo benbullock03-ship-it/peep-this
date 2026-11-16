@@ -1,7 +1,7 @@
 ---
 id: AV-97
 title: Hold to end a session on the open row
-status: doing
+status: closed
 depends: [AV-96]
 ---
 
@@ -25,9 +25,9 @@ depends: [AV-96]
 - Shoot (headless Chromium, 375, dark and light): no `.ps-end` before opening, one inside `.ps-item.is-open .ps-facts`, none in strip elements; at 450ms into a hold `::before` is `scaleX(0.4)` with `transform 1s steps(10)`; release at 500ms clears it and the session stays alive; a full hold sets `data-alive=false` and hides the button; reduced motion is `scaleX(1)` at 100ms with transition `none`; `end=fail` puts "Could not end: the PID now belongs to another process" in the bubble on `--st-error`.
 - `kb/frontend.md` not updated (outside this run's files): it could note `bindHold` and the end button.
 
-## Owed before done
+## Done 2026-11-16
 
-- Owner live check in `npm run tauri dev`: hold the button on a windowless throwaway session; it ends and the row fades; a short click does nothing.
+- Live in `npm run tauri dev` on a windowless throwaway `claude -p` session (PID 53700, running a 2-minute command): a 60ms CDP click that landed on `.ps-end` left it alive; a 1.3s hold ended it (PowerShell `Get-Process` alive, then gone), the button read "Ending…", and the row left the snapshot.
 
 ## Decisions taken without a ruling
 
