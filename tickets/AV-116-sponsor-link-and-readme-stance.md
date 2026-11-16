@@ -10,7 +10,7 @@ attended: true
 
 **What to build:** A quiet way to support the project, and the trust statement competitors lack.
 
-- [ ] Tray About: one sponsor link (GitHub Sponsors or Ko-fi, owner picks the account); no nag, no badge in the panel
+- [x] Tray About: one sponsor link (GitHub Sponsors or Ko-fi, owner picks the account); no nag, no badge in the panel
 - [x] README: offline, no telemetry, Windows-first, what the integration install changes and how to undo it; the sponsor link
 - [x] Draft the awesome-claude-code submission text in this ticket; submitting is an outward step and needs the owner's yes at the time
 
@@ -31,7 +31,7 @@ Not submitted. Submitting needs the owner's yes at the time, a public repo link,
 
 ## Decisions taken without a ruling
 
-- Sponsor platform: GitHub Sponsors (0% fees, listed first in `reports/2026-11-16-reflective-pass.md`); no account is recorded in the repo, so `SPONSOR_URL` in `src-tauri/src/tray.rs` is a marked placeholder, mirrored in the README Support link. The owner must fill both.
+- Sponsor platform: GitHub Sponsors (0% fees, listed first in `reports/2026-11-16-reflective-pass.md`). Owner confirmed 2026-11-16; account `benbullock03-ship-it` (the `gh` login) filled in `SPONSOR_URL` and the README Support link.
 - The sponsor link sits in a tray **About** submenu (new, above Quit) holding a disabled version line and "Sponsor Peep This".
 - URLs open with `ShellExecuteW` from the already-enabled `windows-sys` `Win32_UI_Shell` feature rather than adding `tauri-plugin-opener`; no capability change.
 - README says the widget makes no network requests: the only sockets in `src-tauri/src` are the `127.0.0.1` server and relay. Revisit if the opt-in digest (`claude -p`) ships.
@@ -39,5 +39,4 @@ Not submitted. Submitting needs the owner's yes at the time, a public repo link,
 
 ## Owed before done
 
-- Owner fills the sponsor account in `SPONSOR_URL` (`src-tauri/src/tray.rs`) and the README Support link.
 - Owner check in `npm run tauri dev`: tray menu, About, Sponsor Peep This opens the sponsor page in the browser.

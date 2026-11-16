@@ -30,7 +30,7 @@ Turn off **Start at login** in the tray menu to stop it launching with Windows.
 
 ## Support
 
-Peep This is free. If it helps you, you can [sponsor it](https://github.com/sponsors/OWNER-FILL-ME). The same link sits under **About** in the tray menu. There is no nag and nothing in the panel.
+Peep This is free. If it helps you, you can [sponsor it](https://github.com/sponsors/benbullock03-ship-it). The same link sits under **About** in the tray menu. There is no nag and nothing in the panel.
 
 ## Building from source
 

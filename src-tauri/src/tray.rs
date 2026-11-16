@@ -17,8 +17,8 @@ use crate::window;
 const ICON: &[u8] = include_bytes!("../icons/tray.png");
 /// Written once start-at-login has been switched on by default, so a user's later "off" sticks.
 const AUTOSTART_MARKER: &str = "autostart-default-applied";
-/// PLACEHOLDER: the owner fills in the sponsor account (AV-116); README.md carries the same link.
-const SPONSOR_URL: &str = "https://github.com/sponsors/OWNER-FILL-ME";
+/// README.md carries the same link.
+const SPONSOR_URL: &str = "https://github.com/sponsors/benbullock03-ship-it";
 
 #[derive(Clone, Serialize)]
 struct TrayResult {
