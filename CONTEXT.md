@@ -105,7 +105,7 @@ _Avoid_: chat, message bus
 _Avoid_: log, inbox
 
 **Duck Duck Goose**:
-The skill that maps a codebase's dependencies for agents to query, using graphify when installed, and writes an interactive peep graph page.
+The report maker: writes a page for the owner under `.peep/graph/`, either the code map, repo health (hot spots, biggest files, untested areas, stale tickets, pattern cards, and the `candidates.json` the Learned list reads) or a one-off topic. Agents querying the graph is secondary; uses graphify when installed.
 _Avoid_: knowledge graph (fine in docs), map
 
 **Closed shelf**:
