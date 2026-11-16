@@ -27,7 +27,6 @@ depends: [AV-74]
 
 ## Owed before done
 
-- The graphify path: run `/graphify .` once (costs model calls), then `map.mjs . --graphify graphify-out/graph.json`; it has no test yet.
 - Owner opens `.peep/graph/index.html` offline and confirms the page.
 - Peeps are placed by session cwd, not by the files being edited; most sessions sit at the repo root and land on the `repo root` card. Placing by edited files needs hook file paths from the backend: owner to rule whether that is in scope here or a follow-up.
 
@@ -35,4 +34,5 @@ depends: [AV-74]
 
 - Built: `plugin/skills/goose/{SKILL.md,scripts/map.mjs,scripts/map.test.mjs,assets/peep.js}`.
 - Basic path verified on this repo (117 files, 300 imports); the "what calls state.rs" answer matched `grep crate::state` plus `lib.rs` (`mod state;`).
-- Owed: the graphify path (`--graphify`) is untested against a real `graphify-out/graph.json` (none built; a full build costs model calls). Owner walkthrough of the page in a browser.
+- Graphify path verified 2026-11-16 on an AST-only graphify 0.9.66 build of `src/`, `src-tauri/src/`, `plugin/` (no model calls): 174 files, 308 edges; callers of `state.rs` match the import map's except `lib.rs` (`mod state;`), `approve.rs` and `mood.rs`, which graphify misses, and `sessions.rs` and `focus.rs`, which it adds. Directed and undirected builds give the same direction. `map.test.mjs` covers `run(..., { graphify })` with a fixture in the real shape.
+- Owed: owner walkthrough of the page in a browser.
