@@ -33,7 +33,8 @@ Read the hot areas' most-touched files (top 10 at most) and the area note for ea
 
 - Then `top pick: <n>, <why in a few words>`, and stop: one AskUserQuestion, "Which candidate to explore?", the top pick first and recommended, plus "None for now".
 - A pick: draft a ticket for it per F§2 on a yes. Never edit code.
-- "None for now" or a candidate the owner rejects with a reason: add one line to the area note's `## Why it's like this`, `Considered, rejected: <what> - <why>`, by Edit, committed by name as `ducks: rejected <what>`. Write an ADR in `docs/adr/` as well only when the reason is hard to reverse or would surprise a reader.
+- "None for now" writes nothing; the candidates come back next run.
+- A candidate the owner rejects with a reason: add one line to the area note's `## Why it's like this`, `Considered, rejected: <what> - <why>`, by Edit, committed by name as `ducks: rejected <what>`. Write an ADR in `docs/adr/` as well only when the reason is hard to reverse or would surprise a reader.
 
 ## 4: sweep
 

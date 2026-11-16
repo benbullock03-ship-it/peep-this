@@ -27,6 +27,19 @@ depends: [AV-103]
 - The reel nudge date lives in `.peep/runs` as `ducks.reel: <date>`; F§1 now allows `<skill>.<key>` state lines.
 - Rejections go under the area note's `## Why it's like this` and are committed as `ducks: rejected <what>`.
 
+## Live run A (2026-11-16)
+
+Throwaway worktree at e3e3710 plus a commit with an empty ticket folder and no test command, so nothing was loose. A child `claude -p /peep:ducks` was told the answers: depth 4, reject the top pick.
+- Level 2: `hot: plugin 38`, `other 31`, `frontend 17`.
+- Level 3: 5 cards with badge, pattern, files, problem and fix; top pick 1 (shell and edit tool lists have no single owner, scattered-concept).
+- Level 4: a general-purpose sweep subagent ran and its findings joined the cards; the goose map ran (`map.mjs .`).
+- Rejection: a `Considered, rejected:` line landed in `kb/backend.md`, committed as `ducks: rejected one owner for tool lists` (3f0c453, throwaway branch).
+- Not seen: the depth question itself. Headless, the child loaded AskUserQuestion but used the answers given in the prompt instead of calling it.
+
+## Live run B (2026-11-16)
+
+Same worktree, depth 5, "None for now". The candidate rejected in run A (tool lists) did not come back; 4 new cards, top pick "Hook payloads parsed outside the Claude adapter". Bug found: "None for now" was written to `kb/backend.md` as a rejection of the top pick (f3b1eff, throwaway branch). Fixed in `depth.md`: "None for now" writes nothing.
+
 ## Owed before done
 
-- Live run in a fresh session on a clean tree: Ducks asks the depth; levels 2, 3 and 4 produce their output; a rejection lands in the area note and is skipped on the next run. Level 2 on this repo at f993559 gives frontend 38, plugin 37, backend 11 (the hot-spot count was run by hand).
+- The owner sees the "How deep?" question in an interactive `/peep:ducks` on a clean tree; headless runs cannot show it.
