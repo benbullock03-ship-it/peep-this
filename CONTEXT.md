@@ -121,7 +121,7 @@ The forward-looking grill: batched rounds of questions about a new idea or probl
 _Avoid_: grill, interview, brainstorm
 
 **Ducks**:
-The present-tense check of a repo: unclosed and parked tickets, failing tests, rules that bite, risks of regression. Ends in a read-back, then a tidy list or "clear to proceed".
+The present-tense check of a repo: loose ends (unclosed and parked tickets, failing tests, rules that bite), a read-back, then acting on a yes. Nothing loose: no question, just "clear to proceed". Hot spots and pattern cards are Goose's, not Ducks'.
 _Avoid_: audit, status, standup
 
 **Read-back**:

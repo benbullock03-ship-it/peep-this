@@ -1,7 +1,7 @@
 import { TIP_TEXT } from "./tip";
 import type { Tip } from "./model";
 
-/** learned.rs `Learned`: ids of tips shown, Peep skills run and patterns a Ducks report cited. */
+/** learned.rs `Learned`: ids of tips shown, Peep skills run and patterns a Goose health report cited. */
 export type Learned = { tips: string[]; skills: string[]; patterns: string[] };
 
 export const TOPICS = ["context", "rhythm", "testing", "working with sessions", "architecture"] as const;

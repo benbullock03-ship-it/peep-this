@@ -7,9 +7,7 @@ label: "Ducks: get your ducks in a row"
 
 # /peep:ducks
 
-The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs.
-
-**Nothing is written, staged or committed before the owner's yes to the read-back.**
+The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. **Nothing is written, staged or committed before the owner's yes to the read-back.**
 
 ## 0. Repo setup
 
@@ -25,7 +23,7 @@ Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run,
 
 ## 3. Nothing loose
 
-No loose ends and no Pack Up note: one AskUserQuestion, header `Depth`, "How deep?", levels 1 to 5 each with its rough cost, level 1 recommended. Levels and what each adds: `references/depth.md`. No AskUserQuestion tool or no answer (e.g. a headless run): level 1, `(unconfirmed)`. Level 1: skip to the output with `clear to proceed`. No read-back. Ducks never edits code at any level; acting on a candidate means drafting a ticket on a yes.
+No loose ends and no Pack Up note: no question, no read-back; straight to the output with `next: clear to proceed`. Hot spots and pattern cards are Goose's (`/peep:goose health`), not Ducks'. Ducks never edits code.
 
 ## 4. Questions, once
 
@@ -43,9 +41,7 @@ Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 If `.peep/reel.md` exists (F§5) and the next ticket or a loose ticket does not serve its `north_star` or hits a `non_goals` entry, add one line under **Watch**: `drift: <id> <why>`. It never blocks and is not a question.
 No `.peep/reel.md` and the `ducks.reel` date in `.peep/runs` is not today: one **Watch** line `no north star yet: /peep:walk` (also in the output's `loose:` when there is no read-back), then set `ducks.reel: <YYYY-MM-DD>`.
 
-No line outside the groups except F§4's last line.
-
-A correction gets a fresh, complete read-back. "stop" or "no": reply `peep ducks: nothing written.` and stop.
+No line outside the groups except F§4's last line. A correction gets a fresh, complete read-back. "stop" or "no": reply `peep ducks: nothing written.` and stop.
 
 ## 6. Act on yes
 
@@ -62,7 +58,7 @@ loose: <short list of what stays open, done left out first, then stale doing> | 
 next: /peep:ticket <id> | clear to proceed
 ```
 
-`next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose: `peep ducks: 0 loose ends, 0 acted on`, then `depth: <level>` (adding ` (unconfirmed)` when nobody answered), then `next: clear to proceed`. Level 2 and up: their lines from `references/depth.md` (hot spots, cards, top pick) go between the first line and `next`.
+`next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose, three lines: `peep ducks: 0 loose ends, 0 acted on`, `deeper look: /peep:goose health`, `next: clear to proceed`. A no-north-star nudge (step 5) adds `loose: no north star yet: /peep:walk` before `next`.
 
 ## Last step: run count
 

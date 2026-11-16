@@ -1,6 +1,6 @@
 # Health report
 
-The page `/peep:goose health` writes. It takes over what Ducks depth levels 2 to 5 produce (`ducks/references/depth.md`): hot spots, candidate cards, pattern cards. Read-only; nothing edits code.
+The page `/peep:goose health` writes. It takes over the hot spots, candidate cards and pattern cards Ducks used to make. Read-only; nothing edits code.
 
 ## 1. Gather
 
@@ -32,4 +32,4 @@ Anywhere outside `.peep/graph/` that you clean up, or a scratch path:
 
 `peep` is `success` only when every group is clear. `report.mjs` writes `.peep/graph/candidates.json` from `candidates` unchanged (the Learned list reads `cards[].pattern` from it) and turns each distinct `pattern` into a pattern card on the page from `${CLAUDE_PLUGIN_ROOT}/references/patterns.md`. A repo with no candidates still gets its findings; it shows no pattern card.
 
-Then `report.mjs health .`, open the page, and name the top pick in the read-back. Drafting a ticket for it is Ducks' job.
+Then `report.mjs health .`, open the page, and name the top pick in the read-back. To turn it into tickets, the owner runs `/peep:qt <pick>`.

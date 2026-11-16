@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { areaLinks, buildImportMap, callersOf, fixBrief, layoutAreas, liveSessions, openTweets, parseAreas, parsePatterns, peepLook, readLooks, renderPage, renderReport, run } from "./map.mjs";
+import { areaLinks, buildImportMap, callersOf, layoutAreas, liveSessions, openTweets, parseAreas, parsePatterns, peepLook, readLooks, renderPage, run } from "./map.mjs";
 
 test("area links fold file imports; layout puts needers left of what they need, cycles bounded", () => {
   const map = { nodes: [{ id: "a1", area: "ui" }, { id: "a2", area: "ui" }, { id: "b", area: "core" }, { id: "c", area: "io" }], edges: [["a1", "b"], ["a2", "b"], ["a1", "a2"], ["b", "c"]] };
@@ -109,32 +109,11 @@ test("--graphify folds a graphify graph.json to file edges and writes the page",
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test("a report puts candidate cards above the map, top pick first, with lesson, ELI5 and brief", () => {
+test("parsePatterns reads the six pattern rows with lesson and ELI5", () => {
   const md = fs.readFileSync(new URL("../../../references/patterns.md", import.meta.url), "utf8");
   const patterns = parsePatterns(md);
   expect(Object.keys(patterns)).toHaveLength(6);
-  const report = {
-    top: 1,
-    commands: { build: "npm run build", test: "npm test" },
-    cards: [
-      { name: "A <b>", badge: "Speculative", pattern: "god-file", files: ["src/a.ts"], problem: "p1", fix: "f1" },
-      { name: "Store seam", badge: "Strong", pattern: "leaky-seam", files: ["src/store.ts", "src/rows.ts"], problem: "rows read store internals", fix: "add a query function",
-        before: { nodes: ["rows", "store"], edges: [[0, 1]] }, after: { nodes: ["rows", "query", "store"], edges: [[0, 1], [1, 2]] }, steps: ["add query()", "move reads"] },
-    ],
-  };
-  const html = renderPage({ map: { nodes: [], edges: [] }, areas: [], sessions: [], peepJs: "", title: "t", report, patterns });
-  expect(html.indexOf('id="report"')).toBeLessThan(html.indexOf('id="board"'));
-  expect(html.indexOf("Store seam")).toBeLessThan(html.indexOf("A &lt;b&gt;"));
-  expect(html).toContain(patterns["leaky-seam"].lesson);
-  expect(html).toContain(patterns["god-file"].eli5);
-  expect(html.match(/<details>/g)).toHaveLength(2);
-  expect(html).toMatch(/state="stuck"[\s\S]*state="working"[\s\S]*state="success"/);
-  expect(html).not.toMatch(/https?:\/\//);
-  const brief = fixBrief(report.cards[1], report.commands);
-  expect(brief).toContain("Files: src/store.ts, src/rows.ts");
-  expect(brief).toContain("2. move reads");
-  expect(brief).toContain("Check: npm run build && npm test");
-  expect(renderReport({ cards: [] })).toBe("");
+  expect(patterns["god-file"].eli5).toBeTruthy();
 });
 
 test("peepLook matches the widget's hashed identity and honours its look overrides", () => {

@@ -6,6 +6,6 @@
 
 ## Querying the map
 
-- `/peep:goose` writes `.peep/graph/graph.json` (`edges` are `[from, to]`: from imports to) and `index.html`. Who calls a file: filter edges by `to`.
+- `/peep:goose` writes `.peep/graph/graph.json` (`edges` are `[from, to]`: from imports to) and `map.html`. Who calls a file: filter edges by `to`.
 - With graphify built: `graphify query "what calls state.rs"`, `graphify path "A" "B"`, `graphify explain "X"`.
 - Read the map before grepping; rerun `/peep:goose` after big moves.

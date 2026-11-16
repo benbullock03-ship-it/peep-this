@@ -1,4 +1,4 @@
-//! The learned list (AV-110): tips shown, Peep skills run and patterns a Ducks report cited, kept in settings.
+//! The learned list (AV-110): tips shown, Peep skills run and patterns a Goose health report cited, kept in settings.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -47,7 +47,7 @@ pub fn save(path: &Path, l: &Learned) {
     }
 }
 
-/// Pattern ids on the cards of `<root>/.peep/graph/candidates.json`, the Ducks report (ducks references/report.md §2).
+/// Pattern ids on the cards of `<root>/.peep/graph/candidates.json`, written by `/peep:goose health` (schema: ducks references/report.md §2).
 pub fn cited_patterns(root: &Path) -> Vec<String> {
     let Ok(text) = std::fs::read_to_string(root.join(".peep").join("graph").join("candidates.json")) else { return vec![] };
     let Ok(v) = serde_json::from_str::<Value>(&text) else { return vec![] };
@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn learned_reads_cited_patterns_from_the_ducks_report() {
+    fn learned_reads_cited_patterns_from_the_health_report() {
         let dir = tmp("report");
         assert!(cited_patterns(&dir).is_empty());
         std::fs::create_dir_all(dir.join(".peep/graph")).unwrap();

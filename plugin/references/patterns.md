@@ -1,6 +1,6 @@
 # Architecture patterns
 
-The names Ducks' candidate cards use (depth levels 3 to 5). A card cites one `id`. Each entry: the lesson in one line, an ELI5, and where the idea comes from. The learned list (AV-110) reads this file.
+The names the Goose health report's candidate cards use. A card cites one `id`. Each entry: the lesson in one line, an ELI5, and where the idea comes from. The learned list (AV-110) reads this file.
 
 | id | Name | Lesson | ELI5 | Source |
 |---|---|---|---|---|

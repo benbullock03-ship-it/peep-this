@@ -259,23 +259,6 @@ export function openTweets(board) {
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const json = (o) => JSON.stringify(o).replace(/</g, "\\u003c");
 
-const BADGES = { "Strong": "strong", "Worth exploring": "worth", "Speculative": "spec" };
-
-// A before/after sketch: modules as boxes in a row, imports as arcs above them.
-export function diagram(spec, label) {
-  const nodes = spec?.nodes || [], edges = spec?.edges || [];
-  const w = 84, gap = 16, h = 26, top = 34, width = Math.max(1, nodes.length) * (w + gap) - gap + 8;
-  const cx = (i) => 4 + i * (w + gap) + w / 2;
-  const arcs = edges.filter(([a, b]) => nodes[a] != null && nodes[b] != null && a !== b).map(([a, b]) => {
-    const x1 = cx(a), x2 = cx(b), lift = 8 + Math.abs(b - a) * 7;
-    return `<path d="M${x1} ${top} C${x1} ${top - lift} ${x2} ${top - lift} ${x2} ${top - 4}" class="arc"/><path d="M${x2 - 3} ${top - 8} L${x2} ${top - 3} L${x2 + 3} ${top - 8}" class="arc"/>`;
-  }).join("");
-  const boxes = nodes.map((n, i) => `<rect x="${4 + i * (w + gap)}" y="${top}" width="${w}" height="${h}" class="box"/><text x="${cx(i)}" y="${top + 17}" text-anchor="middle">${esc(String(n).slice(0, 13))}</text>`).join("");
-  return `<figure class="dia"><svg viewBox="0 0 ${width} ${top + h + 4}" width="${width}" height="${top + h + 4}" role="img" aria-label="${esc(label)}: ${esc(nodes.join(", "))}">${arcs}${boxes}</svg><figcaption>${esc(label)}</figcaption></figure>`;
-}
-
-const BADGE_STATE = { strong: "waiting", worth: "thinking", spec: "idle" };
-
 // Pattern rows of references/patterns.md: id -> { name, lesson, eli5, source }.
 export function parsePatterns(md) {
   const out = {};
@@ -286,56 +269,7 @@ export function parsePatterns(md) {
   return out;
 }
 
-// Plain-text brief a session can act on: what, where, why, target, steps, checks, limits.
-export function fixBrief(c, commands = {}) {
-  const lines = [
-    `Fix candidate: ${c.name} (${c.badge || "Speculative"}, pattern ${c.pattern || "none"})`,
-    `Files: ${(c.files || []).join(", ")}`,
-    `Why (deletion test): ${c.why || c.problem}`,
-    `Target shape: ${c.target || c.fix}`,
-    "Steps:",
-    ...(c.steps || [c.fix]).map((s, i) => `${i + 1}. ${s}`),
-    `Check: ${[commands.build, commands.test].filter(Boolean).join(" && ") || "the repo's build and test commands"}`,
-    `Do not touch: ${c.dont || "anything outside the files above"}`,
-    "Draft this as a ticket first unless the owner says to go straight in.",
-  ];
-  return lines.join("\n");
-}
-
-const panel = (state, body, cap) => `<div class="panel"><peep-bot state="${state}" color="yellow" size="48" hover="off"></peep-bot>${body}<span class="cap">${esc(cap)}</span></div>`;
-
-export function renderReport(report, patterns = {}) {
-  const cards = report?.cards || [];
-  if (!cards.length) return "";
-  const top = Number.isInteger(report.top) && cards[report.top] ? report.top : 0;
-  const card = (c, i) => {
-    const b = BADGES[c.badge] || "spec", p = patterns[c.pattern];
-    return `<article class="card${i === top ? " top" : ""}" id="c${i + 1}">
-<h3><peep-bot state="${BADGE_STATE[b]}" color="yellow" size="32" hover="off"></peep-bot><span class="badge ${b}">${esc(c.badge || "Speculative")}</span> ${i + 1}. ${esc(c.name)}${i === top ? `<span class="toptag">top pick</span>` : ""}</h3>
-${p ? `<p class="pattern"><b>${esc(p.name)}</b>: ${esc(p.lesson)}</p>` : ""}
-<p class="files">${(c.files || []).map(esc).join(", ")}</p>
-<div class="strip">${panel("stuck", diagram(c.before, "before"), "before")}${panel("working", `<p class="step">${esc(c.step || c.fix)}</p>`, "the fix")}${panel("success", diagram(c.after, "after"), "after")}</div>
-<p><b>Problem:</b> ${esc(c.problem)}</p><p><b>Fix:</b> ${esc(c.fix)}</p>
-${(c.wins || []).length ? `<ul class="wins">${c.wins.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
-${c.adr ? `<p class="adr"><b>ADR conflict:</b> ${esc(c.adr)}</p>` : ""}
-<details><summary>Explain like I'm 5</summary><p>${esc(c.eli5 || p?.eli5 || c.problem)}</p>${p ? `<p class="src">Source: ${esc(p.source)}</p>` : ""}</details>
-<div class="brief"><button type="button" class="copy" data-for="b${i + 1}">Copy fix brief</button><span class="copied" role="status"></span><textarea id="b${i + 1}" readonly hidden>${esc(fixBrief(c, report.commands))}</textarea></div>
-</article>`;
-  };
-  const rest = cards.map((_, i) => i).filter((i) => i !== top);
-  return `<section id="report"><header><h2>Architecture candidates</h2>
-<p class="legend"><span class="badge strong">Strong</span> deleting it would clearly pile complexity elsewhere <span class="badge worth">Worth exploring</span> likely, needs a closer look <span class="badge spec">Speculative</span> a hunch worth a minute</p></header>
-<div class="toppick"><peep-bot state="idle" color="yellow" size="96" hover="off"></peep-bot>${card(cards[top], top)}</div>
-${rest.map((i) => card(cards[i], i)).join("\n")}
-<p class="key">Ducks asks which one to explore next. Nothing here edits code; a copied brief is for a session to draft a ticket from.</p></section>
-<script>
-for(const b of document.querySelectorAll('.copy'))b.onclick=async()=>{const t=document.getElementById(b.dataset.for).value,s=b.nextElementSibling;
-try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();document.execCommand('copy');a.remove()}
-s.textContent='Copied. Paste it in the session.';setTimeout(()=>s.textContent='',4000)};
-</script>`;
-}
-
-export function renderPage({ map, areas, sessions, peepJs, title, report, patterns, tweets = [] }) {
+export function renderPage({ map, areas, sessions, peepJs, title, tweets = [] }) {
   const order = [...areas.map((a) => a.name), "other"].filter((n) => map.nodes.some((x) => x.area === n));
   const links = areaLinks(map);
   const data = { nodes: map.nodes, order, links, at: layoutAreas(order, links), sessions, tweets, areas };
@@ -384,50 +318,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .links button:hover{box-shadow:inset 0 0 0 2px var(--ps-accent)}
 .sess{display:flex;align-items:flex-end;gap:10px}
 .gfoot{display:flex;flex-wrap:wrap;gap:6px 16px;padding:6px 10px;border-top:2px solid var(--ps-edge);font-size:11px;color:var(--ps-muted)}
-.key{color:var(--muted);font-size:12px;margin-top:8px}
-#report{padding:0 0 16px;display:grid;gap:16px}
-#report>header{margin:0;padding:12px 16px;border:2px solid var(--text);background:var(--panel);box-shadow:6px 6px 0 #000}
-#report h2{margin:0;font:600 18px "Fredoka",system-ui,sans-serif}
-.legend{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
-.card{border:2px solid var(--text);background:var(--panel);box-shadow:6px 6px 0 #000;padding:0 12px 12px;position:relative}
-.card.top{border-color:var(--accent)}
-.card h3{margin:0 -12px 8px;padding:6px 12px;font:600 15px "Fredoka",system-ui,sans-serif;background:repeating-linear-gradient(0deg,var(--panel2) 0 3px,var(--panel) 3px 6px);border-bottom:2px solid var(--text)}
-.card p{margin:6px 0}
-.badge{display:inline-block;padding:0 6px;border:2px solid currentColor;font:600 11px "IBM Plex Mono",monospace;text-transform:uppercase}
-.badge.strong{color:var(--accent)}.badge.worth{color:var(--in)}.badge.spec{color:var(--muted)}
-.card h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.toptag{margin-left:auto;font:600 11px "IBM Plex Mono",monospace;color:var(--accent);text-transform:uppercase}
-.toppick{display:flex;align-items:flex-end;gap:12px}
-.toppick>peep-bot{flex:none}
-.toppick>.card{flex:1;min-width:0}
-@media (max-width:640px){.toppick{flex-direction:column;align-items:flex-start}}
-.pattern{color:var(--muted)}.pattern b{color:var(--text)}
-.card .files{font:12px "IBM Plex Mono",monospace;color:var(--muted);word-break:break-all}
-.strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0}
-@media (max-width:640px){.strip{grid-template-columns:1fr}}
-.panel{border:2px solid var(--text);background:var(--desk);padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
-.panel .cap{font:11px "IBM Plex Mono",monospace;color:var(--muted);text-transform:uppercase}
-.panel .step{margin:auto 0;text-align:center;font-weight:600}
-.dia{margin:0;max-width:100%;overflow-x:auto}.dia svg{display:block;max-width:100%;height:auto}
-.dia figcaption{display:none}
-.src{font-size:12px;color:var(--muted)}
-.brief{display:flex;align-items:center;gap:8px;margin-top:8px}
-.copy{font:600 13px "IBM Plex Sans",system-ui,sans-serif;color:var(--text);background:var(--panel2);border:2px solid var(--text);box-shadow:3px 3px 0 #000;padding:4px 10px;cursor:pointer}
-.copy:hover{background:var(--accent);color:var(--desk)}
-.copy:active{transform:translate(3px,3px);box-shadow:none}
-.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.copied{font-size:12px;color:var(--muted)}
-.dia figcaption{font:11px "IBM Plex Mono",monospace;color:var(--muted);text-transform:uppercase}
-.dia .box{fill:var(--panel2);stroke:var(--text);stroke-width:2}
-.dia .arc{fill:none;stroke:var(--out);stroke-width:2}
-.dia text{fill:var(--text);font:11px "IBM Plex Mono",monospace}
-.wins{margin:6px 0;padding-left:18px;color:var(--muted)}
-.adr{border-left:4px solid var(--out);padding-left:8px}
-details{margin-top:8px;border:2px dashed var(--line);padding:4px 8px}
-summary{cursor:pointer;font-weight:600}
-summary:focus-visible{outline:2px solid var(--accent)}
 </style></head><body>
-${renderReport(report, patterns)}
 <div class="gwin">
 <div class="head"><span class="title">Peep This · graph</span><span class="sub" id="sub"></span></div>
 <div class="gbody"><div class="gmap" id="board"></div><div class="gpanel" id="panel" hidden></div></div>
@@ -516,17 +407,15 @@ export function run(root, opts = {}) {
   const outDir = path.join(root, ".peep", "graph");
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "graph.json"), JSON.stringify(map, null, 1));
-  const report = opts.report ? JSON.parse(fs.readFileSync(opts.report, "utf8")) : undefined;
-  const patterns = report ? parsePatterns(fs.readFileSync(path.join(here, "..", "..", "..", "references", "patterns.md"), "utf8")) : {};
   const board = path.join(root, ".peep", "tweets.md");
   const tweets = fs.existsSync(board) ? openTweets(fs.readFileSync(board, "utf8")) : [];
-  fs.writeFileSync(path.join(outDir, "index.html"), renderPage({ map, areas, sessions, peepJs, title: path.basename(path.resolve(root)), report, patterns, tweets }));
-  return { outDir, files: map.nodes.length, edges: map.edges.length, sessions: sessions.length, source: opts.graphify ? "graphify" : "imports", cards: report?.cards?.length || 0 };
+  fs.writeFileSync(path.join(outDir, "index.html"), renderPage({ map, areas, sessions, peepJs, title: path.basename(path.resolve(root)), tweets }));
+  return { outDir, files: map.nodes.length, edges: map.edges.length, sessions: sessions.length, source: opts.graphify ? "graphify" : "imports" };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
-  const graphify = flag("--graphify"), report = flag("--report");
-  console.log(JSON.stringify(run(path.resolve(args[0] || "."), { graphify, report })));
+  const graphify = flag("--graphify");
+  console.log(JSON.stringify(run(path.resolve(args[0] || "."), { graphify })));
 }
