@@ -1,7 +1,7 @@
 ---
 id: AV-91
 title: Tweet Tweet skill - tweet board, live pings, lessons into area notes
-status: doing
+status: done
 depends: [AV-74]
 ---
 
@@ -31,6 +31,8 @@ depends: [AV-74]
 - Board check at start: work.md §1.5 (little peeps inherit it via step 1); Big Peep §1.2 reads the board and names matching tweets in each brief.
 - Why line habit: think before code (`a question on the board costs a minute; a clash found at commit costs the afternoon`).
 
-## Owed before done
+## Done 2026-11-16
 
-- Live check for "Done when": two sessions on one repo exchange a tweet about a shared file, then `/peep:ticket close` folds the answer into the area note and removes it from the board. Owner to run.
+- Live check in a scratch repo (setup `area.app: src/`, tickets T-01 and T-02 both on `src/a.js`): this session (T-01) posted clash tweet 1 and pinged the live peer `r91-1c` found by `ListAgents`; that headless session (T-02) replied with `/peep:tweet reply 1`, which set `answered` and pinged back (received here as a cross-session message).
+- A third headless session ran `/peep:ticket close T-01`: it folded the answer into `kb/app.md` under `## Watch out` with no tweet number or handle, deleted `.peep/tweets.md` (no tweets left), archived the ticket and committed `T-01: close` without staging the board.
+- The peer must run in the same permission mode as the pinger, or its harness holds the ping for approval.
