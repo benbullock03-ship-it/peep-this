@@ -1,21 +1,19 @@
 ---
 id: AV-114
 title: Six new accessories for earned and supporter cosmetics
-status: blocked
+status: done
 depends: []
 attended: true
-reason: the art is the owner's; peep.js changes come only from the owner
-wake: owner sends a new peep.js with the six accessories
 ---
 
 # AV-114 — Six new accessories for earned and supporter cosmetics
 
 **What to build:** Vendor the owner's new `peep.js` carrying six accessories: five rhythm milestones and one supporter.
 
-- [ ] Owner draws: first Pack Up, first Ducks with 0 loose, 10 tickets closed, first Coderot with 0 survivors, first architecture candidate acted on, supporter
-- [ ] Replace `design/peep.js`, `src/vendor/peep.js` and `plugin/skills/goose/assets/peep.js`, byte-identical
-- [ ] The six are excluded from the identity hash (the hashed set stays the 14)
-- [ ] Vitest: hash output unchanged for existing cwds
+- [x] Owner draws: first Pack Up, first Ducks with 0 loose, 10 tickets closed, first Coderot with 0 survivors, first architecture candidate acted on, supporter
+- [x] Replace `design/peep.js`, `src/vendor/peep.js` and `plugin/skills/goose/assets/peep.js`, byte-identical
+- [x] The six are excluded from the identity hash (the hashed set stays the 14)
+- [x] Vitest: hash output unchanged for existing cwds
 
 **Done when:** all three copies match, the six render on a test page, and no existing project's hashed look changed.
 
@@ -34,3 +32,9 @@ Attach: `design/peep.js`, `design/shell/` (SHELL-SPEC.md, shell.css, demo.html),
 > 6. `supporter`: sponsor (a small heart badge; warm, not premium-gold, distinct from `crown` and `halo`)
 >
 > Deliver the full updated `peep.js` and one preview page: the six x three poses (idle, working, success) x five colours at 96px, plus a 32px row, dark and light.
+
+## Done 2026-11-16
+
+- Owner confirmed the uncommitted `peep.js` (new ids `packed | clear | ten | spotless | architect | supporter`, new colours `pack`, `packS`, `shineS`) is final; all three copies byte-identical.
+- `EARNED_ACCESSORIES` in `src/identity.ts`; the hash still uses the 14, pinned outputs unchanged, new test `never hashes to an earned accessory`.
+- `?accessories` page now shows the six; all render in idle, waiting and error (`.playwright-mcp/av114-acc.png`).

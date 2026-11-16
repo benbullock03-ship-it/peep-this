@@ -5,6 +5,7 @@
    color: yellow | pink | lavender | blue | green | any CSS colour
    accessory: none | hardhat | headphones | glasses | bow | party | chef
               crybaby | beanie | crown | shades | flowers | halo | wizard
+              packed | clear | ten | spotless | architect | supporter
    energy: 1–10 (default 3, sets 8–12fps) · hover="off" disables parallax/reaction
    JS: el.state = 'waiting'  (also .color, .accessory, .energy)
    Drawn on a 32×32 grid: sizes 32, 64, 96… are pixel-perfect. */
@@ -33,7 +34,8 @@
     bow: H('#E9557A'), bowS: H('#B93A5E'), stripe: H('#7CC8FF'), pom: H('#FFE066'), chef: H('#F8F5EF'), chefS: H('#CFC8BC'),
     drop: H('#7FE6FF'), amber: H('#FFB23E'), red: H('#FF5D5D'), lav: H('#C7B2FF'), zz: H('#B8C2D6'), mint: H('#7DFFA6'), gold: H('#FFE066'),
     hair: H('#FF6FAE'), hairL: H('#FFB3D4'), hairS: H('#C93E80'), ink: H('#3A2A55'), silver: H('#C9CED8'), silverL: H('#F4F6FA'),
-    knit: H('#2E2A36'), knitS: H('#1E1B24'), knitL: H('#4A4458'), goldS: H('#D9A520'), leaf: H('#5DBE6A'), wiz: H('#5B4BC4'), wizS: H('#3F3296')
+    knit: H('#2E2A36'), knitS: H('#1E1B24'), knitL: H('#4A4458'), goldS: H('#D9A520'), leaf: H('#5DBE6A'), wiz: H('#5B4BC4'), wizS: H('#3F3296'),
+    pack: H('#C8743A'), packS: H('#8F4E22'), shineS: H('#2FA8D8')
   };
   const GLYPH = {
     '?': ['111', '001', '011', '000', '010'], '!': ['11', '11', '11', '00', '11'],
@@ -300,6 +302,30 @@
         R(16, 1, 17, 1, C.wiz); R(18, 0, 18, 0, C.wiz); R(10, 8, 21, 8, C.wizS); R(9, 9, 22, 9, C.wizS);
         set(14 + hx, 5 + hy, C.gold); set(17 + hx, 3 + hy, C.gold); set(16 + hx, 6 + hy, C.white);
         ax = 10; ay = 11;
+      } else if (acc === 'packed') {
+        // pack + bedroll over the shoulder, strap ends on the chest; rides the body
+        const oy = by + P.sq;
+        rect(5, 11, 8, 12, C.stripe, bx, oy); rect(5, 11, 5, 12, C.white, bx, oy);
+        rect(5, 13, 8, 18, C.pack, bx, oy); rect(5, 15, 8, 15, C.packS, bx, oy); rect(5, 18, 8, 18, C.packS, bx, oy); rect(6, 16, 7, 16, C.gold, bx, oy);
+        for (let i = 0; i < 3; i++) { set(9 + i + bx, 19 + i + oy, C.packS); set(22 - i + bx, 19 + i + oy, C.packS); }
+      } else if (acc === 'clear') {
+        R(16, 3, 18, 3, C.pom); R(15, 4, 18, 5, C.pom); R(12, 5, 12, 5, C.pom); R(12, 6, 19, 7, C.pom); R(13, 8, 18, 8, C.goldS); R(14, 7, 16, 7, C.goldS);
+        R(19, 4, 20, 4, C.hat); R(19, 5, 19, 5, C.hatS); R(17, 4, 17, 4, C.eye); R(16, 3, 16, 3, C.white);
+        ax = 8; ay = 12;
+      } else if (acc === 'ten') {
+        const oy = by + P.sq;
+        rect(14, 19, 17, 20, C.red, bx, oy); rect(15, 19, 16, 20, C.white, bx, oy);
+        rect(15, 21, 16, 24, C.hatS, bx, oy); rect(14, 22, 17, 23, C.hatS, bx, oy); rect(15, 22, 16, 23, C.gold, bx, oy); set(15 + bx, 22 + oy, C.white);
+      } else if (acc === 'spotless') {
+        R(22, 5, 22, 9, C.shineS); R(20, 7, 24, 7, C.shineS); R(21, 6, 23, 8, C.drop); R(22, 6, 22, 8, C.white); R(21, 7, 23, 7, C.white);
+      } else if (acc === 'architect') {
+        R(24, 6, 25, 6, C.pad); R(23, 7, 24, 7, C.silver);
+        for (let i = 0; i < 3; i++) { R(22 - i, 8 + i, 22 - i, 8 + i, C.hat); R(23 - i, 8 + i, 23 - i, 8 + i, C.hatS); }
+        R(19, 11, 20, 11, C.hatL); R(18, 12, 18, 12, C.dark);
+      } else if (acc === 'supporter') {
+        const oy = by + P.sq;
+        rect(13, 20, 14, 20, C.bow, bx, oy); rect(16, 20, 17, 20, C.bow, bx, oy); rect(13, 21, 17, 21, C.bow, bx, oy); rect(14, 22, 16, 22, C.bow, bx, oy);
+        set(15 + bx, 23 + oy, C.bowS); set(16 + bx, 22 + oy, C.bowS); set(17 + bx, 21 + oy, C.bowS); set(13 + bx, 20 + oy, C.white);
       }
 
       // antenna

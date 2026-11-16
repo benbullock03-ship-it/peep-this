@@ -3,6 +3,8 @@ export const ACCESSORIES = [
   "none", "hardhat", "headphones", "glasses", "bow", "party", "chef",
   "crybaby", "beanie", "crown", "shades", "flowers", "halo", "wizard",
 ] as const;
+// Earned and supporter cosmetics (AV-114): never hashed, worn only once unlocked.
+export const EARNED_ACCESSORIES = ["packed", "clear", "ten", "spotless", "architect", "supporter"] as const;
 
 export type Color = (typeof COLORS)[number];
 export type Accessory = (typeof ACCESSORIES)[number];

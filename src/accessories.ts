@@ -1,11 +1,11 @@
-import { ACCESSORIES, COLORS } from "./identity";
+import { ACCESSORIES, COLORS, EARNED_ACCESSORIES } from "./identity";
 
 const POSES = ["idle", "waiting", "error"] as const;
 
 /** Dev-only `?accessories` page: every accessory at 96px in three poses, for the owner's art check. */
 export function renderAccessoryCheck(root: HTMLElement) {
   root.classList.add("acc-check");
-  ACCESSORIES.forEach((acc, i) => {
+  [...ACCESSORIES, ...EARNED_ACCESSORIES].forEach((acc, i) => {
     const cell = document.createElement("figure");
     cell.className = "acc-cell";
     for (const pose of POSES) {

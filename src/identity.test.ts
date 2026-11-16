@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCESSORIES, COLORS, fnv1a, identityFor, normaliseCwd } from "./identity";
+import { ACCESSORIES, COLORS, EARNED_ACCESSORIES, fnv1a, identityFor, normaliseCwd } from "./identity";
 
 describe("fnv1a", () => {
   it("matches the published 32-bit FNV-1a vectors", () => {
@@ -45,5 +45,12 @@ describe("identityFor", () => {
     }
     expect([...colors].sort()).toEqual([...COLORS].sort());
     expect([...accs].sort()).toEqual([...ACCESSORIES].sort());
+  });
+
+  it("never hashes to an earned accessory", () => {
+    expect(ACCESSORIES).toHaveLength(14);
+    for (let i = 0; i < 2000; i++) {
+      expect(EARNED_ACCESSORIES).not.toContain(identityFor(`c:/projects/p${i}`).accessory);
+    }
   });
 });
