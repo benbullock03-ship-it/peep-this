@@ -1,7 +1,7 @@
 ---
 id: AV-113
 title: Own your peep - colour and accessory override
-status: doing
+status: done
 depends: []
 ---
 
@@ -17,9 +17,17 @@ depends: []
 
 **Done when:** a changed peep survives a restart and shows everywhere that project appears, and reset restores the hashed look; the owner confirms.
 
-## Owed before done
+## Done 2026-11-16
 
-- Live check in `npm run tauri dev`: pick a look, restart the widget, see it on row, strip, children (colour), closed shelf, flyout and a waiting toast's icon; Reset restores the hashed look.
+Live check in `npm run tauri dev` (CDP 9333) on a throwaway session in a scratch repo, hashed look yellow/bow, key `0ffc2fe2`:
+
+- Picked pink + crown in the open row's picker: stage 96px went pink/crown, `peepLooks` saved.
+- Restarted the widget: row (48) and strip (40) still pink/crown.
+- Strip mode, `Notification` hook POST: flyout peep pink/crown `waiting`; the waiting toast (wpndatabase id 16720) carries `appLogoOverride` `icons/0ffc2fe2.png`, drawn pink/crown.
+- Reset in the picker: `peepLooks` empty, stage, strip and toast icon back to yellow/bow, Reset disabled.
+- Picked again, ended the session: closed shelf entry pink/crown; reset (`set_peep_look` null) put it back to yellow/bow.
+- Owner looked at the screenshots and said "looks good!".
+- Children (colour only) not seen live; covered by the row tests.
 
 ## Decisions taken without a ruling
 
