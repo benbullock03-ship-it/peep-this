@@ -8,6 +8,7 @@
 - Test runs arrive as `Event::TestRun` from `ingest/server.rs`: a Bash/PowerShell command matching a non-`cd` step of the repo setup's `test` line (`tickets::setup_test`).
 - Worry holds 5 min or until a passing matching run; cheer 8s for other sessions in a repo when a ticket closes; greet 5s; nap after 10 min in `idle` or `success`.
 - Ended sessions go to the closed shelf (`closed.rs` `Shelf`): `store.rs` hands the session over as it was on end, `closed::entry` records its end-state flags (uncommitted, no Pack Up, attention, ticket doing), and `Snapshot.closed` carries the shelf to the frontend (`ClosedSession` in `src/model.ts`). Wired in `lib.rs` `wire_closed`.
+- `end_session(session_id)` (`focus.rs`, a Tauri command only, never on the event server) re-reads `sessions/<pid>.json`, compares `procStart` with the OS start time and kills through the same process handle. `Ok(true)` killed, `Ok(false)` already gone, `Err` otherwise; the normal lifecycle then takes the row to done and fades it.
 
 ## Watch out
 
@@ -19,10 +20,11 @@
 - Greet only comes from sessions born 2s or more before the newcomer, so one startup scan doesn't greet itself.
 - Nudge is fixed at 80% (`mood::NUDGE_PCT_DEFAULT`) until a setting exists; ended sessions have no mood.
 - The shelf persists across restarts and prunes on both load and write.
+- `end_session` fails closed: no session file, no `procStart` or an unreadable start time refuses. A session with no session file (a child `claude` that inherited `CLAUDE_CODE_CHILD_SESSION`) exists only through hooks, so it cannot be ended and its row stays live after its process dies.
 
 ## Why it's like this
 
 - Cheer and greet outrank the rest because they are brief and would otherwise never be seen.
 - Command hooks instead of http hooks: Claude Code reported every refused connection as a hook error while the widget was closed; the relay stays silent.
 
-last touched: AV-80, 2026-11-16
+last touched: AV-96, 2026-11-16

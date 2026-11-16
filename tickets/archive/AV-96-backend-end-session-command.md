@@ -1,7 +1,7 @@
 ---
 id: AV-96
 title: Backend end_session command
-status: done
+status: closed
 depends: [AV-95]
 ---
 
