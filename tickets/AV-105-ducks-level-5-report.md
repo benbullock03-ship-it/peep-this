@@ -33,6 +33,6 @@ depends: [AV-104]
 
 ## Owed before done
 
-- Owner looks at `.peep/graph/index.html` (built on this repo at HEAD, 3 real cards) and confirms what they saw.
+- ~~Owner looks at `.peep/graph/index.html` and confirms what they saw~~: confirmed 2026-11-16 ("looks good I like it").
 - `/peep:ducks` level 5 run end to end in a fresh session (this needs AV-104's ladder live run).
 - Checked so far: map.test.mjs report test; Shoot dark at 1280 and light at 375. The report renders above the map, top pick first, 13 peeps upgraded, the ELI5 fold opens, copy shows its status, no horizontal scroll. The only request is the local server's favicon.ico.
