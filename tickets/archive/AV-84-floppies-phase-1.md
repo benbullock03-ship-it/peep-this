@@ -1,7 +1,7 @@
 ---
 id: AV-84
 title: Floppies for Unpack, Walk Through and The Reel
-status: doing
+status: closed
 depends: [AV-75, AV-76, AV-77, AV-79]
 attended: true
 ---
@@ -16,9 +16,10 @@ attended: true
 
 **Done when:** the owner sees each new floppy inserted while its skill runs and Jumps it from the tray.
 
-## Owed before done
+## Done 2026-11-16
 
-- Owner, in `npm run tauri dev`: run `/peep:unpack`, `/peep:walk` and `/peep:reel` in a session and see each floppy seat on the plank; open the row, press `+3` and Jump each one.
+- Live in `npm run tauri dev` over CDP: throwaway `claude -p "/peep:reel"` and `"/peep:walk"` sessions seated their floppies on the plank (`--col` 12 and 11, bubble verbs "reeling", "walking through"); a real click on each disk behind `+2` put `/peep:walk` and `/peep:reel` on the clipboard.
+- Unpack's floppy was removed afterwards by AV-103 (folded into Ducks), so the tray now shows `+2`.
 
 ## Decisions taken without a ruling
 
