@@ -21,7 +21,8 @@ attended: true
 - `src/tray.ts` TRAY gains Sneak Peep and Scrubadubdub with SPEC §07 hover copy; `src/bubble.ts` FLOPPIES maps them to sheet columns 13 and 14 (the label colours are in the AV-88 sprites, so no CSS was needed); `state.rs` `PEEP_SKILLS` lists both, so the inserted floppy seats.
 - Tests: `tray.test.ts` (order, `+7` overflow, unlock rules now covered by TRAY alone) and cargo `phase_1_and_2_skills_seat_their_floppy`. `npm run build`, vitest 361 and `cargo test` 410 pass.
 - Shot in the `?demo` page, dark and light: `+7` opens walk, reel, sneak, scrub, bigpeep, tweet, goose in a 5 + 2 grid inside the tray; sneak shows the magenta eye, scrub the pale-blue suds; the disk box line reads "... sit behind +7".
-- Not run: a live `tauri dev` session with `/peep:sneak` or `/peep:scrub` running. The owner checks that before closing.
+- Live check (`tauri dev`, CDP on 9333, two throwaway `claude -p` sessions in scratch git repos): `get_snapshot` gave `skill=sneak` and `skill=scrub`. The screenshot showed the magenta and pale-blue floppies inserted on the planks, with bubbles "· mocking up" and "· scrubbing".
+- Jump: a real click on each disk under `+7` copied the command. The hint read "Copied /peep:sneak" and then "Copied /peep:scrub", and the clipboard read back `/peep:scrub`. This ran in the `?demo` page, not the widget: a concurrent session's half-edited `state.rs` (AV-109 `tip`) broke the dev rebuild before the in-widget Jump. Terminal focus on Jump is AV-67's unchanged path.
 
 ## Decisions taken without a ruling
 
