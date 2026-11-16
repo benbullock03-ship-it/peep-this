@@ -1,7 +1,7 @@
 ---
 id: AV-101
 title: Ducks lists done tickets first and offers batch close
-status: doing
+status: closed
 depends: []
 ---
 

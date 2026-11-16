@@ -9,7 +9,7 @@
 - Every skill's last step bumps its line in `.peep/runs` and, while the old count is below 3, ends with one `Why:` line tied to a habit: think before code, finish before starting, prove it works.
 - `/peep:reel` asks batched rounds on who it is for, the problem, the hook and non-goals, reads back, then writes `.peep/reel.md` (F§5). Research of comparables runs only if asked, at most 5.
 - Question Time (under Scope) and Ducks (under Watch) read `.peep/reel.md` only to add a `drift: <id> <why>` line for a ticket off the north star or on a non-goal.
-- Ducks lists stale `doing` tickets first: ticket file unchanged for the setup's `stale.days` (default 3, file mtime), asked as finish, park with a reason, or close. The widget's backend worries the repo's peeps on the same rule (`tickets.rs` `Repo.stale`).
+- Ducks lists `done` tickets first as one item with a count, and the read-back's **Do** line `close <n> done: <ids>` closes them all on one yes, one `<id>: close` commit each (`leave <ids>` drops some). Stale `doing` comes second: ticket file unchanged for the setup's `stale.days` (default 3, file mtime), asked as finish, park with a reason, or close. The widget's backend worries the repo's peeps on the same rule (`tickets.rs` `Repo.stale`).
 - `/peep:sneak` asks Question Time-style design rounds, reads back, builds 2 or 3 self-contained variants in `.peep/sneak/<slug>/{a,b,c}/`, serves them side by side with `skills/sneak/scripts/serve.mjs` (127.0.0.1, random port), and moves the pick to `design/<slug>/`, deleting the rest. It adds `.peep/sneak/` to `.gitignore` itself and never touches the app.
 - `/peep:goose` runs `skills/goose/scripts/map.mjs`: ts/js and Rust imports (or `--graphify graphify-out/graph.json`), files grouped by setup areas, live sessions placed by cwd, written to `.peep/graph/graph.json` (`edges` `[from, to]`) and a standalone `index.html` with `peep.js` inlined from `skills/goose/assets/`. Query instructions sit in `kb/INDEX.md`.
 - `/peep:bigpeep` is the global `/batch` rebuilt on the repo setup: little peeps follow `work.md` but never stage, commit or set status; Big Peep sets `doing`, reviews the diff, commits one per ticket. A little peep quiet 10 minutes gets one SendMessage status ask (`references/watch.md`), never a stop.
@@ -36,4 +36,4 @@
 - Unpack makes carrying on a real step that catches what changed between sessions, not "do the handoff".
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-100, 2026-11-16
+last touched: AV-101, 2026-11-16
