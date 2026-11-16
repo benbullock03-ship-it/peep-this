@@ -6,6 +6,7 @@
 - `/peep:walk` owns first run: two batched rounds (repo, then how the owner works), a read-back, then `.peep/setup.md` (F§1) with only non-default preference keys (`qt.round`, `packup.questions`, `shoot.widths`, `skills.off`), a tour (a numbered **Core** block in rhythm order: reel, qt, ticket, packup, unpack, ducks; then an unnumbered **Extras** block, each skill with a "use when" line) and a suggested first step, usually `/peep:reel`. Every other skill with no setup points to `/peep:walk`.
 - Shared formats live once in `plugin/references/formats.md` (F§1 to F§7); skills cite the section instead of restating it.
 - The AI hallmark catalogue is `plugin/references/ai-tells.md` (82 entries, slug IDs, P0 to P2 by who notices); its grep rules live in `ai-tells/rules.mjs` with `scan(text)`, and `rules.test.mjs` holds a bad and a good snippet per rule and keeps the md and `RULES` in step. Per-repo exceptions are `.peep/scrub.md` (F§6: `earned` permanent, `debt` may only shrink) plus inline `scrub-ignore: <id> <reason>`.
+- `/peep:scrub` (Scrubadubdub) runs `skills/scrub/scripts/scan.mjs`: catalogue grep rules over changed lines since `main` (falls back to `master`, then `HEAD`) plus untracked files, or `--full`; exceptions applied; one finding per ID per file, scored by severity plus the other IDs in that file. Then an eye pass (`references/eye.md`) that always covers spacing and text, on Shoot shots or `inferred` without a `url`. The numbered report phrases alternatives in the repo's own tokens. On the reply (`references/fix.md`) it fixes only the approved numbers, sends design choices to `/peep:sneak`, writes debt on `debt <n>`, and on `wrong <n>` offers an earned line or names a rule bug.
 - Every skill's last step bumps its line in `.peep/runs` and, while the old count is below 3, ends with one `Why:` line tied to a habit: think before code, finish before starting, prove it works.
 - `/peep:reel` asks batched rounds on who it is for, the problem, the hook and non-goals, reads back, then writes `.peep/reel.md` (F§5). Research of comparables runs only if asked, at most 5.
 - Question Time (under Scope) and Ducks (under Watch) read `.peep/reel.md` only to add a `drift: <id> <why>` line for a ticket off the north star or on a non-goal.
@@ -27,7 +28,8 @@
 - Stale tickets and drift never block new work.
 - Drift never blocks and is never a question. No `.peep/reel.md`, no drift line.
 - A new skill adds itself to Walk's Extras block in `walk/references/tour.md` with a use-when line.
-- A grep rule's good snippet must hit no rule at all; a false positive is a bug. Anything declared in the repo's DESIGN.md is never flagged; this repo's seed earns only the AV-44 shell choices.
+- A grep rule's good snippet must hit no rule at all; a false positive is a bug. The scanner always skips the pack's own catalogue and `skills/scrub/fixtures/` (they hit every rule by design); repo reference folders like `design/` are passed as `--skip`.
+- Scrubadubdub never writes an earned line (those are the owner's), never stages or commits, and never picks a design choice; Sneak does that. Anything declared in the repo's DESIGN.md is never flagged; this repo's seed earns only the AV-44 shell choices.
 - A live ping only lands when the peer runs in the same permission mode; otherwise its harness holds the message for approval and the board carries it alone.
 - Live checks run by Claude never send keystrokes to a window: prompts have defaults (a trust dialog's is "No, exit"). Child `claude` sessions need every `CLAUDE*` variable cleared.
 - Unpack runs the note's `Then:` line when the first command is `/peep:unpack` itself, to avoid a loop. Drift touching the command (ticket already `done`, branch changed) makes it wait rather than run on yes. No note: one line, not counted.
@@ -39,4 +41,4 @@
 - Unpack makes carrying on a real step that catches what changed between sessions, not "do the handoff".
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-90, 2026-11-16
+last touched: AV-87, 2026-11-16

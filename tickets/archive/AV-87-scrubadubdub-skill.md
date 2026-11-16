@@ -1,7 +1,7 @@
 ---
 id: AV-87
 title: Scrubadubdub skill - two passes, report, fix on yes
-status: done
+status: closed
 depends: [AV-74, AV-86]
 ---
 
@@ -38,3 +38,4 @@ depends: [AV-74, AV-86]
 - Live run: a headless child `claude -p "/peep:scrub" --plugin-dir plugin` on a scratch repo holding the seeded page reported all five (plus one inferred eye finding), each with where it comes from and alternatives. Reply "1 2 4": fixed only 4, held back 1 and 2 as design choices and offered `/peep:sneak hero`, left 3 and 5 untouched; re-scan 5 to 4.
 - Walk tour Extras line and README skills row added.
 - Not run: the eye pass with a `url` (Shoot screenshots); the scratch repo had no dev server.
+- Improvement pass (9b2f33c): alternatives phrased in the repo's own tokens, with a cluster line naming the shared root; the eye pass always covers the spacing and text entries (`references/eye.md`); a `wrong <n>` reply offers an earned line or flags a rule bug (`references/fix.md`); repeat hits are one finding per ID per file; an empty diff scope stops with a `--full` hint. Live rerun with `tokens.css` present: every `try:` named a real token, and "1 3 5" fixed only those three.
