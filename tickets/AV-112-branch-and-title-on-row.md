@@ -32,4 +32,4 @@ depends: []
 
 ## Owed before done
 
-- Owner confirms in `npm run tauri dev`: two sessions on different branches of one repo show distinct titles and branch tags, and their waiting toasts read `<title> · <branch>`.
+- Owner close. Live check passed 2026-11-16 in `tauri dev`: scratch repo on `feat-a` plus a worktree on `feat-b`, three throwaway sessions; snapshot titles "Greeting wording question" (feat-a, feat-b) and "Sleep 30 and tea-or-coffee question" (feat-a); waiting toasts in the notification DB read `Greeting wording question · feat-a`, `… · feat-b`, `Sleep 30 and tea-or-coffee question · feat-a`.
