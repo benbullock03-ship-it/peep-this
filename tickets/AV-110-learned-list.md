@@ -1,7 +1,9 @@
 ---
 id: AV-110
 title: Learned list page in the tray
-status: open
+status: blocked
+reason: waiting on AV-109
+wake: ticket:AV-109
 depends: [AV-109]
 ---
 
