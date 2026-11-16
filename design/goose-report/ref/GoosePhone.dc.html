@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Goose report at 375</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./goose.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1285px; min-height: 2200px; background: #141218;">
+<div class="board-h">
+<h1>09 · Goose report at 375</h1>
+<p>The same three reports, each 375 wide. The title bar wraps, the three tabs stay one row, cards stack. The map draws no links under 720: each area lists what it needs and what uses it instead.</p>
+</div>
+<div style="display: flex; gap: 40px; padding: 32px 40px 40px; align-items: flex-start;">
+
+<div class="th-dark go" style="width: 375px; flex: none;">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · code map</span><span class="go-sub"><b>agentview-widget</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">4f5e9c4</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html" aria-current="page">Code map</a><a href="GooseHealth.dc.html">Repo health</a><a href="GooseTopic.dc.html">Custom topic</a></nav>
+<main class="go-main">
+<div class="go-lead"><span class="go-perch"><peep-bot state="idle" color="yellow" accessory="none" size="48"></peep-bot><span class="go-plank"></span></span><div class="go-bub">12 areas, 14 links. Four sessions are editing three areas.</div></div>
+<div class="go-list">
+<sc-for list="{{areas}}" as="n" hint-placeholder-count="12">
+<div class="go-arow">
+<div class="{{n.cls}}"><div class="gstand"><sc-for list="{{n.peeps}}" as="p" hint-placeholder-count="1"><peep-bot state="{{p.state}}" color="{{p.color}}" accessory="{{p.acc}}" size="32"></peep-bot></sc-for></div><span class="gplank"></span><div class="gcard"><div class="gn">{{n.id}}<span>{{n.n}}</span></div><div class="gfiles"><sc-for list="{{n.blocks}}" as="b" hint-placeholder-count="6"><i class="{{b.c}}"></i></sc-for></div></div></div>
+<div class="go-needs">
+<span>{{n.needsLabel}}</span>
+<div class="go-chips"><sc-for list="{{n.needs}}" as="d" hint-placeholder-count="2"><span class="go-chip">{{d.id}}</span></sc-for></div>
+<span>{{n.usedLabel}}</span>
+<div class="go-chips"><sc-for list="{{n.used}}" as="d" hint-placeholder-count="2"><span class="go-chip">{{d.id}}</span></sc-for></div>
+</div>
+</div>
+</sc-for>
+</div>
+<div class="go-side">
+<h2 class="go-h">Sessions on the map</h2>
+<sc-for list="{{sessions}}" as="p" hint-placeholder-count="4">
+<div class="{{p.cls}}"><span class="who"><peep-bot state="{{p.state}}" color="{{p.color}}" accessory="{{p.acc}}" size="32"></peep-bot><span class="go-plank"></span></span><span class="nm">{{p.name}}<small>on {{p.area}}</small></span><span class="go-state">{{p.state}}</span></div>
+</sc-for>
+</div>
+</main>
+<footer class="go-foot"><span><i class="sq"></i>3 files</span><span><i class="sq on"></i>being edited</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+
+<div class="th-light go" style="width: 375px; flex: none;">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · repo health</span><span class="go-sub"><b>agentview-widget</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">4f5e9c4</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html">Code map</a><a href="GooseHealth.dc.html" aria-current="page">Repo health</a><a href="GooseTopic.dc.html">Custom topic</a></nav>
+<main class="go-main">
+<div class="go-lead"><span class="go-perch"><peep-bot state="thinking" color="yellow" accessory="none" size="48"></peep-bot><span class="go-plank"></span></span><div class="go-bub">11 findings in 4 groups, none urgent. Start with src/styles.css.</div></div>
+<div class="go-grid">
+<section class="go-card"><header><h2>Hot spots</h2><span class="go-n">4</span></header><ul class="go-rows">
+<li><span class="go-path">src/styles.css</span><span class="go-num">41 changes</span><span class="go-bar red"><i style="--n: 10;"></i></span><small>touched by 6 tickets in 30 days</small></li>
+<li><span class="go-path">src/rowView.ts</span><span class="go-num">33 changes</span><span class="go-bar amb"><i style="--n: 8;"></i></span><small>touched by 5 tickets</small></li>
+<li><span class="go-path">src-tauri/src/state.rs</span><span class="go-num">27 changes</span><span class="go-bar amb"><i style="--n: 7;"></i></span><small>touched by 4 tickets</small></li>
+<li><span class="go-path">src/rows.ts</span><span class="go-num">22 changes</span><span class="go-bar"><i style="--n: 5;"></i></span><small>touched by 4 tickets</small></li>
+</ul></section>
+<section class="go-card"><header><h2>Biggest files</h2><span class="go-n">3</span></header><ul class="go-rows">
+<li><span class="go-path">src/styles.css</span><span class="go-num">1,912 lines</span><span class="go-bar red"><i style="--n: 10;"></i></span><small>over the 800-line mark</small></li>
+<li><span class="go-path">src-tauri/src/state.rs</span><span class="go-num">1,104 lines</span><span class="go-bar"><i style="--n: 6;"></i></span><small>over the 800-line mark</small></li>
+<li><span class="go-path">src/rowView.ts</span><span class="go-num">866 lines</span><span class="go-bar"><i style="--n: 5;"></i></span><small>just over the mark</small></li>
+</ul></section>
+<section class="go-card"><header><h2>Untested areas</h2><span class="go-n">2</span></header><ul class="go-rows">
+<li><span class="go-path">skills</span><span class="go-num">0 of 14</span><small>no test imports anything in plugin/skills/</small></li>
+<li><span class="go-path">flyout</span><span class="go-num">0 of 3</span><small>no test imports src/flyoutPage.ts</small></li>
+</ul></section>
+<section class="go-card"><header><h2>Stale tickets</h2><span class="go-n">2</span></header><ul class="go-rows">
+<li><span class="go-path">AV-93 Flyout approval card</span><span class="go-tk">doing · 12 days</span><small>no commit mentions it since 2026-11-04</small></li>
+<li><span class="go-path">AV-88 Rules store</span><span class="go-tk blocked">blocked · 9 days</span><small>blocked on AV-54, which closed 9 days ago</small></li>
+</ul></section>
+</div>
+<h2 class="go-h">Patterns</h2>
+<div class="go-grid">
+<article class="go-pat"><h3>A file that is both the busiest and the biggest is where sessions collide.</h3><p>src/styles.css leads both lists. Splitting it by surface gives each ticket its own file to change.</p><details open><summary>Explain like I'm 5</summary><p>One toy box that everybody digs in at once. A few smaller boxes, and nobody bumps heads.</p></details><span class="src">Source: <a href="https://web.stanford.edu/~ouster/cgi-bin/book.php">A Philosophy of Software Design, ch. 4</a></span></article>
+<article class="go-pat"><h3>Code with no test cannot tell you when it breaks.</h3><p>Two areas have no test at all. One test that imports the area is enough to start.</p><details><summary>Explain like I'm 5</summary><p>A smoke alarm with no battery looks fine right up until there is a fire.</p></details><span class="src">Source: <a href="https://martinfowler.com/bliki/TestCoverage.html">Test Coverage, Martin Fowler</a></span></article>
+</div>
+</main>
+<footer class="go-foot"><span>looks back 30 days</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+
+<div class="th-dark go" style="width: 375px; flex: none;">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · custom topic</span><span class="go-sub"><b>polling</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">9c21e07</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html">Code map</a><a href="GooseHealth.dc.html">Repo health</a><a href="GooseTopic.dc.html" aria-current="page">Custom topic</a></nav>
+<main class="go-main">
+<div>
+<h1 class="go-q">Where do poll results get cached?</h1>
+<p class="go-asked">asked by the owner · answered from 3 files in 2 areas</p>
+</div>
+<div class="go-topic">
+<article class="go-ans">
+<div class="go-short"><h2 class="go-h">In short</h2><p>Nowhere yet. Every request for results counts the votes again.</p></div>
+<p><code>api/results.ts</code> runs one <code>COUNT</code> query per poll against the votes table each time it is called, and returns the totals as they are. There is no cache in the API, no cache header on the response, and the page does not keep the last answer.</p>
+<p>That is fine at today's size. If it becomes slow, the one place to add a cache is <code>api/results.ts</code>, keyed by poll id and cleared when a vote is written.</p>
+</article>
+<aside class="go-aside">
+<h2 class="go-h">Files involved</h2>
+<ul class="go-rows" style="border: 2px solid var(--ps-edge);">
+<li><span class="go-path">api/results.ts</span><small>counts votes on every call</small></li>
+<li><span class="go-path">db/votes.sql</span><small>the table it reads</small></li>
+<li><span class="go-path">web/ResultCard.tsx</span><small>fetches on every mount</small></li>
+</ul>
+<h2 class="go-h">On the map</h2>
+<div class="go-slice" style="height: 102px;">
+<div class="gnode" style="left: 12px; top: 12px;"><div class="gstand"></div><span class="gplank"></span><div class="gcard"><div class="gn">api<span>14</span></div><div class="gfiles"><i></i><i></i><i></i><i></i><i></i></div></div></div>
+<div class="gnode" style="left: 176px; top: 12px;"><div class="gstand"></div><span class="gplank"></span><div class="gcard"><div class="gn">db<span>6</span></div><div class="gfiles"><i></i><i></i></div></div></div>
+<span class="gedge" style="left: 132px; top: 69px; width: 44px; height: 2px;"></span><span class="gedge" style="left: 170px; top: 67px; width: 6px; height: 6px;"></span>
+</div>
+<p class="go-none">2 of 3 areas. <a href="GooseMap.dc.html">Open the whole map</a></p>
+</aside>
+</div>
+</main>
+<footer class="go-foot"><span>answered from the code at 9c21e07</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1285,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = (name, state, color, acc) => ({ name, state, color, acc });
+    const nodes = [['ui', 34, 2, [P('peep-this-7a', 'working', 'yellow', 'headphones')]], ['settings', 6], ['plugin', 18], ['bridge', 7], ['look', 5], ['skills', 14],
+      ['commands', 9], ['state', 6, 1, [P('peep-this-7b', 'thinking', 'lavender', 'glasses')]], ['installer', 8],
+      ['source', 11, 3, [P('peep-this-7c', 'working', 'blue', 'hardhat'), P('peep-this-7d', 'waiting', 'pink', 'bow')]], ['server', 5], ['store', 4]];
+    const edges = [['ui', 'bridge'], ['ui', 'look'], ['settings', 'bridge'], ['settings', 'look'], ['plugin', 'skills'], ['bridge', 'commands'], ['bridge', 'state'], ['look', 'commands'], ['skills', 'installer'],
+      ['commands', 'source'], ['commands', 'store'], ['state', 'source'], ['state', 'server'], ['installer', 'store']];
+    const sessions = [];
+    const areas = nodes.map(([id, n, edit = 0, peeps = []]) => {
+      peeps.forEach((p) => sessions.push({ ...p, area: id, cls: 'go-sess st-' + p.state }));
+      const needs = edges.filter((e) => e[0] === id).map((e) => ({ id: e[1] })), used = edges.filter((e) => e[1] === id).map((e) => ({ id: e[0] }));
+      return { id, n, peeps, needs, used, needsLabel: needs.length ? 'needs' : 'needs nothing', usedLabel: used.length ? 'used by' : 'used by nothing',
+        cls: 'gnode' + (peeps.some((p) => p.state === 'waiting') ? ' att' : ''),
+        blocks: Array.from({ length: Math.min(16, Math.ceil(n / 3)) }, (_, i) => ({ c: i < edit ? 'on' : '' })) };
+    });
+    return { areas, sessions };
+  }
+}
+</script>
+</body>
+</html>

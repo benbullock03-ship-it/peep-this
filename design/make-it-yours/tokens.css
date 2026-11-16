@@ -1,0 +1,17 @@
+/* Peep This tokens, Make it yours additions. Load after design/skill-pack/tokens.css. */
+:root {
+  /* Switch */
+  --sw-track: var(--ps-panel-2);
+  --sw-knob: var(--ps-muted);
+  --sw-track-on: var(--ps-accent);
+  --sw-knob-on: var(--ps-on-st);
+  /* Saved acknowledgement */
+  --miy-saved: var(--ps-accent);
+  --miy-fail: var(--st-error);
+  --miy-hold: 1200ms;
+  /* Accessory not yet earned */
+  --miy-lock: #7D7889;
+}
+:root[data-theme="light"] {
+  --miy-lock: #645C70;
+}

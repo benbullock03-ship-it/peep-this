@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Goose report: custom topic</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./goose.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1280px; min-height: 1900px; background: #141218;">
+<div class="board-h">
+<h1>08 · Goose report: custom topic</h1>
+<p>At 1280. The owner's question is the title. Top, dark: a long answer with sections. Bottom, light: a short one. Every answer opens with an "In short" box; the files involved and a slice of the map sit in a 320 px side column and drop under the answer below 900.</p>
+</div>
+
+<div class="th-dark go">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · custom topic</span><span class="go-sub"><b>agentview-widget</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">4f5e9c4</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html">Code map</a><a href="GooseHealth.dc.html">Repo health</a><a href="GooseTopic.dc.html" aria-current="page">Custom topic</a></nav>
+<main class="go-main">
+<div>
+<h1 class="go-q">What happens between a hook firing and a peep changing state?</h1>
+<p class="go-asked">asked by the owner · answered from 8 files in 4 areas</p>
+</div>
+<div class="go-topic">
+<article class="go-ans">
+<div class="go-short"><h2 class="go-h">In short</h2><p>Claude Code posts the hook to a loopback port. The server matches it to a session by <code>sessionId</code>, one pure function works out the new state, and the whole list is pushed to the window, which only redraws.</p></div>
+<h2>1 · The hook posts</h2>
+<p>The integration install adds one entry per hook to <code>~/.claude/settings.json</code>. Each entry posts the hook's JSON to the widget's port on 127.0.0.1. Nothing is read back, so a slow widget can never hold Claude Code up.</p>
+<h2>2 · The server finds the session</h2>
+<p><code>server.rs</code> accepts the post and hands it to the Claude source, which parses the payload and pulls out <code>sessionId</code>. If no session file has been seen for that id yet, the event is held until the sessions directory catches up.</p>
+<h2>3 · One function decides</h2>
+<p><code>state.rs</code> takes the session's current state and the event and returns the next state. <code>PreToolUse</code> gives working, the matching <code>PostToolUse</code> gives thinking, <code>Notification</code> gives waiting, <code>Stop</code> gives success. It reads no clock and no files, which is why every transition has a test.</p>
+<h2>4 · The snapshot goes out</h2>
+<p>The backend emits the full session list as one <code>sessions</code> event. The frontend does not patch anything: <code>rows.ts</code> sorts attention states first and <code>rowView.ts</code> sets <code>el.state</code> on the row's peep, which is the only line that touches the art.</p>
+<h2>5 · Where it can go wrong</h2>
+<p>Three places. A session started before the hooks were installed sends nothing, so it falls back to the transcript tail and lags by a second or two. A busy session with no event for 6 minutes is marked stuck by a timer, not by a hook. And a hook that arrives for a dead PID is dropped.</p>
+<h2>Read first</h2>
+<p><code>state.rs</code>, then its tests. The rest is plumbing around that one function.</p>
+</article>
+<aside class="go-aside">
+<h2 class="go-h">Files involved</h2>
+<ul class="go-rows" style="border: 2px solid var(--ps-edge);">
+<li><span class="go-path">src-tauri/src/state.rs</span><small>the pure state function</small></li>
+<li><span class="go-path">src-tauri/src/server.rs</span><small>loopback port, accepts hook posts</small></li>
+<li><span class="go-path">src-tauri/src/source/claude/hooks.rs</span><small>parses hook payloads</small></li>
+<li><span class="go-path">src-tauri/src/source/claude/sessions.rs</span><small>watches ~/.claude/sessions</small></li>
+<li><span class="go-path">src-tauri/src/snapshot.rs</span><small>builds and emits the sessions event</small></li>
+<li><span class="go-path">src/rows.ts</span><small>sort order</small></li>
+<li><span class="go-path">src/rowView.ts</span><small>sets the peep's state</small></li>
+<li><span class="go-path">src/vendor/peep.js</span><small>the creature; not changed</small></li>
+</ul>
+<h2 class="go-h">On the map</h2>
+<div class="go-slice" style="height: {{a.h}}px;">
+<sc-for list="{{a.nodes}}" as="n" hint-placeholder-count="4">
+<div class="gnode" style="left: {{n.x}}px; top: {{n.y}}px;"><div class="gstand"><sc-for list="{{n.peeps}}" as="p" hint-placeholder-count="1"><peep-bot state="{{p.state}}" color="{{p.color}}" accessory="{{p.acc}}" size="32"></peep-bot></sc-for></div><span class="gplank"></span><div class="gcard"><div class="gn">{{n.id}}<span>{{n.n}}</span></div><div class="gfiles"><sc-for list="{{n.blocks}}" as="b" hint-placeholder-count="4"><i class="{{b.c}}"></i></sc-for></div></div></div>
+</sc-for>
+<sc-for list="{{a.segs}}" as="s" hint-placeholder-count="8"><span class="gedge" style="left: {{s.x}}px; top: {{s.y}}px; width: {{s.w}}px; height: {{s.h}}px;"></span></sc-for>
+</div>
+<p class="go-none">4 of 12 areas. <a href="GooseMap.dc.html">Open the whole map</a></p>
+</aside>
+</div>
+</main>
+<footer class="go-foot"><span>answered from the code at 4f5e9c4; it may be stale after that</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+
+<div class="th-light go">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · custom topic</span><span class="go-sub"><b>polling</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">9c21e07</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html">Code map</a><a href="GooseHealth.dc.html">Repo health</a><a href="GooseTopic.dc.html" aria-current="page">Custom topic</a></nav>
+<main class="go-main">
+<div>
+<h1 class="go-q">Where do poll results get cached?</h1>
+<p class="go-asked">asked by the owner · answered from 3 files in 2 areas</p>
+</div>
+<div class="go-topic">
+<article class="go-ans">
+<div class="go-short"><h2 class="go-h">In short</h2><p>Nowhere yet. Every request for results counts the votes again.</p></div>
+<p><code>api/results.ts</code> runs one <code>COUNT</code> query per poll against the votes table each time it is called, and returns the totals as they are. There is no cache in the API, no cache header on the response, and the page does not keep the last answer.</p>
+<p>That is fine at today's size. If it becomes slow, the one place to add a cache is <code>api/results.ts</code>, keyed by poll id and cleared when a vote is written.</p>
+</article>
+<aside class="go-aside">
+<h2 class="go-h">Files involved</h2>
+<ul class="go-rows" style="border: 2px solid var(--ps-edge);">
+<li><span class="go-path">api/results.ts</span><small>counts votes on every call</small></li>
+<li><span class="go-path">db/votes.sql</span><small>the table it reads</small></li>
+<li><span class="go-path">web/ResultCard.tsx</span><small>fetches on every mount</small></li>
+</ul>
+<h2 class="go-h">On the map</h2>
+<div class="go-slice" style="height: {{b.h}}px;">
+<sc-for list="{{b.nodes}}" as="n" hint-placeholder-count="2">
+<div class="gnode" style="left: {{n.x}}px; top: {{n.y}}px;"><div class="gstand"></div><span class="gplank"></span><div class="gcard"><div class="gn">{{n.id}}<span>{{n.n}}</span></div><div class="gfiles"><sc-for list="{{n.blocks}}" as="b" hint-placeholder-count="4"><i class="{{b.c}}"></i></sc-for></div></div></div>
+</sc-for>
+<sc-for list="{{b.segs}}" as="s" hint-placeholder-count="4"><span class="gedge" style="left: {{s.x}}px; top: {{s.y}}px; width: {{s.w}}px; height: {{s.h}}px;"></span></sc-for>
+</div>
+<p class="go-none">2 of 3 areas. <a href="GooseMap.dc.html">Open the whole map</a></p>
+</aside>
+</div>
+</main>
+<footer class="go-foot"><span>answered from the code at 9c21e07; it may be stale after that</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // Map slice: two columns in the 320 px side column.
+    const slice = (list, edges) => {
+      const at = {}, segs = [];
+      const nodes = list.map(([id, c, r, n, edit = 0, peeps = []]) => {
+        const x = 12 + c * 164, y = 12 + r * 104;
+        at[id] = { x, y, r };
+        return { id, n, x, y, peeps, blocks: Array.from({ length: Math.min(16, Math.ceil(n / 3)) }, (_, i) => ({ c: i < edit ? 'on' : '' })) };
+      });
+      edges.forEach(([a, b]) => {
+        const A = at[a], B = at[b], x1 = A.x + 120, y1 = A.y + 57, y2 = B.y + 57, mx = x1 + 10 + A.r * 12;
+        [[x1, y1, mx - x1 + 2, 2], [mx, Math.min(y1, y2), 2, Math.abs(y2 - y1) + 2], [mx, y2, B.x - mx, 2], [B.x - 6, y2 - 2, 6, 6]].forEach(([x, y, w, h]) => segs.push({ x, y, w, h }));
+      });
+      return { nodes, segs, h: 24 + Math.max(...list.map((n) => n[2])) * 104 + 78 };
+    };
+    return {
+      a: slice([['ui', 0, 0, 34], ['server', 0, 1, 5], ['state', 1, 0, 6, 1, [{ state: 'thinking', color: 'lavender', acc: 'glasses' }]], ['source', 1, 1, 11]], [['ui', 'state'], ['server', 'state'], ['server', 'source']]),
+      b: slice([['api', 0, 0, 14], ['db', 1, 0, 6]], [['api', 'db']])
+    };
+  }
+}
+</script>
+</body>
+</html>

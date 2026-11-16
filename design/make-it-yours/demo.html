@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peep This · Make it yours</title>
+<link rel="stylesheet" href="../skill-pack/tokens.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="miy.css">
+<script src="../peep.js"></script>
+<style>
+  /* demo page only — not part of the settings page */
+  @font-face { font-family: Fredoka; font-weight: 600; src: url(../../src/assets/fonts/fredoka-latin-600-normal.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Sans'; font-weight: 400; src: url(../../src/assets/fonts/ibm-plex-sans-latin-400-normal.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Sans'; font-weight: 600; src: url(../../src/assets/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 400; src: url(../../src/assets/fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 500 600; src: url(../../src/assets/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
+  body { margin: 0; background: var(--ps-desk); color: var(--ps-text); font: 15px/1.5 'IBM Plex Sans', system-ui, sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: clamp(16px, 4vw, 48px); display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
+  .intro { flex: 1 1 280px; }
+  h1 { font: 600 clamp(28px, 5vw, 40px)/1 Fredoka, sans-serif; color: var(--ps-accent); margin: 0 0 8px; }
+  .intro p { margin: 0 0 12px; color: var(--ps-muted); max-width: 46ch; }
+  .demo-btn { min-height: 40px; padding: 0 14px; border: 2px solid var(--ps-edge); background: var(--ps-panel); color: var(--ps-text); font: 600 12px 'IBM Plex Mono', monospace; cursor: pointer; margin: 0 6px 6px 0; }
+  .demo-btn:focus-visible { outline: 2px solid var(--ps-accent); outline-offset: 2px; }
+  /* shell window, as design/shell */
+  .win { width: 360px; max-width: 100%; background: var(--ps-panel); border: 2px solid var(--ps-edge); box-shadow: var(--shadow-hard); }
+  .head { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 10px; border-bottom: 2px solid var(--ps-edge); background: repeating-linear-gradient(0deg, transparent 0 3px, var(--ps-line) 3px 4px); }
+  .head b { font: 600 13px 'IBM Plex Mono', monospace; color: var(--ps-accent); background: var(--ps-panel); padding: 2px 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .head span { font: 500 11px 'IBM Plex Mono', monospace; color: var(--ps-muted); background: var(--ps-panel); padding: 2px 6px; }
+  .fl { display: inline-block; flex: none; width: 32px; height: 32px; background: url(../skill-pack-2/sprites/floppies-dark.png) calc(var(--i) * 100% / 17) 0 / 1800% 200%; image-rendering: pixelated; }
+  :root[data-theme="light"] .fl { background-image: url(../skill-pack-2/sprites/floppies-light.png); }
+  .fl.off { background-position-y: 100%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>Make it yours</h1>
+    <p>The settings page as it sits in the 360 px panel. Every change saves at once; watch the striped header of the section you changed.</p>
+    <button class="demo-btn" id="theme">Light</button>
+    <button class="demo-btn" id="setup">Repo with no setup</button>
+    <button class="demo-btn" id="fail">Next save fails</button>
+  </div>
+  <div class="win miy">
+    <div class="head"><b>Make it yours</b><span>saves as you go</span></div>
+    <div class="miy-scroll" id="page"></div>
+  </div>
+</div>
+<script>
+const COLORS = { yellow: '#F7D64A', pink: '#F7A8C8', lavender: '#C2A7EE', blue: '#8DC7F2', green: '#A5DC93' };
+const ACCS = ['none', 'hardhat', 'headphones', 'glasses', 'bow', 'party', 'chef', 'crybaby', 'beanie', 'crown', 'shades', 'flowers', 'halo', 'wizard'];
+const EARNED = { packed: 'first Pack Up', clear: 'first Ducks with nothing loose', ten: 'close 10 tickets: 7 so far', spotless: 'first Coderot with no survivors', architect: 'first architecture candidate acted on', supporter: 'from the sponsor page' };
+const SKILLS = [['ducks', 'Ducks', 0], ['qt', 'Question Time', 1], ['ticket', 'Ticket', 2], ['shoot', 'Shoot', 3], ['packup', 'Pack Up', 4], ['coderot', 'Coderot', 5], ['unpack', 'Unpack', 10], ['walk', 'Walk Through', 11], ['reel', 'The Reel', 12], ['sneak', 'Sneak Peep', 13], ['scrub', 'Scrubadubdub', 14], ['bigpeep', 'Big Peep', 15], ['tweet', 'Tweet Tweet', 16], ['goose', 'Duck Duck Goose', 17]];
+const PROJECT = { color: 'yellow', acc: 'headphones' };
+const s = { color: null, acc: null, got: ['packed'], hint: null, toast: true, wait: true, err: false, theme: 'dark', off: {}, round: 4, widths: [375, 768, 1280], setup: true, fail: false,
+  ack: { look: 'from project', alerts: 'saved 13:48', pack: 'saved Fri' } };
+const page = document.getElementById('page'), root = document.documentElement;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const sw = (key, on, html) => `<button class="miy-row" role="switch" aria-checked="${on}" data-act="sw" data-key="${key}">${html}<span class="miy-val">${on ? 'on' : 'off'}</span><span class="miy-switch"><i></i></span></button>`;
+const seg = (act, vals, cur) => `<span class="miy-seg" role="radiogroup">${vals.map((v) => `<button role="radio" aria-checked="${v === cur}" data-act="${act}" data-key="${act}-${v}" data-v="${v}">${v}</button>`).join('')}</span>`;
+const head = (id, title) => `<div class="miy-h"><h2>${title}</h2><span class="miy-ack" id="ack-${id}" role="status">${s.ack[id].startsWith('saved') ? '<i class="miy-tick"></i>' : ''}${s.ack[id]}</span></div>`;
+
+function draw() {
+  const color = s.color || PROJECT.color, acc = s.acc || PROJECT.acc, picked = s.color || s.acc;
+  const key = document.activeElement && document.activeElement.dataset.key;
+  page.innerHTML = `<section>${head('look', 'Peep look')}
+    <div class="miy-stage"><peep-bot id="me" state="idle" color="${color}" accessory="${acc}" size="96"></peep-bot><div class="miy-bub">This is me in agentview-widget.</div></div><span class="miy-plank"></span>
+    <div class="miy-b">
+      <div class="miy-src"><span>${picked ? 'You picked these for this project.' : "Colour and accessory come from this project's folder, so it always looks the same."}</span>${picked ? '<button class="miy-btn sm" data-act="reset" data-key="reset">Reset to project</button>' : ''}</div>
+      <fieldset class="miy-f" role="radiogroup"><legend class="miy-l">Colour <b>${s.color ? 'picked · ' + s.color : 'from project · ' + PROJECT.color}</b></legend><div class="miy-sws">
+        <button class="miy-sw" role="radio" aria-checked="${!s.color}" aria-label="From project (${PROJECT.color})" style="--c:${COLORS[PROJECT.color]}" data-act="color" data-key="c-auto" data-v=""><span>auto</span></button>
+        ${Object.keys(COLORS).map((c) => `<button class="miy-sw" role="radio" aria-checked="${s.color === c}" aria-label="${c}" style="--c:${COLORS[c]}" data-act="color" data-key="c-${c}" data-v="${c}"></button>`).join('')}</div></fieldset>
+      <fieldset class="miy-f" role="radiogroup"><legend class="miy-l">Accessory <b>${s.acc ? 'picked · ' + s.acc : 'from project · ' + PROJECT.acc}</b></legend><div class="miy-accs">
+        <button class="miy-acc auto" role="radio" aria-checked="${!s.acc}" aria-label="From project (${PROJECT.acc})" data-act="acc" data-key="a-auto" data-v="">auto</button>
+        ${[...ACCS, ...Object.keys(EARNED)].map((a) => { const lock = a in EARNED && !s.got.includes(a);
+          return `<button class="miy-acc${lock ? ' is-locked' : ''}" role="radio" aria-checked="${s.acc === a}" aria-label="${a}${lock ? ', not earned yet' : ''}" ${lock ? 'aria-disabled="true"' : ''} data-act="acc" data-key="a-${a}" data-v="${a}"><peep-bot state="idle" color="${color}" accessory="${a}" size="32" hover="off" energy="1"></peep-bot></button>`; }).join('')}</div>
+        ${s.hint ? `<div class="miy-hint" role="status"><span><b>${s.hint[0].toUpperCase() + s.hint.slice(1)}</b> · not earned yet: ${EARNED[s.hint]}.</span></div>` : ''}</fieldset>
+    </div></section>
+    <section>${head('alerts', 'Alerts')}
+      ${sw('toast', s.toast, '<span class="tx">Toast when a peep needs you<small>Windows notification on waiting</small></span>')}
+      ${sw('wait', s.wait, '<span class="tx">Sound on waiting</span>')}
+      ${sw('err', s.err, '<span class="tx">Sound on error</span>')}
+      <div class="miy-line"><span class="tx">Theme</span>${seg('theme', ['dark', 'light'], s.theme)}</div></section>
+    <section>${head('pack', 'Pack for this repo')}` + (s.setup
+      ? `<div class="miy-repo"><b>agentview-widget</b><small>F:\\Projects\\agentview widget · .peep/setup.md</small></div>
+        ${SKILLS.map(([id, name, i]) => sw('k-' + id, !s.off[id], `<span class="fl${s.off[id] ? ' off' : ''}" style="--i:${i}"></span><span class="tx"><span class="nm">${name}</span><small>/peep:${id}${s.off[id] ? ' · off here' : ''}</small></span>`)).join('')}
+        <div class="miy-line"><span class="tx">Question round size<small>questions per batch in Question Time</small></span>${seg('round', [2, 3, 4], s.round)}</div>
+        <div class="miy-line" style="min-height:40px"><span class="tx">Screenshot widths<small>px, used by Shoot</small></span></div>
+        <div class="miy-chips">${s.widths.map((w) => `<span class="miy-chipx"><span>${w}</span><button aria-label="Remove ${w}" data-act="rm" data-key="w-${w}" data-v="${w}"${s.widths.length < 2 ? ' disabled' : ''}>×</button></span>`).join('')}
+          <input class="miy-add" id="add" type="text" inputmode="numeric" placeholder="+ width" aria-label="Add a screenshot width" data-key="add"></div>`
+      : `<div class="miy-repo"><b>polling</b><small>C:\\Projects\\polling</small></div><div class="miy-empty"><span>No setup in this repo yet.</span><button class="miy-btn" data-act="setup" data-key="setup">Set it up</button></div>`) + '</section>';
+  if (key) { const el = page.querySelector(`[data-key="${key}"]`); if (el) el.focus(); }
+}
+
+// Instant save: frame the changed control for 160 ms, fill the section's slot for 1200 ms, then show the time.
+function saved(sec, key, undo) {
+  if (s.fail) { s.fail = false; undo(); s.ack[sec] = 'Not saved · <u>retry</u>'; draw(); document.getElementById('ack-' + sec).className = 'miy-ack is-fail'; return; }
+  const t = new Date(), stamp = 'saved ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+  s.ack[sec] = stamp; draw();
+  const now = document.getElementById('ack-' + sec); now.className = 'miy-ack is-new'; now.innerHTML = '<i class="miy-tick"></i>Saved';
+  const row = page.querySelector(`.miy-row[data-key="${key}"]`); if (row) { row.classList.add('is-saved'); setTimeout(() => row.classList.remove('is-saved'), 160); }
+  if (sec === 'look' && !reduced) { const me = document.getElementById('me'); me.state = 'success'; setTimeout(() => { me.state = 'idle'; }, 1200); }
+  clearTimeout(saved[sec]); saved[sec] = setTimeout(() => { now.className = 'miy-ack'; now.innerHTML = '<i class="miy-tick"></i>' + stamp; }, 1200);
+}
+
+page.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const { act, key, v } = b.dataset;
+  if (act === 'color') { const old = s.color; s.color = v || null; saved('look', key, () => { s.color = old; }); }
+  else if (act === 'acc') {
+    if (b.classList.contains('is-locked')) { s.hint = v; draw(); return; }
+    const old = s.acc; s.acc = v || null; s.hint = null; saved('look', key, () => { s.acc = old; });
+  } else if (act === 'reset') { const old = [s.color, s.acc]; s.color = s.acc = null; saved('look', 'c-auto', () => { [s.color, s.acc] = old; }); }
+  else if (act === 'sw') {
+    if (key.startsWith('k-')) { const id = key.slice(2); s.off[id] = !s.off[id]; saved('pack', key, () => { s.off[id] = !s.off[id]; }); }
+    else { s[key] = !s[key]; saved('alerts', key, () => { s[key] = !s[key]; }); }
+  } else if (act === 'theme') { const old = s.theme; s.theme = v; root.dataset.theme = v; saved('alerts', key, () => { s.theme = old; root.dataset.theme = old; }); }
+  else if (act === 'round') { const old = s.round; s.round = +v; saved('pack', key, () => { s.round = old; }); }
+  else if (act === 'rm') { const old = s.widths; s.widths = s.widths.filter((w) => w !== +v); saved('pack', 'add', () => { s.widths = old; }); }
+  else if (act === 'setup') { b.textContent = 'Copied /peep:ducks'; }
+});
+page.addEventListener('focusin', (e) => { const b = e.target.closest('.is-locked'); if (b && s.hint !== b.dataset.v) { s.hint = b.dataset.v; draw(); } });
+page.addEventListener('keydown', (e) => {
+  if (e.target.id !== 'add' || e.key !== 'Enter') return;
+  const w = Math.round(+e.target.value), old = s.widths;
+  if (!(w >= 320 && w <= 3840) || old.includes(w) || old.length >= 5) return;
+  s.widths = [...old, w].sort((a, b) => a - b); saved('pack', 'add', () => { s.widths = old; });
+});
+document.getElementById('theme').onclick = (e) => { s.theme = s.theme === 'light' ? 'dark' : 'light'; root.dataset.theme = s.theme; e.target.textContent = s.theme === 'light' ? 'Dark' : 'Light'; draw(); };
+document.getElementById('setup').onclick = (e) => { s.setup = !s.setup; s.ack.pack = s.setup ? 'saved Fri' : 'no setup'; e.target.textContent = s.setup ? 'Repo with no setup' : 'Repo with setup'; draw(); };
+document.getElementById('fail').onclick = () => { s.fail = true; };
+s.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; root.dataset.theme = s.theme;
+document.getElementById('theme').textContent = s.theme === 'light' ? 'Dark' : 'Light';
+draw();
+</script>
+</body>
+</html>

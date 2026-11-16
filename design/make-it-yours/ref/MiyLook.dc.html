@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Peep look and Alerts: states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./miy.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1400px; min-height: 1700px; background: #141218;">
+<div class="board-h">
+<h1>04 · Peep look and Alerts: states</h1>
+<p>Overridden look, an accessory not yet earned with its hint, and every control at rest, on, off and focused. Focus is always a 2 px accent outline; on a full-width row it sits inside the row.</p>
+</div>
+<div class="themes">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+
+<p class="cap">{{t.label}} · overridden · just saved</p>
+<div class="pair">
+<div class="win miy">
+<div class="miy-h"><h2>Peep look</h2><span class="miy-ack is-new"><i class="miy-tick"></i>Saved</span></div>
+<div class="miy-stage"><peep-bot state="success" color="pink" accessory="crown" size="96"></peep-bot><div class="miy-bub">New look! Every agentview-widget session wears it.</div></div>
+<span class="miy-plank"></span>
+<div class="miy-b">
+<div class="miy-src"><span>You picked these for this project.</span><button class="miy-btn sm">Reset to project</button></div>
+<fieldset class="miy-f" role="radiogroup">
+<legend class="miy-l">Colour <b>picked · pink</b></legend>
+<div class="miy-sws">
+<sc-for list="{{colorsPick}}" as="c" hint-placeholder-count="6">
+<button class="miy-sw" role="radio" aria-checked="{{c.on}}" aria-label="{{c.label}}" style="--c: {{c.hex}};"><sc-if value="{{c.auto}}" hint-placeholder-val="{{false}}"><span>auto</span></sc-if></button>
+</sc-for>
+</div>
+</fieldset>
+<fieldset class="miy-f" role="radiogroup">
+<legend class="miy-l">Accessory <b>picked · crown</b></legend>
+<div class="miy-accs">
+<button class="miy-acc auto" role="radio" aria-checked="false" aria-label="From project (headphones)">auto</button>
+<sc-for list="{{accsPick}}" as="a" hint-placeholder-count="20">
+<button class="{{a.cls}}" role="radio" aria-checked="{{a.on}}" aria-label="{{a.id}}"><peep-bot state="idle" color="pink" accessory="{{a.id}}" size="32" hover="off" energy="1"></peep-bot></button>
+</sc-for>
+</div>
+</fieldset>
+</div>
+</div>
+<div class="stack" style="width: 240px;">
+<span class="k">Colour swatch · 44 px</span>
+<div class="miy" style="display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: center; font-size: 11px;">
+<span class="miy-sw" style="--c: #8DC7F2; display: block;"></span><span>rest: 2 px edge</span>
+<span class="miy-sw" aria-checked="true" style="--c: #8DC7F2; display: block;"></span><span>selected: text-colour border, 2 px panel gap, 10 px corner block</span>
+<span class="miy-sw is-focus" style="--c: #8DC7F2; display: block;"></span><span>focused</span>
+<span class="miy-sw is-focus" aria-checked="true" style="--c: #8DC7F2; display: block;"></span><span>selected and focused</span>
+<span class="miy-sw" style="--c: #F7D64A; display: block;"><span>auto</span></span><span>from project: the hashed colour, labelled</span>
+</div>
+<span class="k" style="margin-top: 10px;">Preview</span>
+<p class="note">The 96 px peep plays <b>success</b> for 1200 ms after a look change, then returns to idle. No other motion.</p>
+</div>
+</div>
+
+<p class="cap">Accessory not yet earned · focused, with its hint</p>
+<div class="pair">
+<div class="win miy">
+<div class="miy-h"><h2>Peep look</h2><span class="miy-ack">from project</span></div>
+<div class="miy-b">
+<fieldset class="miy-f" role="radiogroup">
+<legend class="miy-l">Accessory <b>from project · headphones</b></legend>
+<div class="miy-accs">
+<button class="miy-acc auto" role="radio" aria-checked="true" aria-label="From project (headphones)">auto</button>
+<sc-for list="{{accsLock}}" as="a" hint-placeholder-count="20">
+<button class="{{a.cls}}" role="radio" aria-checked="false" aria-label="{{a.id}}"><peep-bot state="idle" color="yellow" accessory="{{a.id}}" size="32" hover="off" energy="1"></peep-bot></button>
+</sc-for>
+</div>
+<div class="miy-hint" role="status"><span><b>Ten</b> · not earned yet. Close 10 tickets: 7 so far.</span><span class="miy-prog" role="img" aria-label="7 of 10"><i style="--n: 7;"></i></span></div>
+</fieldset>
+</div>
+</div>
+<div class="stack" style="width: 240px;">
+<span class="k">Accessory cell · 44 px, 32 px peep</span>
+<div class="miy" style="display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: center; font-size: 11px;">
+<span class="miy-acc"><peep-bot state="idle" color="yellow" accessory="beanie" size="32" hover="off" energy="1"></peep-bot></span><span>rest</span>
+<span class="miy-acc" aria-checked="true"><peep-bot state="idle" color="yellow" accessory="beanie" size="32" hover="off" energy="1"></peep-bot></span><span>selected</span>
+<span class="miy-acc is-focus"><peep-bot state="idle" color="yellow" accessory="beanie" size="32" hover="off" energy="1"></peep-bot></span><span>focused</span>
+<span class="miy-acc is-locked"><peep-bot state="idle" color="yellow" accessory="spotless" size="32" hover="off" energy="1"></peep-bot></span><span>not earned: 38% grey, padlock block; still focusable so the hint can be read; Enter does nothing</span>
+</div>
+<p class="note">Hints: Packed, first Pack Up. Clear, first Ducks with nothing loose. Ten, 10 tickets closed. Spotless, first Coderot with no survivors. Architect, first architecture candidate acted on. Supporter, from the sponsor page.</p>
+</div>
+</div>
+
+<p class="cap">Alerts · each switch on, off and focused</p>
+<div class="pair">
+<div class="win miy">
+<div class="miy-h"><h2>Alerts</h2><span class="miy-ack"><i class="miy-tick"></i>saved 13:48</span></div>
+<button class="miy-row" role="switch" aria-checked="true"><span class="tx">Toast when a peep needs you<small>on</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row" role="switch" aria-checked="false"><span class="tx">Toast when a peep needs you<small>off</small></span><span class="miy-val">off</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row is-focus" role="switch" aria-checked="true"><span class="tx">Sound on waiting<small>on, focused</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row is-focus" role="switch" aria-checked="false"><span class="tx">Sound on error<small>off, focused</small></span><span class="miy-val">off</span><span class="miy-switch"><i></i></span></button>
+<div class="miy-line"><span class="tx">Theme<small>rest</small></span><span class="miy-seg" role="radiogroup"><button role="radio" aria-checked="{{t.isDark}}">dark</button><button role="radio" aria-checked="{{t.isLight}}">light</button></span></div>
+<div class="miy-line"><span class="tx">Theme<small>unselected half focused</small></span><span class="miy-seg" role="radiogroup"><button role="radio" class="{{t.focD}}" aria-checked="{{t.isDark}}">dark</button><button role="radio" class="{{t.focL}}" aria-checked="{{t.isLight}}">light</button></span></div>
+</div>
+<div class="stack" style="width: 240px;">
+<span class="k">Switch · 36 x 20, 12 px knob</span>
+<p class="note">The whole 44 px row is the switch (role switch), so the target is the row, not the 36 px track. Off: knob left, <b>--sw-knob</b> on <b>--sw-track</b>. On: knob right 16 px, <b>--sw-knob-on</b> on <b>--sw-track-on</b>. The word on or off sits beside it, so state never rests on colour.</p>
+<p class="note">Knob travel: 4 steps over 160 ms. Reduced motion: it jumps.</p>
+<p class="note">Sound on waiting and Sound on error are separate switches; both off means silent. Theme applies at once to the whole widget.</p>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const base = ['none', 'hardhat', 'headphones', 'glasses', 'bow', 'party', 'chef', 'crybaby', 'beanie', 'crown', 'shades', 'flowers', 'halo', 'wizard'];
+    const earned = ['packed', 'clear', 'ten', 'spotless', 'architect', 'supporter'];
+    const cell = (got, pick, focus) => (id) => ({ id, on: id === pick ? 'true' : 'false',
+      cls: 'miy-acc' + (earned.includes(id) && !got.includes(id) ? ' is-locked' : '') + (id === focus ? ' is-focus' : '') });
+    const colors = [['From project (yellow)', '#F7D64A', true], ['Yellow', '#F7D64A'], ['Pink', '#F7A8C8'], ['Lavender', '#C2A7EE'], ['Blue', '#8DC7F2'], ['Green', '#A5DC93']];
+    return {
+      themes: [{ cls: 'th th-dark', label: 'Dark', isDark: 'true', isLight: 'false', focD: '', focL: 'is-focus' }, { cls: 'th th-light', label: 'Light', isDark: 'false', isLight: 'true', focD: 'is-focus', focL: '' }],
+      colorsPick: colors.map(([label, hex, auto]) => ({ label, hex, auto: !!auto, on: label === 'Pink' ? 'true' : 'false' })),
+      accsPick: [...base, ...earned].map(cell(['packed', 'ten'], 'crown', '')),
+      accsLock: [...base, ...earned].map(cell(['packed'], '', 'ten'))
+    };
+  }
+}
+</script>
+</body>
+</html>

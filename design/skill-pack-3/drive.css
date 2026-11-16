@@ -1,0 +1,44 @@
+/* Skill pack 3: seated floppy, insert, drive face (light + step pips), finish. Needs the shell tokens plus tokens.css in this folder.
+   --px is 1px on a 48 px row and 2px on the open row's stage; it scales widths only, the plank stays 6 px tall. */
+.dv-plank { position: relative; display: block; height: 6px; margin: 0 10px; background: repeating-linear-gradient(90deg, var(--ps-shelf) 0 8px, var(--ps-shelf-top) 8px 16px); }
+.dv-2x { --px: 2px; }
+
+.dv-disk { --px: 1px; position: absolute; top: calc(-11 * var(--px)); right: 2px; width: calc(16 * var(--px)); height: calc(16 * var(--px)); clip-path: inset(0 0 calc(5 * var(--px)) 0); pointer-events: none; }
+.dv-2x .dv-disk { --px: 2px; }
+.dv-disk.f-hop { transform: translate(calc(4 * var(--px)), calc(-18 * var(--px))); clip-path: inset(0); }
+.dv-disk.f-pop { transform: translateY(calc(-7 * var(--px))); clip-path: inset(0); }
+.dv-disk.f-press { transform: translateY(calc(3 * var(--px))); clip-path: inset(0 0 calc(8 * var(--px)) 0); }
+.dv-disk.is-in { animation: dv-insert 400ms steps(1, end); }
+/* Frame 1 (lift) happens in the tray cell; the plank disk is hidden for it. */
+@keyframes dv-insert {
+  0% { opacity: 0; }
+  20% { opacity: 1; transform: translate(calc(4 * var(--px)), calc(-18 * var(--px))); clip-path: inset(0); }
+  40% { transform: translateY(calc(-7 * var(--px))); clip-path: inset(0); }
+  60% { transform: translateY(calc(3 * var(--px))); clip-path: inset(0 0 calc(8 * var(--px)) 0); }
+  80%, 100% { transform: none; clip-path: inset(0 0 calc(5 * var(--px)) 0); }
+}
+
+/* Drive face: 26 sprite px wide, 4 px tall, 1 px of plank above and below, 1 px in from the plank's right end. */
+.dv-face { --px: 1px; position: absolute; top: 1px; right: 1px; width: calc(26 * var(--px)); height: 4px; background: var(--dv-face); }
+.dv-2x .dv-face { --px: 2px; }
+.dv-led { position: absolute; left: calc(2 * var(--px)); top: 1px; width: calc(2 * var(--px)); height: 2px; background: var(--dl-off); }
+.dv-led.on, .dv-led.blink { background: var(--dl-on); }
+.dv-led.blink { animation: dv-blink 480ms steps(1, end) infinite; }
+@keyframes dv-blink { 0% { background: var(--dl-on); } 66.6% { background: var(--dl-off); } }
+
+.dv-pips { position: absolute; right: var(--px); bottom: 1px; display: flex; align-items: flex-end; gap: var(--px); }
+.dv-pips i { display: block; width: calc(2 * var(--px)); height: 2px; background: var(--sp-todo); }
+.dv-pips i.done { background: var(--sp-done); }
+.dv-pips i.now { background: var(--sp-now); height: 3px; }
+/* Step change: the pip that becomes current. 4 frames, 40 ms each. */
+.dv-pips i.now.is-new { animation: dv-step 160ms steps(1, end); }
+@keyframes dv-step { 0% { background: var(--sp-todo); height: 2px; } 25% { background: var(--sp-now); height: 2px; } 50% { height: 4px; } 75%, 100% { height: 3px; } }
+
+/* Step name: open row only. Count in text colour, name muted, 10 characters at most. */
+.dv-step { position: absolute; top: 9px; right: 1px; font: 500 10px/12px 'IBM Plex Mono', monospace; color: var(--ps-muted); white-space: nowrap; }
+.dv-step b { font-weight: 600; color: var(--ps-text); margin-right: 6px; font-variant-numeric: tabular-nums; }
+.dv-step.fin b { color: var(--dl-on); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-disk.is-in, .dv-led.blink, .dv-pips i.now.is-new { animation: none; }
+}

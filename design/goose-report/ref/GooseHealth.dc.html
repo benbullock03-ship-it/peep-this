@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Goose report: repo health</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./goose.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1280px; min-height: 1840px; background: #141218;">
+<div class="board-h">
+<h1>07 · Goose report: repo health</h1>
+<p>At 1280. Top, dark: several findings. Bottom, light: all clear. Four cards in a fixed order, then pattern cards: a lesson, an "explain like I'm 5" fold and a source link. A count plate is filled amber when the card has findings and outlined green when it has none.</p>
+</div>
+<sc-for list="{{reports}}" as="r" hint-placeholder-count="2">
+<div class="{{r.cls}}">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · repo health</span><span class="go-sub"><b>{{r.repo}}</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">{{r.commit}}</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html">Code map</a><a href="GooseHealth.dc.html" aria-current="page">Repo health</a><a href="GooseTopic.dc.html">Custom topic</a></nav>
+<main class="go-main">
+<div class="go-lead"><span class="go-perch"><peep-bot state="{{r.peep}}" color="yellow" accessory="none" size="48"></peep-bot><span class="go-plank"></span></span><div class="go-bub">{{r.lead}}</div></div>
+<div class="go-grid">
+<sc-for list="{{r.cards}}" as="c" hint-placeholder-count="4">
+<section class="go-card">
+<header><h2>{{c.title}}</h2><span class="{{c.nCls}}">{{c.n}}</span></header>
+<sc-if value="{{c.clear}}" hint-placeholder-val="{{false}}"><p class="go-clearline"><i class="go-ok"></i>{{c.clear}}</p></sc-if>
+<ul class="go-rows">
+<sc-for list="{{c.rows}}" as="f" hint-placeholder-count="3">
+<li><span class="go-path">{{f.path}}</span><sc-if value="{{f.num}}" hint-placeholder-val="{{true}}"><span class="go-num">{{f.num}}</span></sc-if><sc-if value="{{f.tk}}" hint-placeholder-val="{{false}}"><span class="{{f.tkCls}}">{{f.tk}}</span></sc-if><sc-if value="{{f.bar}}" hint-placeholder-val="{{false}}"><span class="{{f.barCls}}"><i style="--n: {{f.bar}};"></i></span></sc-if><small>{{f.small}}</small></li>
+</sc-for>
+</ul>
+</section>
+</sc-for>
+</div>
+<h2 class="go-h">Patterns</h2>
+<div class="go-grid">
+<sc-for list="{{r.pats}}" as="p" hint-placeholder-count="3">
+<article class="go-pat">
+<h3>{{p.lesson}}</h3>
+<p>{{p.why}}</p>
+<details><summary>Explain like I'm 5</summary><p>{{p.eli5}}</p></details>
+<span class="src">Source: <a href="{{p.href}}">{{p.src}}</a></span>
+</article>
+</sc-for>
+</div>
+</main>
+<footer class="go-foot"><span>hot spots and stale tickets look back 30 days</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1840}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = (path, num, small, bar, tk, tkCls) => ({ path, num: num || '', small, bar: bar || 0, barCls: 'go-bar' + (bar >= 9 ? ' red' : bar >= 7 ? ' amb' : ''), tk: tk || '', tkCls: 'go-tk' + (tkCls ? ' ' + tkCls : '') });
+    const card = (title, rows, clear) => ({ title, rows, n: rows.length || 'clear', nCls: 'go-n' + (rows.length ? '' : ' ok'), clear: rows.length ? '' : clear });
+    return { reports: [
+      { cls: 'th-dark go', repo: 'agentview-widget', commit: '4f5e9c4', peep: 'thinking',
+        lead: '11 findings in 4 groups, none urgent. Start with src/styles.css: it is the busiest file and the biggest.',
+        cards: [
+          card('Hot spots', [
+            row('src/styles.css', '41 changes', 'touched by 6 tickets in 30 days', 10),
+            row('src/rowView.ts', '33 changes', 'touched by 5 tickets', 8),
+            row('src-tauri/src/state.rs', '27 changes', 'touched by 4 tickets', 7),
+            row('src/rows.ts', '22 changes', 'touched by 4 tickets', 5)]),
+          card('Biggest files', [
+            row('src/styles.css', '1,912 lines', 'over the 800-line mark', 10),
+            row('src-tauri/src/state.rs', '1,104 lines', 'over the 800-line mark', 6),
+            row('src/rowView.ts', '866 lines', 'just over the mark', 5)]),
+          card('Untested areas', [
+            row('skills', '0 of 14', 'no test imports anything in plugin/skills/'),
+            row('flyout', '0 of 3', 'no test imports src/flyoutPage.ts')]),
+          card('Stale tickets', [
+            row('AV-93 Flyout approval card', '', 'no commit mentions it since 2026-11-04', 0, 'doing · 12 days'),
+            row('AV-88 Rules store', '', 'blocked on AV-54, which closed 9 days ago', 0, 'blocked · 9 days', 'blocked')])
+        ],
+        pats: [
+          { lesson: 'A file that is both the busiest and the biggest is where sessions collide.', why: 'src/styles.css leads both lists. Splitting it by surface (rows, strip, flyout) gives each ticket its own file to change.', eli5: 'One toy box that everybody digs in at once. A few smaller boxes, and nobody bumps heads.', src: 'A Philosophy of Software Design, ch. 4', href: 'https://web.stanford.edu/~ouster/cgi-bin/book.php' },
+          { lesson: 'Code with no test cannot tell you when it breaks.', why: 'Two areas have no test at all. One test that imports the area is enough to make Coderot useful there.', eli5: 'A smoke alarm with no battery looks fine right up until there is a fire.', src: 'Test Coverage, Martin Fowler', href: 'https://martinfowler.com/bliki/TestCoverage.html' },
+          { lesson: 'A ticket left in doing hides who is working on what.', why: 'AV-93 has been doing for 12 days with no commit. Park it with a reason, or pick it back up.', eli5: 'A "back in 5 minutes" sign that has been on the door all week.', src: 'CONTEXT.md, ticket statuses', href: 'CONTEXT.md' }
+        ] },
+      { cls: 'th-light go', repo: 'polling', commit: '9c21e07', peep: 'success',
+        lead: 'All clear. Nothing here needs you today.',
+        cards: [
+          card('Hot spots', [], 'No file changed more than 10 times in 30 days.'),
+          card('Biggest files', [], 'No file is over 800 lines.'),
+          card('Untested areas', [], 'Every area has at least one test.'),
+          card('Stale tickets', [], 'No ticket has sat in doing or blocked for over 7 days.')
+        ],
+        pats: [
+          { lesson: 'Small files that change rarely are cheap to hold in your head.', why: 'This repo is in that state now. The cheapest time to keep it there is while it is true.', eli5: 'A tidy room is quick to tidy.', src: 'A Philosophy of Software Design, ch. 2', href: 'https://web.stanford.edu/~ouster/cgi-bin/book.php' }
+        ] }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

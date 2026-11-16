@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pack for this repo: states and saved</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./miy.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1400px; min-height: 1500px; background: #141218;">
+<div class="board-h">
+<h1>05 · Pack for this repo: states, and how a save is acknowledged</h1>
+<p>A repo with no setup shows one line and one button. A skill switched off keeps its row and shows the disabled floppy. A save is acknowledged in two places: the changed row is framed for 160 ms and the section header's slot reads Saved.</p>
+</div>
+<div class="themes">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+
+<p class="cap">{{t.label}} · repo with no setup yet</p>
+<div class="win miy">
+<div class="miy-h"><h2>Pack for this repo</h2><span class="miy-ack">no setup</span></div>
+<div class="miy-repo"><b>polling</b><small>C:\Projects\polling</small></div>
+<div class="miy-empty"><span>No setup in this repo yet.</span><button class="miy-btn">Set it up</button></div>
+</div>
+<p class="note">Set it up is a Jump: it copies <b>/peep:ducks</b>, which writes .peep/setup.md, and focuses a session in this repo. With no session open the button is disabled and the line reads "Open a session in this repo first."</p>
+
+<p class="cap">A skill switched off · the row just changed</p>
+<div class="pair">
+<div class="win miy">
+<div class="miy-h"><h2>Pack for this repo</h2><span class="miy-ack is-new" role="status"><i class="miy-tick"></i>Saved</span></div>
+<div class="miy-repo"><b>agentview-widget</b><small>F:\Projects\agentview widget · .peep/setup.md</small></div>
+<button class="miy-row" role="switch" aria-checked="true"><span class="fl fl32 fl-ducks"></span><span class="tx"><span class="nm">Ducks</span><small>/peep:ducks</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row" role="switch" aria-checked="true"><span class="fl fl32 fl-ticket"></span><span class="tx"><span class="nm">Ticket</span><small>/peep:ticket</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row is-saved" role="switch" aria-checked="false"><span class="fl fl32 fl-coderot off"></span><span class="tx"><span class="nm">Coderot</span><small>/peep:coderot · off here</small></span><span class="miy-val">off</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row" role="switch" aria-checked="false"><span class="fl fl32 fl-bigpeep off"></span><span class="tx"><span class="nm">Big Peep</span><small>/peep:bigpeep · off here</small></span><span class="miy-val">off</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row is-focus" role="switch" aria-checked="true"><span class="fl fl32 fl-shoot"></span><span class="tx"><span class="nm">Shoot</span><small>/peep:shoot</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<div class="miy-line"><span class="tx">Question round size<small>questions per batch</small></span><span class="miy-seg" role="radiogroup"><button role="radio" aria-checked="false">2</button><button role="radio" aria-checked="true">3</button><button role="radio" aria-checked="false">4</button></span></div>
+<div class="miy-line" style="min-height: 40px;"><span class="tx">Screenshot widths<small>px, used by Shoot</small></span></div>
+<div class="miy-chips">
+<span class="miy-chipx"><span>375</span><button aria-label="Remove 375">×</button></span>
+<span class="miy-chipx"><span>1280</span><button class="is-focus" aria-label="Remove 1280">×</button></span>
+<input class="miy-add" type="text" inputmode="numeric" placeholder="+ width" aria-label="Add a screenshot width">
+</div>
+</div>
+<div class="stack" style="width: 240px;">
+<span class="k">Off</span>
+<p class="note">Row 1 of the floppy sheet (disabled art), name in muted text, "off here" after the command. The disk also leaves this repo's tray and disk box; other repos are untouched.</p>
+<span class="k">Widths</span>
+<p class="note">Type a number and press Enter to add; x removes. 320 to 3840, at most 5, kept sorted. The last one cannot be removed.</p>
+</div>
+</div>
+
+<p class="cap">Saved · the header slot, 4 frames of 40 ms, then held</p>
+<div class="frames">
+<div class="stack" style="width: 148px;"><div class="miy"><div class="miy-h" style="border: 0; padding: 0 8px;"><h2>Alerts</h2><span class="miy-ack"><i class="miy-tick"></i>saved 13:48</span></div></div><span class="fr-l"><b>before</b><br>last save time, muted</span></div>
+<div class="stack" style="width: 148px;"><div class="miy"><div class="miy-h" style="border: 0; padding: 0 8px;"><h2>Alerts</h2><span class="miy-ack is-new" style="animation: none; transform: translateY(-4px);"><i class="miy-tick"></i>Saved</span></div></div><span class="fr-l"><b>1</b> filled plate, 4 px high</span></div>
+<div class="stack" style="width: 148px;"><div class="miy"><div class="miy-h" style="border: 0; padding: 0 8px;"><h2>Alerts</h2><span class="miy-ack is-new" style="animation: none;"><i class="miy-tick"></i>Saved</span></div></div><span class="fr-l"><b>4</b> seated; held 1200 ms</span></div>
+<div class="stack" style="width: 148px;"><div class="miy"><div class="miy-h" style="border: 0; padding: 0 8px;"><h2>Alerts</h2><span class="miy-ack"><i class="miy-tick"></i>saved 14:02</span></div></div><span class="fr-l"><b>after</b><br>new time, muted</span></div>
+</div>
+
+<p class="cap">Could not save</p>
+<div class="win miy">
+<div class="miy-h"><h2>Pack for this repo</h2><span class="miy-ack is-fail" role="alert">Not saved · <u>retry</u></span></div>
+<button class="miy-row" role="switch" aria-checked="true"><span class="fl fl32 fl-coderot"></span><span class="tx"><span class="nm">Coderot</span><small>/peep:coderot</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+</div>
+<p class="note">The control steps back to its old value, the slot stays filled in the error colour until retry works, and nothing else on the page is blocked.</p>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }] };
+  }
+}
+</script>
+</body>
+</html>

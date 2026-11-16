@@ -1,0 +1,21 @@
+/* Peep This tokens, skill pack 3 additions. Load after design/skill-pack/tokens.css and design/skill-pack-2/tokens.css. */
+:root {
+  /* Drive light */
+  --dl-off: #4A4458;
+  --dl-on: #7DFFA6;
+  --dl-blink: 480ms;
+  /* Step pips */
+  --sp-todo: #4A4458;
+  --sp-done: var(--ps-text);
+  --sp-now: var(--ps-accent);
+  --sp-frame: 40ms;
+  /* Drive face, insert, finish */
+  --dv-face: var(--ps-panel);
+  --dv-frame: 80ms;
+  --dv-hold: 1200ms;
+}
+:root[data-theme="light"] {
+  --dl-off: #C9BFAE;
+  --dl-on: #1F7A3D;
+  --sp-todo: #C9BFAE;
+}

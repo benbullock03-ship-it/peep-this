@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Floppy insert, drive light, finished</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./drive.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1400px; min-height: 1640px; background: #141218;">
+<div class="board-h">
+<h1>01 · Insert, drive light, finished</h1>
+<p>The plank's right end is the drive. A 26 x 4 px face cut into the plank holds one light and up to six step pips, right under the seated disk. Insert mirrors the existing eject; the light is lit while the skill runs and blinks only while the session is working.</p>
+</div>
+<div class="themes">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+
+<p class="cap">{{t.label}} · insert · 5 frames, 80 ms each (shown at 2x)</p>
+<div class="frames">
+<div class="fr"><div class="fr-box"><span class="tcell"><span class="fl fl32 fl-shoot lift"></span></span><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span></span></span></div><span class="fr-l"><b>1 lift</b><br>tray disk up 2 px</span></div>
+<div class="fr"><div class="fr-box"><span class="tcell"><span class="dsp dsp32" style="--i: 5;"></span></span><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span></span><span class="fl fl32 fl-shoot dv-disk f-hop"></span></span></div><span class="fr-l"><b>2 hop</b><br>up 18, right 4</span></div>
+<div class="fr"><div class="fr-box"><span class="tcell"><span class="dsp dsp32" style="--i: 5;"></span></span><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span></span><span class="fl fl32 fl-shoot dv-disk f-pop"></span></span></div><span class="fr-l"><b>3 pop</b><br>all 16 rows, up 7</span></div>
+<div class="fr"><div class="fr-box"><span class="tcell"><span class="dsp dsp32" style="--i: 5;"></span></span><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span></span><span class="fl fl32 fl-shoot dv-disk f-press"></span></span></div><span class="fr-l"><b>4 press</b><br>8 rows showing</span></div>
+<div class="fr"><div class="fr-box"><span class="tcell"><span class="dsp dsp32" style="--i: 5;"></span></span><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led on"></span><span class="dv-pips"><i class="now"></i><i></i><i></i><i></i></span></span><span class="fl fl32 fl-shoot dv-disk"></span></span></div><span class="fr-l"><b>5 seated</b><br>light on, step 1</span></div>
+</div>
+<p class="note">Values are sprite px, the same poses as eject run backwards. While its disk is out, the tray cell shows the dotted empty slot and takes no click.</p>
+
+<p class="cap">Drive light</p>
+<div class="frames">
+<div class="fr"><div class="fr-box"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span><span class="dv-pips"><i></i><i></i><i></i><i></i></span></span><span class="fl fl32 fl-shoot dv-disk"></span></span></div><span class="fr-l"><b>off</b><br>seated, not picked up yet</span></div>
+<div class="fr"><div class="fr-box"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led on"></span><span class="dv-pips"><i class="done"></i><i class="now"></i><i></i><i></i></span></span><span class="fl fl32 fl-shoot dv-disk"></span></span></div><span class="fr-l"><b>on</b><br>skill running</span></div>
+<div class="fr"><div class="fr-box"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led blink"></span><span class="dv-pips"><i class="done"></i><i class="now"></i><i></i><i></i></span></span><span class="fl fl32 fl-shoot dv-disk"></span></span></div><span class="fr-l"><b>blinking</b><br>state is working: on 320, off 160 ms</span></div>
+</div>
+
+<p class="cap">On 48 px rows · 16 px floppy</p>
+<div class="win">
+<div class="head"><span class="title">Peep This</span><span class="sub">4 sessions</span></div>
+<div class="list">
+<div class="item st-working">
+<div class="row"><span class="pcol"><peep-bot state="working" color="yellow" accessory="headphones" size="48"></peep-bot></span><div class="body"><div class="bub"><span class="t"><span class="id">AV-34:</span> strip plate <span class="vb">· shooting</span></span></div><div class="meta" style="padding-right: 18px;"><span class="name">peep-this-7a</span><span class="chip">working</span></div></div></div>
+<span class="dv-plank"><span class="dv-face"><span class="dv-led blink"></span><span class="dv-pips"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></span></span><span class="fl fl-shoot dv-disk"></span></span>
+</div>
+<div class="item st-thinking">
+<div class="row"><span class="pcol"><peep-bot state="thinking" color="lavender" accessory="glasses" size="48"></peep-bot></span><div class="body"><div class="bub"><span class="t"><span class="id">AV-41:</span> toast copy <span class="vb">· working the ticket</span></span></div><div class="meta" style="padding-right: 18px;"><span class="name">peep-this-7b</span><span class="chip">thinking</span></div></div></div>
+<span class="dv-plank"><span class="dv-face"><span class="dv-led on"></span><span class="dv-pips"><i class="done"></i><i class="now"></i><i></i><i></i></span></span><span class="fl fl-ticket dv-disk"></span></span>
+</div>
+<div class="item st-waiting">
+<div class="row"><span class="pcol"><peep-bot state="waiting" color="pink" accessory="bow" size="48"></peep-bot></span><div class="body"><div class="bub att"><span class="t">Run npm test?</span></div><div class="meta" style="padding-right: 18px;"><span class="name">datamap-44</span><span class="chip">waiting</span></div></div></div>
+<span class="dv-plank"><span class="dv-face"><span class="dv-led on"></span><span class="dv-pips"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></span></span><span class="fl fl-coderot dv-disk"></span></span>
+</div>
+<div class="item st-idle">
+<div class="row"><span class="pcol"><peep-bot state="idle" color="green" accessory="chef" size="48"></peep-bot></span><div class="body"><div class="bub"><span class="t">Nothing in flight.</span></div><div class="meta"><span class="name">polling-90</span><span class="chip">idle</span></div></div></div>
+<span class="dv-plank"></span>
+</div>
+</div>
+</div>
+<p class="note">No disk, no face: the plank is plain. Waiting keeps the light steady, so a blink always means a tool is running.</p>
+
+<p class="cap">Finished · hold 1200 ms, then the existing eject</p>
+<div class="frames">
+<div class="fr"><div class="fr-box tall"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led on"></span><span class="dv-pips"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i></span></span><span class="fl fl32 fl-shoot dv-disk"></span><span class="dv-step fin"><b>4/4</b>done</span></span></div><span class="fr-l"><b>hold</b><br>all pips done, light steady</span></div>
+<div class="fr old"><div class="fr-box tall"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span><span class="dv-pips"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i></span></span><span class="fl fl32 fl-shoot dv-disk f-press"></span></span></div><span class="fr-l"><b>press</b><br>light off</span></div>
+<div class="fr old"><div class="fr-box tall"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span></span><span class="fl fl32 fl-shoot dv-disk f-pop"></span></span></div><span class="fr-l"><b>pop</b><br>pips clear</span></div>
+<div class="fr old"><div class="fr-box tall"><span class="dv-plank dv-2x"><span class="dv-face"><span class="dv-led"></span></span><span class="fl fl32 fl-shoot dv-disk f-hop"></span></span></div><span class="fr-l"><b>hop</b></span></div>
+<div class="fr old"><div class="fr-box tall"><span class="tcell"><span class="fl fl32 fl-shoot"></span></span><span class="dv-plank dv-2x"><span class="dust"></span></span></div><span class="fr-l"><b>gone</b><br>face removed, disk in tray</span></div>
+</div>
+<p class="note">Dimmed frames are FLOPPY-SPEC §01, unchanged. Reduced motion: no hold animation, the disk and face are removed after 1200 ms in one step.</p>
+
+<p class="cap">New sprites · 16 px cells, shown at 4x</p>
+<div class="frames" style="align-items: flex-end;">
+<div class="stack"><span class="dsp dsp64" style="--i: 0; background-color: var(--ps-panel);"></span><span class="fr-l">led off</span></div>
+<div class="stack"><span class="dsp dsp64" style="--i: 1; background-color: var(--ps-panel);"></span><span class="fr-l">led on</span></div>
+<div class="stack"><span class="dsp dsp64" style="--i: 2; background-color: var(--ps-panel);"></span><span class="fr-l">to do</span></div>
+<div class="stack"><span class="dsp dsp64" style="--i: 3; background-color: var(--ps-panel);"></span><span class="fr-l">done</span></div>
+<div class="stack"><span class="dsp dsp64" style="--i: 4; background-color: var(--ps-panel);"></span><span class="fr-l">current</span></div>
+<div class="stack"><span class="dsp dsp64" style="--i: 5; background-color: var(--ps-panel);"></span><span class="fr-l">empty slot</span></div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }] };
+  }
+}
+</script>
+</body>
+</html>

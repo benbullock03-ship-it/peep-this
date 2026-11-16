@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>{{TITLE}}</title>
+<style>
+{{FONTS}}
+{{TOKENS}}
+html { background: var(--ps-desk); }
+body { margin: 0; }
+.go { min-height: 100vh; }
+.fl { display: inline-block; flex: none; width: 16px; height: 16px; background: url({{FLOPPY_DARK}}) 100% 0 / 1800% 200%; image-rendering: pixelated; }
+@media (prefers-color-scheme: light) { .fl { background-image: url({{FLOPPY_LIGHT}}); } }
+{{CSS}}
+</style>
+</head>
+<body>
+<div class="go" id="go"></div>
+<script>{{PEEP}}</script>
+<script type="application/json" id="report">{{DATA}}</script>
+<script>{{JS}}</script>
+</body>
+</html>

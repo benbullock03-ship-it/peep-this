@@ -1,0 +1,8 @@
+/* Peep This tokens, Goose report additions. Load after design/skill-pack/tokens.css and design/skill-pack-2/tokens.css.
+   The same values in both themes; listed so the build has one place to change them. */
+:root {
+  --go-paper: var(--ps-panel);
+  --go-find: var(--st-waiting);
+  --go-clear: var(--st-success);
+  --go-link: var(--tk-review);
+}

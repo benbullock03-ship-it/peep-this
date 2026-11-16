@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Goose report: code map</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./goose.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1280px; min-height: 1240px; background: #141218;">
+<div class="board-h">
+<h1>06 · Goose report: code map</h1>
+<p>At 1280. Top, dark: 12 areas, four sessions, two of them on one area, one waiting (its area's border turns amber). Bottom, light: 3 areas, no sessions. Links run right-angled from the area that needs to the area needed.</p>
+</div>
+<sc-for list="{{reports}}" as="r" hint-placeholder-count="2">
+<div class="{{r.cls}}">
+<div class="go-win">
+<header class="go-head"><span class="go-title"><span class="fl fl-goose"></span>Goose · code map</span><span class="go-sub"><b>{{r.repo}}</b></span><span class="go-sub">2026-11-16</span><span class="go-sub">{{r.commit}}</span></header>
+<nav class="go-tabs" aria-label="Reports"><a href="GooseMap.dc.html" aria-current="page">Code map</a><a href="GooseHealth.dc.html">Repo health</a><a href="GooseTopic.dc.html">Custom topic</a></nav>
+<main class="go-main">
+<div class="go-lead"><span class="go-perch"><peep-bot state="idle" color="yellow" accessory="none" size="48"></peep-bot><span class="go-plank"></span></span><div class="go-bub">{{r.lead}}</div></div>
+<div class="go-mapwrap">
+<div class="go-mapbox"><div class="go-map" style="width: {{r.w}}px; height: {{r.h}}px;">
+<sc-for list="{{r.nodes}}" as="n" hint-placeholder-count="6">
+<div class="{{n.cls}}" style="left: {{n.x}}px; top: {{n.y}}px;">
+<div class="gstand"><sc-for list="{{n.peeps}}" as="p" hint-placeholder-count="1"><peep-bot state="{{p.state}}" color="{{p.color}}" accessory="{{p.acc}}" size="32"></peep-bot></sc-for></div>
+<span class="gplank"></span>
+<div class="gcard"><div class="gn">{{n.id}}<span>{{n.n}}</span></div><div class="gfiles"><sc-for list="{{n.blocks}}" as="b" hint-placeholder-count="6"><i class="{{b.c}}"></i></sc-for></div></div>
+</div>
+</sc-for>
+<sc-for list="{{r.segs}}" as="s" hint-placeholder-count="8"><span class="gedge" style="left: {{s.x}}px; top: {{s.y}}px; width: {{s.w}}px; height: {{s.h}}px;"></span></sc-for>
+</div></div>
+<div class="go-side">
+<h2 class="go-h">Sessions on the map</h2>
+<sc-if value="{{r.none}}" hint-placeholder-val="{{false}}"><p class="go-none">No sessions are editing this repo right now. The map still shows what needs what.</p></sc-if>
+<sc-for list="{{r.sessions}}" as="p" hint-placeholder-count="3">
+<div class="{{p.cls}}"><span class="who"><peep-bot state="{{p.state}}" color="{{p.color}}" accessory="{{p.acc}}" size="32"></peep-bot><span class="go-plank"></span></span><span class="nm">{{p.name}}<small>on {{p.area}}</small></span><span class="go-state">{{p.state}}</span></div>
+</sc-for>
+</div>
+</div>
+</main>
+<footer class="go-foot"><span class="wide"><i class="ln"></i>needs, ends at the area needed</span><span><i class="sq"></i>3 files</span><span><i class="sq on"></i>being edited</span><span>made by /peep:goose</span></footer>
+</div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = (name, state, color, acc) => ({ name, state, color, acc });
+    // Same demo layout as map.html: column = depth, links between neighbouring columns only.
+    const lay = (R) => {
+      const at = {}, segs = [], sessions = [];
+      const nodes = R.nodes.map(([id, c, r, n, edit = 0, peeps = []]) => {
+        const x = 20 + c * R.pitch, y = 16 + r * 112;
+        at[id] = { x, y, r };
+        peeps.forEach((p) => sessions.push({ ...p, area: id, cls: 'go-sess st-' + p.state }));
+        return { id, n, x, y, peeps, cls: 'gnode' + (peeps.some((p) => p.state === 'waiting') ? ' att' : ''),
+          blocks: Array.from({ length: Math.min(16, Math.ceil(n / 3)) }, (_, i) => ({ c: i < edit ? 'on' : '' })) };
+      });
+      R.edges.forEach(([a, b]) => {
+        const A = at[a], B = at[b], x1 = A.x + 120, y1 = A.y + 57, y2 = B.y + 57, mx = x1 + 12 + A.r * 12;
+        [[x1, y1, mx - x1 + 2, 2], [mx, Math.min(y1, y2), 2, Math.abs(y2 - y1) + 2], [mx, y2, B.x - mx, 2], [B.x - 6, y2 - 2, 6, 6]]
+          .forEach(([x, y, w, h]) => segs.push({ x, y, w, h }));
+      });
+      return { ...R, nodes, segs, sessions, none: sessions.length === 0, w: 40 + (R.cols - 1) * R.pitch + 120, h: 32 + (R.rows - 1) * 112 + 78 };
+    };
+    return { reports: [
+      lay({ cls: 'th-dark go', repo: 'agentview-widget', commit: '4f5e9c4', pitch: 240, cols: 4, rows: 3,
+        lead: '12 areas, 14 links. Four sessions are editing three areas; two of them share source, and one is waiting.',
+        nodes: [['ui', 0, 0, 34, 2, [P('peep-this-7a', 'working', 'yellow', 'headphones')]], ['settings', 0, 1, 6], ['plugin', 0, 2, 18],
+          ['bridge', 1, 0, 7], ['look', 1, 1, 5], ['skills', 1, 2, 14],
+          ['commands', 2, 0, 9], ['state', 2, 1, 6, 1, [P('peep-this-7b', 'thinking', 'lavender', 'glasses')]], ['installer', 2, 2, 8],
+          ['source', 3, 0, 11, 3, [P('peep-this-7c', 'working', 'blue', 'hardhat'), P('peep-this-7d', 'waiting', 'pink', 'bow')]], ['server', 3, 1, 5], ['store', 3, 2, 4]],
+        edges: [['ui', 'bridge'], ['ui', 'look'], ['settings', 'bridge'], ['settings', 'look'], ['plugin', 'skills'],
+          ['bridge', 'commands'], ['bridge', 'state'], ['look', 'commands'], ['skills', 'installer'],
+          ['commands', 'source'], ['commands', 'store'], ['state', 'source'], ['state', 'server'], ['installer', 'store']] }),
+      lay({ cls: 'th-light go', repo: 'polling', commit: '9c21e07', pitch: 240, cols: 3, rows: 1,
+        lead: '3 areas, 2 links. Nobody is editing here right now.',
+        nodes: [['web', 0, 0, 22], ['api', 1, 0, 14], ['db', 2, 0, 6]],
+        edges: [['web', 'api'], ['api', 'db']] })
+    ] };
+  }
+}
+</script>
+</body>
+</html>

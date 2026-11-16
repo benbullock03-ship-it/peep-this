@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Make it yours: whole page</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp4.css">
+<link rel="stylesheet" href="./miy.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1000px; min-height: 2060px; background: #141218;">
+<div class="board-h">
+<h1>03 · Make it yours</h1>
+<p>One scrolling page in the 360 px panel, shown here unrolled. Three sections under striped headers. There is no Save button: each header's right slot says when that section last saved.</p>
+</div>
+<div class="themes">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · default look, repo with setup</p>
+<div class="win miy">
+<div class="head"><span class="title">Make it yours</span><span class="sub">saves as you go</span><button class="ibtn" aria-label="Back to sessions">‹</button></div>
+
+<section>
+<div class="miy-h"><h2>Peep look</h2><span class="miy-ack">from project</span></div>
+<div class="miy-stage"><peep-bot state="idle" color="yellow" accessory="headphones" size="96"></peep-bot><div class="miy-bub">This is me in agentview-widget.</div></div>
+<span class="miy-plank"></span>
+<div class="miy-b">
+<div class="miy-src"><span>Colour and accessory come from this project's folder, so it always looks the same.</span></div>
+<fieldset class="miy-f" role="radiogroup">
+<legend class="miy-l">Colour <b>from project · yellow</b></legend>
+<div class="miy-sws">
+<sc-for list="{{colors}}" as="c" hint-placeholder-count="6">
+<button class="miy-sw" role="radio" aria-checked="{{c.on}}" aria-label="{{c.label}}" style="--c: {{c.hex}};"><sc-if value="{{c.auto}}" hint-placeholder-val="{{false}}"><span>auto</span></sc-if></button>
+</sc-for>
+</div>
+</fieldset>
+<fieldset class="miy-f" role="radiogroup">
+<legend class="miy-l">Accessory <b>from project · headphones</b></legend>
+<div class="miy-accs">
+<button class="miy-acc auto" role="radio" aria-checked="true" aria-label="From project (headphones)">auto</button>
+<sc-for list="{{accs}}" as="a" hint-placeholder-count="14">
+<button class="miy-acc" role="radio" aria-checked="false" aria-label="{{a.id}}"><peep-bot state="idle" color="yellow" accessory="{{a.id}}" size="32" hover="off" energy="1"></peep-bot></button>
+</sc-for>
+<sc-for list="{{earned}}" as="a" hint-placeholder-count="6">
+<button class="{{a.cls}}" role="radio" aria-checked="false" aria-label="{{a.label}}"><peep-bot state="idle" color="yellow" accessory="{{a.id}}" size="32" hover="off" energy="1"></peep-bot></button>
+</sc-for>
+</div>
+</fieldset>
+</div>
+</section>
+
+<section>
+<div class="miy-h"><h2>Alerts</h2><span class="miy-ack"><i class="miy-tick"></i>saved 13:48</span></div>
+<button class="miy-row" role="switch" aria-checked="true"><span class="tx">Toast when a peep needs you<small>Windows notification on waiting</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row" role="switch" aria-checked="true"><span class="tx">Sound on waiting</span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+<button class="miy-row" role="switch" aria-checked="false"><span class="tx">Sound on error</span><span class="miy-val">off</span><span class="miy-switch"><i></i></span></button>
+<div class="miy-line"><span class="tx" id="{{t.id}}-theme">Theme</span><span class="miy-seg" role="radiogroup"><button role="radio" aria-checked="{{t.isDark}}">dark</button><button role="radio" aria-checked="{{t.isLight}}">light</button></span></div>
+</section>
+
+<section>
+<div class="miy-h"><h2>Pack for this repo</h2><span class="miy-ack"><i class="miy-tick"></i>saved Fri</span></div>
+<div class="miy-repo"><b>agentview-widget</b><small>F:\Projects\agentview widget · .peep/setup.md</small></div>
+<sc-for list="{{skills}}" as="s" hint-placeholder-count="14">
+<button class="miy-row" role="switch" aria-checked="true"><span class="{{s.fl}}"></span><span class="tx"><span class="nm">{{s.name}}</span><small>{{s.cmd}}</small></span><span class="miy-val">on</span><span class="miy-switch"><i></i></span></button>
+</sc-for>
+<div class="miy-line"><span class="tx">Question round size<small>questions per batch in Question Time</small></span><span class="miy-seg" role="radiogroup"><button role="radio" aria-checked="false">2</button><button role="radio" aria-checked="false">3</button><button role="radio" aria-checked="true">4</button></span></div>
+<div class="miy-line" style="min-height: 40px;"><span class="tx">Screenshot widths<small>px, used by Shoot</small></span></div>
+<div class="miy-chips">
+<span class="miy-chipx"><span>375</span><button aria-label="Remove 375">×</button></span>
+<span class="miy-chipx"><span>768</span><button aria-label="Remove 768">×</button></span>
+<span class="miy-chipx"><span>1280</span><button aria-label="Remove 1280">×</button></span>
+<input class="miy-add" type="text" inputmode="numeric" placeholder="+ width" aria-label="Add a screenshot width">
+</div>
+</section>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":2060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const S = [['Ducks', 'ducks', 'ducks'], ['Question Time', 'qt', 'qt'], ['Ticket', 'ticket', 'ticket'], ['Shoot', 'shoot', 'shoot'], ['Pack Up', 'packup', 'packup'], ['Coderot', 'coderot', 'coderot'], ['Unpack', 'unpack', 'unpack'], ['Walk Through', 'walk', 'walk'], ['The Reel', 'reel', 'reel'], ['Sneak Peep', 'sneak', 'sneak'], ['Scrubadubdub', 'scrub', 'scrub'], ['Big Peep', 'bigpeep', 'bigpeep'], ['Tweet Tweet', 'tweet', 'tweet'], ['Duck Duck Goose', 'goose', 'goose']];
+    const got = { packed: true, ten: true };
+    return {
+      themes: [{ cls: 'th th-dark', label: 'Dark', id: 'd', isDark: 'true', isLight: 'false' }, { cls: 'th th-light', label: 'Light', id: 'l', isDark: 'false', isLight: 'true' }],
+      colors: [
+        { label: 'From project (yellow)', hex: '#F7D64A', on: 'true', auto: true },
+        { label: 'Yellow', hex: '#F7D64A', on: 'false' }, { label: 'Pink', hex: '#F7A8C8', on: 'false' }, { label: 'Lavender', hex: '#C2A7EE', on: 'false' },
+        { label: 'Blue', hex: '#8DC7F2', on: 'false' }, { label: 'Green', hex: '#A5DC93', on: 'false' }
+      ],
+      accs: ['none', 'hardhat', 'headphones', 'glasses', 'bow', 'party', 'chef', 'crybaby', 'beanie', 'crown', 'shades', 'flowers', 'halo', 'wizard'].map((id) => ({ id })),
+      earned: ['packed', 'clear', 'ten', 'spotless', 'architect', 'supporter'].map((id) => ({ id, cls: 'miy-acc' + (got[id] ? '' : ' is-locked'), label: id + (got[id] ? '' : ', not earned yet') })),
+      skills: S.map(([name, cmd, cls]) => ({ name, cmd: '/peep:' + cmd, fl: 'fl fl32 fl-' + cls }))
+    };
+  }
+}
+</script>
+</body>
+</html>
