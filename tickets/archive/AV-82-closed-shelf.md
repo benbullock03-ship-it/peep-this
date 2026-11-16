@@ -1,7 +1,7 @@
 ---
 id: AV-82
 title: Closed shelf with resume copy
-status: doing
+status: closed
 depends: [AV-79, AV-80]
 attended: true
 ---
@@ -17,9 +17,9 @@ attended: true
 
 **Done when:** the owner closes a session with uncommitted edits, sees it flagged on the shelf, and resumes it from the copied command.
 
-## Owed before done
+## Done 2026-11-16
 
-- Owner, in `npm run tauri dev`: end a session with uncommitted edits, see it on the shelf flagged `uncommitted` once its done row fades, click it, paste `claude --resume <id>` in a terminal and see the session come back (and leave the shelf).
+- Live in `npm run tauri dev`: throwaway `claude -p` sessions in a scratch repo with an uncommitted file landed on the shelf flagged "uncommitted · no Pack Up", newest first, once their done rows faded. A real click copied `claude --resume e272efbe-…` (clipboard read back), with the accent outline, "On your clipboard!" and the hint bar. Running that resume brought the session back under the same id: it left the shelf, and returned about a minute after it ended.
 - Built in `src/closedShelf.ts` (+ `.test.ts`), wired in `src/main.ts`, styles in `src/styles.css`, demo `?demo&closed=none|one|many|long` in `src/demo.ts`. Shot in the browser demo, both themes.
 
 ## Decisions taken without a ruling
