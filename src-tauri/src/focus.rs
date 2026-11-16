@@ -109,7 +109,17 @@ pub fn terminal_is_foreground(pid: u32, cwd: &str) -> bool {
         return false;
     }
     let table = sys::with_start_times(sys::process_table(), pid);
-    resolve(&table, &sys::top_level_windows(), pid, folder_hint(cwd)).is_some_and(|w| sys::foreground() == Some(w.hwnd))
+    is_foreground(&table, &sys::top_level_windows(), sys::foreground(), pid, folder_hint(cwd))
+}
+
+pub fn is_foreground(
+    table: &HashMap<u32, ProcEntry>,
+    windows: &[WindowInfo],
+    foreground: Option<isize>,
+    pid: u32,
+    hint: Option<&str>,
+) -> bool {
+    resolve(table, windows, pid, hint).is_some_and(|w| foreground == Some(w.hwnd))
 }
 
 pub fn foreground_window() -> Option<isize> {
@@ -449,6 +459,17 @@ mod tests {
         t.insert(70, p(50, "WindowsTerminal.exe", None));
         let wins = [w(1, 50, "Desktop"), w(3, 70, "Command Prompt")];
         assert_eq!(resolve(&t, &wins, 10, None).unwrap().hwnd, 3);
+    }
+
+    #[test]
+    fn focus_foreground_only_when_the_resolved_window_is_in_front() {
+        let wins = [w(1, 40, "a.ts - other - Visual Studio Code"), w(2, 40, "b.rs - demo - Visual Studio Code"), w(9, 77, "Browser")];
+        let t = vscode_tree();
+        assert!(is_foreground(&t, &wins, Some(2), 10, Some("demo")));
+        assert!(!is_foreground(&t, &wins, Some(1), 10, Some("demo")), "same app, other project window");
+        assert!(!is_foreground(&t, &wins, Some(9), 10, Some("demo")));
+        assert!(!is_foreground(&t, &wins, None, 10, Some("demo")));
+        assert!(!is_foreground(&t, &[w(9, 77, "Browser")], Some(9), 10, None), "no window resolved");
     }
 
     #[test]

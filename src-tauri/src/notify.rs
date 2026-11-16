@@ -1,7 +1,8 @@
 //! AV-14: toast on entering `waiting`, with de-duplication (spec §3.6).
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use crate::state::{Session, State};
 
@@ -22,10 +23,17 @@ impl WidgetView {
     }
 }
 
+fn entered(before: Option<&Session>, after: &Session, state: State) -> bool {
+    after.alive && after.state == state && before.is_none_or(|b| !b.alive || b.state != state)
+}
+
 pub fn entered_waiting(before: Option<&Session>, after: &Session) -> bool {
-    after.alive
-        && after.state == State::Waiting
-        && before.is_none_or(|b| !b.alive || b.state != State::Waiting)
+    entered(before, after, State::Waiting)
+}
+
+/// `waiting` toasts and may chime; `error` only chimes.
+pub fn entered_alert(before: Option<&Session>, after: &Session) -> bool {
+    entered_waiting(before, after) || entered(before, after, State::Error)
 }
 
 pub fn should_toast(last_toast: Option<u64>, now: u64, view: WidgetView) -> bool {
@@ -92,40 +100,99 @@ pub fn click_action(action: Option<&str>, request: Option<&str>, pending: impl F
 
 pub type Show = Box<dyn Fn(&Session) + Send + Sync>;
 pub type View = Box<dyn Fn() -> WidgetView + Send + Sync>;
+/// Whether the session's own terminal window is the foreground window.
+pub type Front = Box<dyn Fn(&Session) -> bool + Send + Sync>;
+pub type Chime = Box<dyn Fn() + Send + Sync>;
 
 pub struct Notifier {
     last: Mutex<HashMap<String, u64>>,
     view: View,
+    front: Front,
     show: Show,
+    sound_on: Box<dyn Fn() -> bool + Send + Sync>,
+    chime: Chime,
 }
 
 impl Notifier {
-    pub fn new(view: View, show: Show) -> Notifier {
-        Notifier { last: Mutex::new(HashMap::new()), view, show }
+    pub fn new(view: View, front: Front, show: Show, sound_on: Box<dyn Fn() -> bool + Send + Sync>, chime: Chime) -> Notifier {
+        Notifier { last: Mutex::new(HashMap::new()), view, front, show, sound_on, chime }
     }
 
-    /// Returns whether a toast was shown.
+    /// For a session entering `waiting` or `error`; returns whether a toast was shown.
     pub fn alert(&self, s: &Session, now: u64) -> bool {
+        if (self.sound_on)() {
+            (self.chime)();
+        }
+        if s.state != State::Waiting {
+            return false;
+        }
         {
             let mut last = self.last.lock().unwrap();
             last.retain(|_, t| now.saturating_sub(*t) < DEDUP_MS);
             if !should_toast(last.get(&s.id).copied(), now, (self.view)()) {
                 return false;
             }
-            last.insert(s.id.clone(), now);
         }
+        // Checked outside the lock: it walks the process table.
+        if (self.front)(s) {
+            return false;
+        }
+        self.last.lock().unwrap().insert(s.id.clone(), now);
         (self.show)(s);
         true
     }
 }
 
-/// Shows the toast on the calling thread; `on_click` gets the button argument (None for the body) while the widget runs.
+const SOUND_KEY: &str = "alertSound";
+
+/// The alert-sound setting, off by default.
+pub struct Sound(AtomicBool);
+
+impl Sound {
+    pub fn load() -> Sound {
+        let on = crate::away::read_settings(&crate::away::settings_path()).get(SOUND_KEY).and_then(|v| v.as_bool());
+        Sound(AtomicBool::new(on.unwrap_or(false)))
+    }
+
+    pub fn on(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+#[tauri::command]
+pub fn alert_sound(sound: tauri::State<'_, Arc<Sound>>) -> bool {
+    sound.on()
+}
+
+#[tauri::command]
+pub fn set_alert_sound(on: bool, sound: tauri::State<'_, Arc<Sound>>) -> Result<bool, String> {
+    crate::away::save_setting(&crate::away::settings_path(), SOUND_KEY, serde_json::Value::from(on)).map_err(|e| e.to_string())?;
+    sound.0.store(on, Ordering::Relaxed);
+    Ok(on)
+}
+
+/// The Windows "Asterisk" system sound; returns at once.
 #[cfg(windows)]
-pub fn toast(bundle_id: &str, c: &ToastContent, on_click: impl Fn(Option<String>) + Send + 'static) {
+pub fn chime() {
+    use windows_sys::Win32::System::Diagnostics::Debug::MessageBeep;
+    use windows_sys::Win32::UI::WindowsAndMessaging::MB_ICONASTERISK;
+    unsafe {
+        MessageBeep(MB_ICONASTERISK);
+    }
+}
+
+#[cfg(not(windows))]
+pub fn chime() {}
+
+/// Shows the toast on the calling thread; `on_click` gets the button argument (None for the body) while the widget runs.
+/// `silent` because the waiting toast's sound is the opt-in alert sound, played apart from it.
+#[cfg(windows)]
+pub fn toast(bundle_id: &str, c: &ToastContent, silent: bool, on_click: impl Fn(Option<String>) + Send + 'static) {
     use tauri_winrt_notification::{Duration, Sound, Toast};
     // Dev builds have no installed Start-menu shortcut carrying the bundle AUMID, so Windows would drop their toasts.
     let app_id = if cfg!(debug_assertions) { Toast::POWERSHELL_APP_ID.to_string() } else { bundle_id.to_string() };
-    let mut t = Toast::new(&app_id).title(&c.title).text1(&c.body).duration(Duration::Short).sound(Some(Sound::Default));
+    let sound = if silent { None } else { Some(Sound::Default) };
+    let mut t = Toast::new(&app_id).title(&c.title).text1(&c.body).duration(Duration::Short).sound(sound);
     if let Some(hint) = &c.hint {
         t = t.text2(hint);
     }
@@ -144,7 +211,7 @@ pub fn toast(bundle_id: &str, c: &ToastContent, on_click: impl Fn(Option<String>
 }
 
 #[cfg(not(windows))]
-pub fn toast(_bundle_id: &str, c: &ToastContent, _on_click: impl Fn(Option<String>) + Send + 'static) {
+pub fn toast(_bundle_id: &str, c: &ToastContent, _silent: bool, _on_click: impl Fn(Option<String>) + Send + 'static) {
     println!("peepthis: toast {}: {}", c.title, c.body);
 }
 
@@ -299,7 +366,10 @@ mod tests {
         let view = Arc::clone(&looking);
         let n = Notifier::new(
             Box::new(move || WidgetView { focused: *view.lock().unwrap(), ..AWAY }),
+            Box::new(|_| false),
             Box::new(move |s: &Session| sink.lock().unwrap().push(s.id.clone())),
+            Box::new(|| false),
+            Box::new(|| {}),
         );
         let a = session(vec![perm()]);
         let mut b = a.clone();
@@ -313,5 +383,58 @@ mod tests {
         *looking.lock().unwrap() = false;
         assert!(n.alert(&a, T0 + DEDUP_MS + 1), "a suppressed alert does not restart the 30s window");
         assert_eq!(*shown.lock().unwrap(), vec!["a", "b", "a"]);
+    }
+
+    #[test]
+    fn notify_no_toast_while_the_sessions_terminal_is_foreground() {
+        let shown = Arc::new(Mutex::new(0));
+        let front = Arc::new(Mutex::new(true));
+        let (sink, fg) = (Arc::clone(&shown), Arc::clone(&front));
+        let n = Notifier::new(
+            Box::new(|| AWAY),
+            Box::new(move |_| *fg.lock().unwrap()),
+            Box::new(move |_| *sink.lock().unwrap() += 1),
+            Box::new(|| false),
+            Box::new(|| {}),
+        );
+        let a = session(vec![perm()]);
+        assert!(!n.alert(&a, T0));
+        *front.lock().unwrap() = false;
+        assert!(n.alert(&a, T0 + 1), "a suppressed toast does not start the 30s window");
+        assert_eq!(*shown.lock().unwrap(), 1);
+    }
+
+    #[test]
+    fn notify_sound_only_when_on_and_only_for_waiting_and_error() {
+        let chimes = Arc::new(Mutex::new(0));
+        let on = Arc::new(Mutex::new(false));
+        let (sink, switch) = (Arc::clone(&chimes), Arc::clone(&on));
+        let n = Notifier::new(
+            Box::new(|| AWAY),
+            Box::new(|_| true),
+            Box::new(|_| {}),
+            Box::new(move || *switch.lock().unwrap()),
+            Box::new(move || *sink.lock().unwrap() += 1),
+        );
+        let waiting = session(vec![perm()]);
+        n.alert(&waiting, T0);
+        assert_eq!(*chimes.lock().unwrap(), 0, "off by default");
+        *on.lock().unwrap() = true;
+        n.alert(&waiting, T0 + 1);
+        let error = state::apply(waiting.clone(), Event::StopFailure { summary: "boom".into() }, T0 + 2);
+        assert!(!n.alert(&error, T0 + 2), "error never toasts");
+        assert_eq!(*chimes.lock().unwrap(), 2, "chimes even while the terminal is foreground");
+    }
+
+    #[test]
+    fn notify_alert_entry_is_waiting_or_error_never_success() {
+        let thinking = session(vec![Event::UserPromptSubmit]);
+        let error = state::apply(thinking.clone(), Event::StopFailure { summary: "boom".into() }, T0);
+        assert!(entered_alert(Some(&thinking), &error));
+        assert!(!entered_alert(Some(&error), &error));
+        let done = state::apply(thinking.clone(), Event::Stop, T0);
+        assert!(!entered_alert(Some(&thinking), &done));
+        let sub = state::apply(thinking.clone(), Event::SubagentStop { agent_id: None, result: Some("ok".into()) }, T0);
+        assert!(!entered_alert(Some(&thinking), &sub));
     }
 }

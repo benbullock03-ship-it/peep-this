@@ -20,9 +20,12 @@ export type SettingsApi = {
   theme?: { get: () => ThemePref; set: (pref: ThemePref) => void };
   rules?: { view: () => Promise<RulesView>; revoke: (ruleId: string) => Promise<RulesView> };
   away?: { get: () => Promise<number>; set: (minutes: number) => Promise<number> };
-  summary?: { get: () => Promise<boolean>; set: (on: boolean) => Promise<boolean> };
+  summary?: Switch;
+  sound?: Switch;
   nudge?: { get: () => Promise<number>; set: (pct: number) => Promise<number> };
 };
+
+type Switch = { get: () => Promise<boolean>; set: (on: boolean) => Promise<boolean> };
 
 const INBOX_FIELD = {
   title: "Inbox hotkey",
@@ -64,7 +67,8 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const toggleHotkey = api.toggleHotkey ? createHotkeyField(host, api.toggleHotkey, TOGGLE_FIELD) : null;
   const themeSelect = api.theme ? createThemeField(host, api.theme) : null;
   const away = api.away ? createAwayField(host, api.away) : null;
-  const summary = api.summary ? createSummaryField(host, api.summary) : null;
+  const summary = api.summary ? createSwitchField(host, api.summary, SUMMARY_TEXT) : null;
+  const sound = api.sound ? createSwitchField(host, api.sound, SOUND_TEXT, "sound-toggle") : null;
   const nudge = api.nudge ? createNudgeField(host, api.nudge) : null;
   const rules = api.rules ? createRulesField(host, api.rules) : null;
 
@@ -151,7 +155,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh(), nudge?.refresh()]);
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh(), sound?.refresh(), nudge?.refresh()]);
   }
 
   return {
@@ -299,18 +303,21 @@ function createNudgeField(host: HTMLElement, api: NonNullable<SettingsApi["nudge
   };
 }
 
-/** AV-33: opt-in model sentence per digest entry. */
-function createSummaryField(host: HTMLElement, api: NonNullable<SettingsApi["summary"]>) {
-  const row = el("label", "settings-toggle", host);
+const SUMMARY_TEXT = {
+  label: "Summarise the away card with Haiku",
+  note: "Off by default. Each return runs one claude -p call: it spends your rate limit, needs the network, and sends each session's name, changed file names, counts and last line to the model. The facts card shows first either way.",
+};
+const SOUND_TEXT = {
+  label: "Play a sound on waiting or error",
+  note: "Off by default. The Windows Asterisk sound, when a session needs you or hits an error; never for finished turns or subagents.",
+};
+
+function createSwitchField(host: HTMLElement, api: Switch, text: { label: string; note: string }, cls = "") {
+  const row = el("label", `settings-toggle ${cls}`.trim(), host);
   const box = el("input", "", row);
   box.type = "checkbox";
-  el("span", "", row, "Summarise the away card with Haiku");
-  el(
-    "p",
-    "settings-note",
-    host,
-    "Off by default. Each return runs one claude -p call: it spends your rate limit, needs the network, and sends each session's name, changed file names, counts and last line to the model. The facts card shows first either way.",
-  );
+  el("span", "", row, text.label);
+  el("p", "settings-note", host, text.note);
   const msg = el("p", "settings-error", host);
   msg.hidden = true;
   box.addEventListener("change", async () => {

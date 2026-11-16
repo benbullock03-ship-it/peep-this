@@ -260,8 +260,10 @@ function runDemo() {
   let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
   let toggleHotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+P", registered: true };
   let nudgePct: number = NUDGE_RANGE.initial;
+  let soundOn = false;
   const settings = mountSettings({
     nudge: { get: async () => nudgePct, set: async (pct) => (nudgePct = pct) },
+    sound: { get: async () => soundOn, set: async (on) => (soundOn = on) },
     log: async () => [],
     enabled: async () => trailOn,
     setEnabled: async (on) => (trailOn = on),
@@ -367,6 +369,10 @@ async function runLive() {
     summary: {
       get: () => invoke<boolean>("digest_summary"),
       set: (on) => invoke<boolean>("set_digest_summary", { on }),
+    },
+    sound: {
+      get: () => invoke<boolean>("alert_sound"),
+      set: (on) => invoke<boolean>("set_alert_sound", { on }),
     },
     nudge: {
       get: () => invoke<number>("nudge_pct"),

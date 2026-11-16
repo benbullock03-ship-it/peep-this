@@ -114,12 +114,15 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     let bundle_id = app.config().identifier.clone();
     let handle = app.handle().clone();
     let weak = Arc::downgrade(store);
+    let sound = Arc::new(notify::Sound::load());
+    app.manage(Arc::clone(&sound));
     let notifier = notify::Notifier::new(
         Box::new(|| notify::WidgetView {
             focused: window::is_focused(),
             hidden: window::is_hidden(),
             overflowing: window::is_overflowing(),
         }),
+        Box::new(|s| focus::terminal_is_foreground(s.pid, &s.cwd)),
         Box::new(move |s| {
             let (s, weak, handle, bundle_id) = (s.clone(), weak.clone(), handle.clone(), bundle_id.clone());
             let spawned = std::thread::Builder::new().name("toast".into()).spawn(move || {
@@ -131,7 +134,7 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
                 }
                 let content = notify::toast_content(fresh.as_ref().unwrap_or(&s));
                 let (id, request) = (s.id.clone(), content.request.clone());
-                notify::toast(&bundle_id, &content, move |action| {
+                notify::toast(&bundle_id, &content, true, move |action| {
                     let Some(store) = weak.upgrade() else { return };
                     toast_clicked(&handle, &store, &id, request.as_deref(), action);
                 });
@@ -140,6 +143,8 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
                 eprintln!("peepthis: toast thread failed: {e}");
             }
         }),
+        Box::new(move || sound.on()),
+        Box::new(notify::chime),
     );
     store.set_alert(Box::new(move |s| {
         notifier.alert(s, store::now_ms());
@@ -159,7 +164,7 @@ fn wire_limits(app: &tauri::App, store: &Arc<Store>) {
             let (handle, bundle_id) = (handle.clone(), bundle_id.clone());
             let spawned = std::thread::Builder::new().name("limit-toast".into()).spawn(move || {
                 let opener = handle.clone();
-                notify::toast(&bundle_id, &content, move |_| window::summon(&opener));
+                notify::toast(&bundle_id, &content, false, move |_| window::summon(&opener));
             });
             if let Err(e) = spawned {
                 eprintln!("peepthis: limit toast thread failed: {e}");
@@ -301,6 +306,8 @@ pub fn run() {
             away::set_digest_summary,
             mood::nudge_pct,
             mood::set_nudge_pct,
+            notify::alert_sound,
+            notify::set_alert_sound,
             hotkey::inbox_hotkey,
             hotkey::set_inbox_hotkey,
             hotkey::toggle_hotkey,

@@ -65,7 +65,8 @@ When a session enters `waiting`:
 
 - Windows toast: title = session name, body = the notification message from the hook (e.g. "Claude needs your permission to use Bash"). Clicking it focuses the session's terminal.
 - The row pulses (subtle amber glow, about 1.5s period) until the state leaves `waiting`.
-- No toast if the widget's own window is focused and the row is visible, or if the same session toasted within the last 30s.
+- No toast if the widget's own window is focused and the row is visible, if the session's own terminal (the window `focus_session` would raise, §6.6) is the foreground window, or if the same session toasted within the last 30s. A suppressed toast does not start the 30s window; the row still pulses (AV-111).
+- The toast itself is silent. Settings "Play a sound on waiting or error" (off by default, `alertSound` in the widget's `settings.json`) plays the Windows Asterisk system sound on entering `waiting` or `error`, whether or not a toast shows; never for `success` or subagents (AV-111). Rate-limit toasts keep the default toast sound.
 
 Clicking a row's peep or name focuses the session's terminal (§6.6).
 

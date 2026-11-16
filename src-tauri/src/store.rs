@@ -145,7 +145,7 @@ impl Store {
         }
     }
 
-    /// Called for each session that enters `waiting`, outside the session lock.
+    /// Called for each session that enters `waiting` or `error`, outside the session lock.
     pub fn set_alert(&self, alert: Alert) {
         *self.alert.lock().unwrap() = Some(alert);
     }
@@ -226,7 +226,7 @@ impl Store {
             let Some(s) = inner.sessions.get_mut(id) else { return false };
             let next = state::apply(s.clone(), ev, now);
             let changed = next != *s;
-            let alert = notify::entered_waiting(Some(&*s), &next).then(|| next.clone());
+            let alert = notify::entered_alert(Some(&*s), &next).then(|| next.clone());
             let before = std::mem::replace(s, next.clone());
             inner.entered.extend(alert);
             inner.note_end(Some(&before), &next, now);
@@ -252,7 +252,7 @@ impl Store {
             };
             let next = state::apply(base, ev, now);
             let changed = before.as_ref() != Some(&next);
-            if notify::entered_waiting(before.as_ref(), &next) {
+            if notify::entered_alert(before.as_ref(), &next) {
                 inner.entered.push(next.clone());
             }
             inner.note_end(before.as_ref(), &next, now);
@@ -389,7 +389,7 @@ impl Store {
                 s = state::apply(s, Event::SessionFile { busy }, now);
             }
             let changed = before.as_ref() != Some(&s);
-            if notify::entered_waiting(before.as_ref(), &s) {
+            if notify::entered_alert(before.as_ref(), &s) {
                 inner.entered.push(s.clone());
             }
             inner.sessions.insert(info.id, s);
