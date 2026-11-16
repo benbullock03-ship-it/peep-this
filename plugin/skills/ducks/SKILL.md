@@ -26,7 +26,7 @@ Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run,
 
 ## 3. Nothing loose
 
-No loose ends and no Pack Up note: skip to the output with `clear to proceed`. No questions, no read-back.
+No loose ends and no Pack Up note: one AskUserQuestion, header `Depth`, "How deep?", levels 1 to 5 each with its rough cost, level 1 recommended. Levels and what each adds: `references/depth.md`. Level 1: skip to the output with `clear to proceed`. No read-back. Ducks never edits code at any level; acting on a candidate means drafting a ticket on a yes.
 
 ## 4. Questions, once
 
@@ -42,6 +42,7 @@ Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 - **Watch**: at most 3 `CLAUDE.md` rules that bite the next ticket, each with its file and a few words; the next ticket goes here too, as `next: <id>`.
 
 If `.peep/reel.md` exists (F§5) and the next ticket or a loose ticket does not serve its `north_star` or hits a `non_goals` entry, add one line under **Watch**: `drift: <id> <why>`. It never blocks and is not a question.
+No `.peep/reel.md` and the `ducks.reel` date in `.peep/runs` is not today: one **Watch** line `no north star yet: /peep:reel` (also in the output's `loose:` when there is no read-back), then set `ducks.reel: <YYYY-MM-DD>`.
 
 No line outside the groups except F§4's last line.
 
@@ -62,7 +63,7 @@ loose: <short list of what stays open, done left out first, then stale doing> | 
 next: /peep:ticket <id> | clear to proceed
 ```
 
-`next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose: `peep ducks: 0 loose ends, 0 acted on` then `next: clear to proceed`.
+`next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose: `peep ducks: 0 loose ends, 0 acted on` then `next: clear to proceed`. Level 2 and up: their lines from `references/depth.md` (hot spots, cards, top pick) go between the first line and `next`.
 
 ## Last step: run count
 

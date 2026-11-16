@@ -35,7 +35,7 @@ At the repo root. Walk (`/peep:walk`) writes it on first run; the owner may hand
 
 ### Run counts: `.peep/runs`
 
-Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it.
+Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. A `<skill>.<key>: <value>` line holds that skill's own small state (`ducks.reel: 2026-11-16`) and is not a count. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it.
 
 Last step of every Peep skill (the why-line rule): read the file, treat a missing skill line as 0, write `n + 1` back by Edit or Write, and if the old `n` was below 3 end the reply with one `Why: <line>` tied to one of three habits (think before code, finish before starting, prove it works). From the fourth run on, no Why line. A run that stopped early (no setup, bad argument) is not counted.
 
