@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { areaLinks, buildImportMap, callersOf, fixBrief, layoutAreas, liveSessions, openTweets, parseAreas, parsePatterns, renderPage, renderReport, run } from "./map.mjs";
+import { areaLinks, buildImportMap, callersOf, fixBrief, layoutAreas, liveSessions, openTweets, parseAreas, parsePatterns, peepLook, readLooks, renderPage, renderReport, run } from "./map.mjs";
 
 test("area links fold file imports; layout puts needers left of what they need, cycles bounded", () => {
   const map = { nodes: [{ id: "a1", area: "ui" }, { id: "a2", area: "ui" }, { id: "b", area: "core" }, { id: "c", area: "io" }], edges: [["a1", "b"], ["a2", "b"], ["a1", "a2"], ["b", "c"]] };
@@ -135,4 +135,16 @@ test("a report puts candidate cards above the map, top pick first, with lesson, 
   expect(brief).toContain("2. move reads");
   expect(brief).toContain("Check: npm run build && npm test");
   expect(renderReport({ cards: [] })).toBe("");
+});
+
+test("peepLook matches the widget's hashed identity and honours its look overrides", () => {
+  expect(peepLook("F:\\Projects\\agentview widget")).toEqual({ color: "blue", accessory: "none" });
+  expect(peepLook("/home/dev/app/")).toEqual({ color: "yellow", accessory: "shades" });
+  const looks = { "62cc5ae9": { color: "pink", accessory: "supporter" } };
+  expect(peepLook("C:/Users/Dev/Projects/AgentView", looks)).toEqual({ color: "pink", accessory: "supporter" });
+  expect(peepLook("C:/Users/Dev/Projects/AgentView", { "62cc5ae9": { color: "red", accessory: "../x" } })).toEqual({ color: "yellow", accessory: "beanie" });
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "looks-")), "settings.json");
+  fs.writeFileSync(file, JSON.stringify({ alertSound: true, peepLooks: looks }));
+  expect(readLooks(file)).toEqual(looks);
+  expect(readLooks(file + ".missing")).toEqual({});
 });

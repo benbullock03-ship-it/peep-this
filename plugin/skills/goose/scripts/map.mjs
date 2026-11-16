@@ -8,8 +8,30 @@ import { fileURLToPath } from "node:url";
 const SKIP = new Set(["node_modules", "target", ".git", "dist", "dist-ssr", ".peep", "graphify-out", "build", "coverage", "__pycache__", "vendor"]);
 const EXTS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs"];
 const PALETTE = ["yellow", "pink", "lavender", "blue", "green"];
+const ACCESSORIES = ["none", "hardhat", "headphones", "glasses", "bow", "party", "chef", "crybaby", "beanie", "crown", "shades", "flowers", "halo", "wizard"];
 
 const norm = (p) => p.replace(/\\/g, "/");
+
+// Same FNV-1a hash and normalisation as the widget's src/identity.ts, so a project looks the same here.
+function fnv1a(s) {
+  let h = 0x811c9dc5;
+  for (const b of Buffer.from(s.trim().toLowerCase().replace(/\\/g, "/").replace(/\/+$/, ""), "utf8")) h = Math.imul(h ^ b, 0x01000193);
+  return h >>> 0;
+}
+
+/** The widget's per-machine look overrides (AV-113), keyed by the cwd hash as 8 hex digits. */
+export function readLooks(file = path.join(process.env.APPDATA || os.tmpdir(), "PeepThis", "settings.json")) {
+  try { return JSON.parse(fs.readFileSync(file, "utf8")).peepLooks || {}; } catch { return {}; }
+}
+
+export function peepLook(cwd, looks = {}) {
+  const h = fnv1a(cwd);
+  const o = looks[h.toString(16).padStart(8, "0")] || {};
+  return {
+    color: PALETTE.includes(o.color) ? o.color : PALETTE[h % PALETTE.length],
+    accessory: typeof o.accessory === "string" && /^[a-z]+$/.test(o.accessory) ? o.accessory : ACCESSORIES[(h >>> 16) % ACCESSORIES.length],
+  };
+}
 
 export function walk(root, dir = root, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -168,7 +190,7 @@ export function editedFiles(transcript, root, since) {
   return [...out];
 }
 
-export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude", "sessions"), projectsDir = path.join(os.homedir(), ".claude", "projects"), now = Date.now()) {
+export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude", "sessions"), projectsDir = path.join(os.homedir(), ".claude", "projects"), now = Date.now(), looks = readLooks()) {
   const out = [];
   let names = [];
   try { names = fs.readdirSync(dir).filter((n) => n.endsWith(".json")); } catch { return out; }
@@ -181,7 +203,6 @@ export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude
     const low = cwd.toLowerCase();
     if (low !== r && !low.startsWith(r + "/")) continue;
     const rel = cwd.slice(r.length).replace(/^\//, "");
-    const hash = [...cwd.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
     // Claude Code names the transcript folder after the cwd with every non-alphanumeric as "-".
     const transcript = s.sessionId ? path.join(projectsDir, s.cwd.replace(/[^A-Za-z0-9]/g, "-"), s.sessionId + ".jsonl") : "";
     const edited = transcript ? editedFiles(transcript, root, now - EDIT_WINDOW_MS) : [];
@@ -190,7 +211,7 @@ export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude
       areas: edited.length ? [...new Set(edited.map((f) => areaOf(f, areas)))] : rel ? [areaOf(rel + "/", areas)] : [],
       edited,
       state: s.status === "busy" ? "working" : s.status === "waiting" ? "waiting" : "idle",
-      color: PALETTE[hash % PALETTE.length],
+      ...peepLook(s.cwd, looks),
     });
   }
   return out;
@@ -417,7 +438,7 @@ ${renderReport(report, patterns)}
 const D=${json(data)};
 const map=document.getElementById('board'),panel=document.getElementById('panel'),PITCH=200,ROW=128,W=120;
 const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e};
-const peep=(s,size)=>{const e=document.createElement('peep-bot');e.setAttribute('state',s.state);e.setAttribute('color',s.color);e.setAttribute('size',String(size));e.setAttribute('hover','off');e.title=s.name;return e};
+const peep=(s,size)=>{const e=document.createElement('peep-bot');e.setAttribute('state',s.state);e.setAttribute('color',s.color);if(s.accessory)e.setAttribute('accessory',s.accessory);e.setAttribute('size',String(size));e.setAttribute('hover','off');e.title=s.name;return e};
 const files=a=>D.nodes.filter(n=>n.area===a);
 const prefixes=a=>(D.areas.find(x=>x.name===a)||{prefixes:[]}).prefixes;
 const areaOf=f=>{for(const x of D.areas)if(x.prefixes.some(p=>f.startsWith(p)))return x.name;return 'other'};
