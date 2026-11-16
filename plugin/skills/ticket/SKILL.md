@@ -36,7 +36,7 @@ Read the detail file before acting, then follow it.
 
 ## 3. Report
 
-The final reply is these four lines and nothing else: no recap before or after (detail belongs in the ticket).
+The final reply is these four lines and nothing else: no recap before or after (detail belongs in the ticket, the answered checks under `## Checks`).
 
 ```
 peep ticket: <id> <old status> -> <new status>

@@ -26,6 +26,7 @@ Set `status: doing`. Do not commit yet.
 
 ## 3. Build
 
+- Checks first, before any edit: turn the ticket's "Done when" (and any checklist item that can be tested) into a numbered list of pass/fail checks, each naming the evidence that will answer it (test name, command, shot path). Post it in a message of its own that begins with a visible line `Checks:`; thinking does not count, and terse output modes do not waive it. Banned: "works", "looks right" with nothing named.
 - Do what the ticket's checklist says, nothing beyond it.
 - Run the setup's `build` after each meaningful step. Fix what you broke; name what was already broken, do not fix it.
 - UI changed and the setup has a `url`: run `/peep:shoot` on what changed before calling it done.
@@ -42,8 +43,9 @@ A proof that rests on what the owner sees (a prompt, a page in their browser) is
 ## 5. Finish
 
 1. Tick the checklist items that are actually done; leave the rest.
-2. "Done when" fully met: add `## Done <YYYY-MM-DD>` naming what in the tree proves it (file, test, command), then set `status: done`.
-   Not fully met: add `## Owed before done` with exactly what is missing, and leave `status: doing`.
-3. Run the setup's `index` command, if any.
-4. Stage only this ticket's files by name, plus the ticket and the index file. Check `git log --oneline -1` again; if the branch moved, look at what landed first.
-5. Commit `<id>: <short summary>`.
+2. Answer exactly the posted checks in the ticket under `## Checks`, one line each: `pass`, `fail` or `owed to the owner`, with its evidence. A check added after the work started is marked `(added)`.
+3. No check is `fail` and "Done when" fully met: add `## Done <YYYY-MM-DD>` naming what in the tree proves it (file, test, command), then set `status: done`.
+   Any `fail`, or not fully met: add `## Owed before done` with exactly what is missing, and leave `status: doing`. `owed to the owner` checks go under `## Owed before done` too.
+4. Run the setup's `index` command, if any.
+5. Stage only this ticket's files by name, plus the ticket and the index file. Check `git log --oneline -1` again; if the branch moved, look at what landed first.
+6. Commit `<id>: <short summary>`.
