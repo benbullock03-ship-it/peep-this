@@ -8,6 +8,7 @@
 - The tray shows six disks, then a `+N` cell (`TRAY_SHOWN` in `src/tray.ts`) that opens the rest in a grid under the row, its own roving tab stop. Sprite sheets in `src/assets/floppy/` are 16px columns; `FLOPPIES` in `src/bubble.ts` maps skill to column and bubble verb.
 - The first-run disk box shows once; dismissal lives in `localStorage` `peepthis.diskBox.dismissed`.
 - The ticket shelf (`src/shelf.ts`) sits after the tray and lists the repo's tickets from `Snapshot.repos`, passed as `render(sessions, repos?)` in `src/main.ts`; a click Jumps `/peep:ticket <id>` through the tray's hint bar (`createTray().fire`).
+- The arc line (`src/arc.ts`) sits between tray and shelf: north star from `.peep/reel.md`, closed/open/parked counts and the last closed id, all from `Repo.northStar` and `Repo.arc` (`src-tauri/src/tickets.rs`). Counts that do not fit drop whole from the end; closed always stays. No north star shows a Jump to `/peep:reel`.
 - Shelf sort: blocked, doing, done (shown as review), open, deferred (parked); file order within a status. `closed` never reaches the shelf.
 - The closed shelf (`src/closedShelf.ts`, mounted in `src/main.ts` after the list) renders `Snapshot.closed` newest first; a click copies `claude --resume <id>` with no terminal focus. An entry hides while its id is live again. Demo states: `?demo&closed=none|one|many|long`.
 - A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/`.
@@ -37,4 +38,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-82, 2026-11-16
+last touched: AV-83, 2026-11-16

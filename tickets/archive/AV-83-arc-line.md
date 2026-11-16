@@ -1,7 +1,7 @@
 ---
 id: AV-83
 title: Arc line on the open row
-status: doing
+status: closed
 depends: [AV-65, AV-75, AV-79]
 attended: true
 ---
@@ -28,7 +28,7 @@ attended: true
 - The close animation (§05.3) plays when the open row's repo reports a new last id; a row reopened after a close plays it once too.
 - The tip shows on hover or keyboard focus (`:focus-visible`), not on mouse-click focus.
 
-## Owed before done
+## Done 2026-11-16
 
-- Owner sees this repo's arc line on an open row in `npm run tauri dev` (expected: no north star, "The Reel", 92 closed, open count, last AV-92). A dev widget started by another session was running without CDP, so the `peepthis: snapshot` line and a webview shot could not be taken.
-- Judgement: with three counts the north star shrinks to a few characters at the widget width ("A calm …"); the owner may prefer counts to drop first.
+- Live in `npm run tauri dev` over CDP: `get_snapshot` gave this repo `arc {closed: 92, open: 23, parked: 1, last: AV-92}`, matching a hand count of `tickets/` (14 open + 9 doing, 1 blocked, 92 archived; AV-92 newest). The open row showed "No north star yet · The Reel · 92 closed · AV-92", 26px on `--ps-panel-2`, no overflow; open and parked dropped for width as designed.
+- Count-drop order stays as built (owner closed it).
