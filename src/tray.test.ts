@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FLOPPIES } from "./bubble";
-import { hintText, jumpCommand, TRAY } from "./tray";
+import { hintText, jumpCommand, TRAY, TRAY_SHOWN } from "./tray";
 
 describe("jumpCommand", () => {
   it("copies the bare skill command", () => {
@@ -25,4 +25,10 @@ describe("hintText", () => {
 
 it("every tray floppy has sprite art", () => {
   for (const f of TRAY) expect(FLOPPIES[f.skill]).toBeDefined();
+});
+
+it("shows the six spec floppies and puts the phase 1 three behind +N", () => {
+  expect(TRAY.map((f) => f.skill)).toEqual(["ducks", "qt", "ticket", "shoot", "packup", "coderot", "unpack", "walk", "reel"]);
+  expect(TRAY.slice(TRAY_SHOWN).map((f) => jumpCommand(f.skill))).toEqual(["/peep:unpack", "/peep:walk", "/peep:reel"]);
+  expect(new Set(TRAY.map((f) => FLOPPIES[f.skill].col)).size).toBe(TRAY.length);
 });

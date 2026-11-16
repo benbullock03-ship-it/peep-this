@@ -8,6 +8,9 @@ export const FLOPPIES: Record<string, { col: number; verb: string }> = {
   shoot: { col: 3, verb: "shooting" },
   packup: { col: 4, verb: "packing up" },
   coderot: { col: 5, verb: "rotting" },
+  unpack: { col: 10, verb: "unpacking" },
+  walk: { col: 11, verb: "walking through" },
+  reel: { col: 12, verb: "reeling" },
 };
 export const BLANK_COL = 6;
 

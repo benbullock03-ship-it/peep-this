@@ -927,7 +927,7 @@ body[data-fold] > .ps-strip {
   right: 2px;
   width: calc(16 * var(--px));
   height: calc(16 * var(--px));
-  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(160 * var(--px)) auto;
+  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(208 * var(--px)) auto;
   image-rendering: pixelated;
   clip-path: inset(0 0 calc(5 * var(--px)) 0);
   pointer-events: none;
@@ -1160,7 +1160,7 @@ body[data-fold] > .ps-strip {
   display: block;
   width: calc(16 * var(--px));
   height: calc(16 * var(--px));
-  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(160 * var(--px)) auto;
+  background: url("./assets/floppy/floppies-dark.png") no-repeat calc(var(--col, 6) * -16 * var(--px)) 0 / calc(208 * var(--px)) auto;
   image-rendering: pixelated;
 }
 
@@ -1211,9 +1211,37 @@ body[data-fold] > .ps-strip {
   transition: transform var(--motion-ms) var(--motion-steps);
 }
 
+/* 40px, not 44: six disks and `+N` must share the 312px tray row. */
 .tray-disk {
-  width: 44px;
+  width: 40px;
   padding: 0;
+}
+
+/* FLOPPY-SPEC §02 `+N`: sits against the six, opens a 5-column grid of the rest under the row. */
+.tray-more-btn {
+  margin-left: -8px;
+  border-color: var(--ps-line);
+  color: var(--ps-muted);
+  font: 500 11px var(--mono);
+}
+
+.tray-more-btn[aria-expanded="true"] {
+  border-color: var(--ps-text);
+  color: var(--ps-text);
+}
+
+.tray-more {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 40px);
+  gap: 4px;
+  padding: 4px;
+  border: 2px solid var(--ps-line);
+  background: var(--ps-panel-2);
+}
+
+.tray-more[hidden] {
+  display: none;
 }
 
 .tray-pack {
