@@ -1,7 +1,7 @@
 ---
 id: AV-80
 title: Backend records ended sessions and their end-state flags
-status: done
+status: closed
 depends: []
 ---
 
