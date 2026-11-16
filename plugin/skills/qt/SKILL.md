@@ -9,7 +9,7 @@ steps: [setup, look, rounds, glossary, read-back, draft]
 # Question Time
 
 The idea is the text after `/peep:qt`. If there is none, ask for it in one line and stop.
-"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step (`peep step:`, preamble).
+"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 1. Read the repo setup (step `setup`)
 

@@ -9,7 +9,7 @@ steps: [look, rounds, read-back, build, serve, pick]
 # /peep:sneak
 
 Puts a UI design in front of the owner before it touches the app. The UI is the text after `/peep:sneak`; with none, ask for it in one line and stop.
-"formats" below is `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step (`peep step:`, preamble).
+"formats" below is `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 1. Read the repo setup (step `look`)
 

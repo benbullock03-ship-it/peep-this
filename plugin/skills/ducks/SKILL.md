@@ -8,7 +8,7 @@ steps: [setup, note, gather, ask, read-back, act]
 
 # /peep:ducks
 
-The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. **Nothing is written, staged or committed before the owner's yes to the read-back.** Each heading names its step (`peep step:`, preamble).
+The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. **Nothing is written, staged or committed before the owner's yes to the read-back.** Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 0. Repo setup (step `setup`)
 

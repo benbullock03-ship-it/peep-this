@@ -7,7 +7,7 @@ steps: [gather, ask, write, save]
 
 # /peep:packup
 
-Any time the user ends a session, not only at high context. The note opens the next session; Ducks reads it on its next run. Each heading names its step (`peep step:`, preamble).
+Any time the user ends a session, not only at high context. The note opens the next session; Ducks reads it on its next run. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 1. Gather, do not print (step `gather`)
 

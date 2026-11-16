@@ -8,7 +8,7 @@ steps: [setup, read, write, report]
 
 # /peep:tweet
 
-Sessions on one repo talk through the board; a live ping is a nudge to read it. "F§1", "F§3" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read when their step runs. Steps (`peep step:`, preamble): §0 is `setup`; reading the board is `read`; posting or replying is `write` (list mode has none); §4 is `report`.
+Sessions on one repo talk through the board; a live ping is a nudge to read it. "F§1", "F§3" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read when their step runs. **As each step starts, before its first tool call, print `peep step: <name>` on a line of its own; never save them up for the end.** Steps: §0 is `setup`; reading the board is `read`; posting or replying is `write` (list mode has none); §4 is `report`.
 
 ## 0. Repo setup
 

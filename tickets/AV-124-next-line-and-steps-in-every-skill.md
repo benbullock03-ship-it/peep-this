@@ -1,7 +1,7 @@
 ---
 id: AV-124
 title: next line and steps frontmatter in every skill
-status: doing
+status: done
 depends: [AV-117, AV-118, AV-119, AV-120, AV-121, AV-122, AV-123]
 ---
 
@@ -17,7 +17,16 @@ depends: [AV-117, AV-118, AV-119, AV-120, AV-121, AV-122, AV-123]
 
 **Done when:** each of the eleven skills has `steps:` in frontmatter and a `next:` last line in its output format, and one run of `/peep:ducks` shows the step signal for each step.
 
+## Live runs (2026-11-16, `claude -p --plugin-dir plugin` in scratch repos)
+
+- Before the fix, `peep step:` lines were unreliable. In the first clean-repo Ducks run there were none. A second run printed all of them together at the end of the reply. Pack Up and a Ducks run with loose ends printed them at the right time. The old SKILL.md line, "Each heading names its step (`peep step:`, preamble)", was too oblique, and the model read the preamble only after its first step had started.
+- Fix: all eleven SKILL.md files now say it plainly, in bold: print `peep step: <name>` as each step starts, before its first tool call; the first one comes before reading the preamble; never save them up for the end. The preamble adds that the widget reads each line as it lands.
+- After the fix, two fresh clean-repo Ducks runs printed `peep step: setup` before the first tool call and `peep step: gather` before the gather calls. The `next:` line was last each time.
+- `next:` reaches the widget: Pack Up's `next: /clear, then paste .peep/handoff.md` and Ducks' `next: /peep:ticket LO-2` both showed in `Session.next` (AV-129).
+
 ## Decisions taken without a ruling
+
+- Status set to `done` on the post-fix runs. More runs by the owner would show whether models other than Opus 5.5 follow the rule.
 
 - Step signal is the recommended text line `peep step: <name>` (regex `^peep step: ([a-z-]+)$`), not a tool call: hooks only see tool calls, so a tool-based signal would cost a call (and maybe a prompt) per step; AV-128 reads the line from the transcript tail. Documented in formats §8 and the preamble.
 - `next:` is the reply's very last line: the run-count Why line now goes just before it (preamble; ticket and packup lose their "fifth/fourth line" wording).

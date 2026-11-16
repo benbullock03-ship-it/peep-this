@@ -8,7 +8,7 @@ steps: [look, rounds, read-back, setup, northstar, tour]
 
 # /peep:walk
 
-Optional: any skill sets up a repo with no setup itself (preamble). Walk asks the fuller rounds, tailors the pack, pins down the project's north star, shows the order the skills go in. "F§1" and "F§4" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. Each heading names its step (`peep step:`, preamble).
+Optional: any skill sets up a repo with no setup itself (preamble). Walk asks the fuller rounds, tailors the pack, pins down the project's north star, shows the order the skills go in. "F§1" and "F§4" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 **Nothing is written before the owner's yes to the read-back.** Walk is never switched off by `skills.off`.
 

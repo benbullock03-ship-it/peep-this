@@ -26,7 +26,7 @@ Each `SKILL.md` cites this once at the top and keeps only its own Why line. "F§
 
 ## Steps and the next line (F§8)
 
-- At the start of each step named in the skill's frontmatter `steps:`, print one line of its own, exactly `peep step: <name>`, before that step's first tool call. A skipped step prints nothing. The preamble's own work belongs to the skill's first step.
+- At the start of each step named in the skill's frontmatter `steps:`, print one line of its own, exactly `peep step: <name>`, before that step's first tool call. Never save them up and print them together at the end: the widget reads each as it lands. A skipped step prints nothing. The preamble's own work belongs to the skill's first step.
 - The fixed output's last line is exactly `next: <command>` or `next: clear to proceed`, and it is the last line of the reply. A line that stops a run early (switched off, nothing written by self-setup or after a read-back, bad argument) and a reply that waits for the owner (a read-back, an offer) carry none.
 - A `peep step:` line is not part of the fixed output; "nothing before the header" rules do not count it.
 

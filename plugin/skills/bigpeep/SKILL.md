@@ -9,7 +9,7 @@ steps: [plan, run, review, check, report]
 
 # /peep:bigpeep
 
-Big Peep reads, orders, briefs, watches, reviews and commits. Little peeps build. "F§1", "F§2" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`; "work.md" and "park.md" are `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/`. Files in `references/` beside this file are read when their step runs. Each heading names its step (`peep step:`, preamble).
+Big Peep reads, orders, briefs, watches, reviews and commits. Little peeps build. "F§1", "F§2" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`; "work.md" and "park.md" are `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/`. Files in `references/` beside this file are read when their step runs. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 0. Repo setup (step `plan`)
 

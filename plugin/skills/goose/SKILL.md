@@ -9,7 +9,7 @@ steps: [setup, engine, plan, build, index, result]
 # /peep:goose
 
 Finds the goose in the ducks: a report page the owner looks at and learns from. Agents query the map instead of grepping blind; that is the side job.
-"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step (`peep step:`, preamble).
+"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 - `/peep:goose`: the code map. Areas as cards, who needs whom, live sessions' peeps on the areas they edit.
 - `/peep:goose health`: hot spots, biggest files, untested areas, stale tickets, and pattern cards.

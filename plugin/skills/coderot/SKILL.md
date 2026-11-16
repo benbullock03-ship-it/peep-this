@@ -9,7 +9,7 @@ steps: [setup, baseline, rot, honesty, cleanup, report]
 
 # /peep:coderot: can the tests fail?
 
-Facts and survivors, not reassurance. The owner's working tree is never edited; every mutation happens in a temporary worktree. Each heading names its step (`peep step:`, preamble).
+Facts and survivors, not reassurance. The owner's working tree is never edited; every mutation happens in a temporary worktree. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 1. Setup (step `setup`)
 

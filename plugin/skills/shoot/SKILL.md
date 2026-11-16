@@ -8,7 +8,7 @@ steps: [setup, questions, shots, review, cleanup, report]
 
 # /peep:shoot: a UI review that can fail
 
-Verdicts and facts, not impressions. No praise anywhere in the report. Each heading names its step (`peep step:`, preamble).
+Verdicts and facts, not impressions. No praise anywhere in the report. Each heading names its step. **As each step starts, before its first tool call (the first one before reading the preamble), print `peep step: <name>` on a line of its own; never save them up for the end.**
 
 ## 1. Setup (step `setup`)
 

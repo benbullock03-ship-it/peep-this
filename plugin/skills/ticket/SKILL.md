@@ -24,7 +24,7 @@ One ticket per run. "F§1" to "F§7" below cite the pack's shared file `${CLAUDE
 | `park <id> ...` | to `blocked` or `deferred` with `reason` and `wake` | `references/park.md` |
 | none or other | print the argument hint above and stop | |
 
-Read the detail file before acting, then follow it. Steps (`peep step:`, preamble): §0 is `read`; work.md's five sections are `read`, `start`, `build`, `check`, `finish`; close.md and park.md are `read` (their §1) and `finish` (the rest); §3 here is `report`.
+Read the detail file before acting, then follow it. **As each step starts, before its first tool call, print `peep step: <name>` on a line of its own; never save them up for the end.** Steps: §0 is `read`; work.md's five sections are `read`, `start`, `build`, `check`, `finish`; close.md and park.md are `read` (their §1) and `finish` (the rest); §3 here is `report`.
 
 ## 2. Rules for every sub-command
 
