@@ -1,6 +1,6 @@
 # Big Peep output
 
-The final reply, before the Pack Up lines. Nothing before the header line.
+The final reply. Nothing before the header line. The Pack Up lines (without their `next`) and the Why line go just before the last line, `next`.
 
 ```
 peep bigpeep: <n> tickets, <n> done, <n> doing, <n> parked, <n> skipped

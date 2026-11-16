@@ -3,28 +3,29 @@ name: goose
 description: "Duck Duck Goose: a report page for the owner, three kinds: the code map, repo health, or a one-off answer to a question. Use when the user runs /peep:goose, /peep:goose health or /peep:goose <topic>."
 disable-model-invocation: true
 label: Duck Duck Goose
+steps: [setup, engine, plan, build, index, result]
 ---
 
 # /peep:goose
 
 Finds the goose in the ducks: a report page the owner looks at and learns from. Agents query the map instead of grepping blind; that is the side job.
-"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`.
+"formats" below is the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Each heading names its step (`peep step:`, preamble).
 
 - `/peep:goose`: the code map. Areas as cards, who needs whom, live sessions' peeps on the areas they edit.
 - `/peep:goose health`: hot spots, biggest files, untested areas, stale tickets, and pattern cards.
 - `/peep:goose <topic>`: a one-off page that answers the owner's question from the graph.
 
-## 1. Read the repo setup
+## 1. Read the repo setup (step `setup`)
 
 Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). Take the `area.<name>` lines. Files outside every area go in `other`.
 
-## 2. Pick the engine
+## 2. Pick the engine (step `engine`)
 
 - `graphify` on PATH (`graphify --help` prints) and `graphify-out/graph.json` exists: use it. Refresh only when the owner says so (`/graphify . --update` per `~/.claude/skills/graphify/SKILL.md`; a full build calls a model, so say that first).
 - Installed but no `graphify-out/`: offer `/graphify .`, which builds it. Meanwhile run the basic map below; do not wait.
 - Not installed: offer `uv tool install graphifyy` (or `pip install graphifyy`), then `graphify install`. Never install without a yes. Meanwhile run the basic map.
 
-## 3. Read back, then build
+## 3. Read back (step `plan`), then build (step `build`)
 
 Say what the report will cover, at most 4 lines, and wait for the owner's yes (a correction changes the plan first):
 
@@ -42,7 +43,7 @@ Run from the repo root; add `--graphify graphify-out/graph.json` when the engine
 
 Print the JSON line it returns, then open the page: `start "" ".peep/graph/<kind>.html"` (Windows), `open` (macOS) or `xdg-open`.
 
-## 4. Tell agents how to query
+## 4. Tell agents how to query (step `index`)
 
 After the first map, add to `kb/INDEX.md` (formats §3) a short section `## Querying the map` if it is not there, in these terms:
 
@@ -52,9 +53,9 @@ After the first map, add to `kb/INDEX.md` (formats §3) a short section `## Quer
 
 Use Edit; never rewrite the index.
 
-## 5. Read back the result
+## 5. Read back the result (step `result`)
 
-At most 6 lines: the report, engine, the counts that matter (map: areas, links, sessions; health: findings per group, top pick; topic: files read), the page path. A "what calls X" question is answered from `graph.json`, naming the file list.
+At most 6 lines: the report, engine, the counts that matter (map: areas, links, sessions; health: findings per group, top pick; topic: files read), the page path. A "what calls X" question is answered from `graph.json`, naming the file list. Then one last line: `next: /peep:qt <top pick>` for health with a top pick, else `next: clear to proceed`.
 
 ## 6. Last step: run count
 

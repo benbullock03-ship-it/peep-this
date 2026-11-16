@@ -3,21 +3,22 @@ name: ducks
 description: "Ducks: check where the repo stands and carry on from the last Pack Up note, acting only on a yes. Use when the user runs /peep:ducks."
 disable-model-invocation: true
 label: "Ducks: get your ducks in a row"
+steps: [setup, note, gather, ask, read-back, act]
 ---
 
 # /peep:ducks
 
-The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. **Nothing is written, staged or committed before the owner's yes to the read-back.**
+The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. **Nothing is written, staged or committed before the owner's yes to the read-back.** Each heading names its step (`peep step:`, preamble).
 
-## 0. Repo setup
+## 0. Repo setup (step `setup`)
 
 Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). Its setup yes is separate from the read-back yes below.
 
-## 1. Pack Up note
+## 1. Pack Up note (step `note`)
 
 If `<root>/.peep/handoff.md` exists, read it before anything else (format: `${CLAUDE_PLUGIN_ROOT}/skills/packup/references/note.md`). Its "not mine" files are never touched; its "Owner rulings wanted" become questions in step 4; its `Then:` line is the first **Do** line (step 5). Check the repo against it, without printing or fixing anything: `references/drift.md`. Each mismatch goes under **Loose** as `drift: <what>`.
 
-## 2. Gather, cheaply
+## 2. Gather, cheaply (step `gather`)
 
 Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run, `CLAUDE.md`. It yields the loose ends, `done` always first with a count: `done` waiting for the owner, stale `doing`, parked (wake met, not met, free text), failing tests, uncommitted or unrelated work, rules likely to bite. Do not print the raw gather.
 
@@ -25,12 +26,12 @@ Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run,
 
 No loose ends and no Pack Up note: no question, no read-back; straight to the output with `next: clear to proceed`. Hot spots and pattern cards are Goose's (`/peep:goose health`), not Ducks'. Ducks never edits code.
 
-## 4. Questions, once
+## 4. Questions, once (step `ask`)
 
 One AskUserQuestion call, at most 4 questions, recommended option first with its label ending ` (recommended)`. Which questions, their order and shape: `references/questions.md`. Always include "close these done tickets?" when any ticket is `done`.
 Facts are found, never asked. If no answers come back (e.g. a headless run), give the read-back with every decision left at its recommendation marked `(unconfirmed)`, then stop. Write nothing.
 
-## 5. Read-back
+## 5. Read-back (step `read-back`)
 
 Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 
@@ -43,7 +44,7 @@ No `.peep/reel.md` and the `ducks.reel` date in `.peep/runs` is not today: one *
 
 No line outside the groups except F§4's last line. A correction gets a fresh, complete read-back. "stop" or "no": reply `peep ducks: nothing written.` and stop.
 
-## 6. Act on yes
+## 6. Act on yes (step `act`)
 
 Only the **Do** lines. A `run` line goes first: run that command before the other Do lines; never a push, release or deploy unless the note says "approved". The rest each by Edit or Write, then commit per item. Detail: `references/act.md`. Closing follows the `/peep:ticket close` procedure in `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/close.md`; the yes to this read-back is the owner's yes for the ids it names. Never touch another session's uncommitted files.
 

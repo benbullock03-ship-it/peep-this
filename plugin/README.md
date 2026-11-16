@@ -39,5 +39,5 @@ Every skill cites `references/preamble.md` once and keeps only its own `Why:` li
 
 - `SKILL.md` under about 80 lines.
 - Detail lives in the skill's `references/` and is read only when that step needs it.
-- Output is a fixed terse format, defined in the skill; no free-form recaps.
+- Output is a fixed terse format, defined in the skill; no free-form recaps. It ends on a `next:` line, and each step in the skill's `steps:` frontmatter opens with a `peep step: <name>` line (`references/formats.md` §8), both read by the widget.
 - Shared formats (repo setup `.peep/setup.md`, ticket, area note, read-back) are in `references/formats.md`; skills cite its sections instead of restating them.

@@ -1,6 +1,6 @@
 # Pack formats
 
-The seven formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
+The eight formats every Peep skill reads or writes. Cite the section; do not restate it. Examples are in `examples/`.
 
 All frontmatter is flat: one `key: value` per line, no nesting, no multi-line values. Lists are `[a, b]` or comma-separated. A missing key takes its default.
 
@@ -144,3 +144,17 @@ reply: AV-28: yes, I add the subagent states at the bottom; I will rebase on you
 - `ask`: one line. `reply`: zero or more lines, each `<handle>: <text>`, oldest first. The first reply sets `answered`.
 - Re-read the board just before every write; an Edit refused because the file changed is re-read and retried once.
 - An `answered` tweet is folded into its area note and removed when its ticket closes (`ticket` `-`: when its poster reads the reply). Fold rule: `skills/tweet/references/fold.md`. No tweets left: delete the file.
+
+## 8. Steps and the next line
+
+What the widget reads to show where a skill is and what comes after it. When each is printed: `preamble.md`.
+
+```
+steps: [setup, note, gather, ask, read-back, act]
+peep step: gather
+next: /peep:ticket AV-12
+```
+
+- `steps:` is a `SKILL.md` frontmatter key: a flat `[a, b]` list on one line, in run order, at most 6 names, each at most 10 characters of lowercase letters and hyphens.
+- `peep step: <name>`: a line of its own in the assistant's text, matching `^peep step: ([a-z-]+)$`, where the name is one of that skill's `steps:`. Text, not a tool call, so it costs nothing and shows in the transcript.
+- `next: <command>` or `next: clear to proceed`: the last line of a skill's final reply, matching `^next: (.+)$`. A command starts with `/` (`/peep:ticket close AV-12`); any other value is a note for the owner (`none unblocked; nearest wake AV-26 date:2026-12-01`). A reply without one is a stop or a wait, not a finished run.

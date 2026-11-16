@@ -3,11 +3,12 @@ name: tweet
 description: "Tweet Tweet: tell the other sessions on this repo, through the tweet board .peep/tweets.md, when stuck or when your work may clash with theirs. Usually triggered by the pack's tweet-nudge hook (a clash on a file or two failures of one tool); also when the user runs /peep:tweet, a session is stuck on something another session may know, or it is about to change a file another session is working in."
 argument-hint: "<question or conflict> | reply <n> <answer> | (none: list)"
 label: Tweet Tweet
+steps: [setup, read, write, report]
 ---
 
 # /peep:tweet
 
-Sessions on one repo talk through the board; a live ping is a nudge to read it. "F§1", "F§3" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read when their step runs.
+Sessions on one repo talk through the board; a live ping is a nudge to read it. "F§1", "F§3" and "F§7" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read when their step runs. Steps (`peep step:`, preamble): §0 is `setup`; reading the board is `read`; posting or replying is `write` (list mode has none); §4 is `report`.
 
 ## 0. Repo setup
 
@@ -46,9 +47,10 @@ Post or reply: these lines and nothing else.
 peep tweet: <posted|replied> <n> (<kind>, <ticket>)
 board: .peep/tweets.md, <k> open
 ping: <peer handle> | none reachable
+next: clear to proceed
 ```
 
-List: the lines from §2, then `board: .peep/tweets.md, <k> open`.
+List: the lines from §2, then `board: .peep/tweets.md, <k> open`, then `next: /peep:tweet reply <n> <answer>` for a tweet you can answer, else `next: clear to proceed`. Board empty: its line, then `next: clear to proceed`.
 
 ## 5. Last step: run count
 

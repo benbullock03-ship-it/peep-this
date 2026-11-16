@@ -3,6 +3,7 @@ name: ticket
 description: "Ticket: work one ticket end to end (build, check, commit only its hunks, mark done), or close or park one. Use when the user runs /peep:ticket <id>, /peep:ticket close <id> or /peep:ticket park <id>, or says 'work AV-12'."
 argument-hint: "<id> | close <id> | park <id> [blocked|deferred] <reason> wake <condition>"
 label: Ticket
+steps: [read, start, build, check, finish, report]
 ---
 
 # /peep:ticket
@@ -23,7 +24,7 @@ One ticket per run. "F§1" to "F§7" below cite the pack's shared file `${CLAUDE
 | `park <id> ...` | to `blocked` or `deferred` with `reason` and `wake` | `references/park.md` |
 | none or other | print the argument hint above and stop | |
 
-Read the detail file before acting, then follow it.
+Read the detail file before acting, then follow it. Steps (`peep step:`, preamble): §0 is `read`; work.md's five sections are `read`, `start`, `build`, `check`, `finish`; close.md and park.md are `read` (their §1) and `finish` (the rest); §3 here is `report`.
 
 ## 2. Rules for every sub-command
 
@@ -36,17 +37,20 @@ Read the detail file before acting, then follow it.
 
 ## 3. Report
 
-The final reply is these four lines and nothing else: no recap before or after (detail belongs in the ticket, the answered checks under `## Checks`).
+The final reply is these five lines and nothing else: no recap before or after (detail belongs in the ticket, the answered checks under `## Checks`).
 
 ```
 peep ticket: <id> <old status> -> <new status>
 commit: <short hash, or none>
 checks: build <ok|fail|none>, test <ok|fail|none>[; failures: <new/known/other session, named>]
 owed: <what is owed, decided without a ruling, or blocking> | none
+next: <command> | clear to proceed
 ```
+
+`next`: `done` gives `/peep:ticket close <id>`; still `doing` gives `/peep:ticket <id>`; parked by work.md gives its next ticket (work.md §1.2); close and park give `/peep:ducks`.
 
 Session ending or context filling up: suggest `/peep:packup`.
 
 ## 4. Last step: run count
 
-Per the preamble, as a fifth line: `Why: one ticket finished beats three half-built.`
+Per the preamble, just before the `next` line: `Why: one ticket finished beats three half-built.`

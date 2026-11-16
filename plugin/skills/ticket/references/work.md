@@ -6,7 +6,7 @@
    - `closed`: say so and stop.
    - `done`: it waits for the owner; say `/peep:ticket close <id>` closes it, and stop unless the owner asked for rework in this session.
    - `blocked` or `deferred`: if the wake-up condition is met (`ticket:` that ticket is `closed`; `date:` that date has passed) or the owner says it is, delete `reason` and `wake`, set `open`, and go on. Otherwise print its `reason` and `wake`, and stop.
-2. Read each ticket in `depends` (live folder, then the archive by that id only). Any that is not `closed` blocks this one: park it per `park.md` with `status: blocked`, `reason: waiting on <dep>`, `wake: ticket:<dep>` (the first such dep), name the next ticket (below) in `owed`, report, and stop. Never start the next ticket: one per run.
+2. Read each ticket in `depends` (live folder, then the archive by that id only). Any that is not `closed` blocks this one: park it per `park.md` with `status: blocked`, `reason: waiting on <dep>`, `wake: ticket:<dep>` (the first such dep), name the next ticket (below) in the report's `next` line, report, and stop. Never start the next ticket: one per run.
 
    **Next ticket.** Walk the depends tree depth-first in `depends` order, reading each id once (live, then archive by id; an archived ticket is `closed`). At each dep:
    - `closed`: satisfied, skip.

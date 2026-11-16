@@ -3,35 +3,36 @@ name: walk
 description: "Walk Through: tour and customising that asks about the repo, how you work and what the project is for, then writes .peep/setup.md and .peep/reel.md. Use when the user runs /peep:walk."
 disable-model-invocation: true
 label: "Walk Through"
+steps: [look, rounds, read-back, setup, northstar, tour]
 ---
 
 # /peep:walk
 
-Optional: any skill sets up a repo with no setup itself (preamble). Walk asks the fuller rounds, tailors the pack, pins down the project's north star, shows the order the skills go in. "F§1" and "F§4" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs.
+Optional: any skill sets up a repo with no setup itself (preamble). Walk asks the fuller rounds, tailors the pack, pins down the project's north star, shows the order the skills go in. "F§1" and "F§4" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs. Each heading names its step (`peep step:`, preamble).
 
 **Nothing is written before the owner's yes to the read-back.** Walk is never switched off by `skills.off`.
 
-## 1. Look
+## 1. Look (step `look`)
 
 Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` if it exists (F§1): a rerun starts from its values and each question names the current one. Then guess the answers from the repo, as `references/setup.md` step 1 says. Facts are found, never asked.
 
-## 2. Rounds
+## 2. Rounds (step `rounds`)
 
 Ask with AskUserQuestion, batched, recommended option first ending ` (recommended)`, each question standalone, no "Keep going" question. Round A is the repo, round B is how the owner works: `references/setup.md`. Round C is the north star: `references/northstar.md`. Shape and wording rules: `${CLAUDE_PLUGIN_ROOT}/skills/qt/references/rounds.md`.
 
-## 3. Read-back
+## 3. Read-back (step `read-back`)
 
 Exactly per F§4, one read-back covering all three rounds: groups and rules in `references/setup.md` §4, plus **North star** from `references/northstar.md` §3. "yes": steps 4 and 5. A correction: a fresh, complete read-back, then wait. "stop" or "no": reply `peep walk: nothing written.` and stop.
 
-## 4. Write the setup
+## 4. Write the setup (step `setup`)
 
 `.peep/setup.md` per `references/setup.md` step 5: the repo keys plus only the preference keys that differ from their defaults (`qt.round`, `packup.questions`, `shoot.widths`, `skills.off`; F§1). Edit or Write only. Do not stage or commit it.
 
-## 5. Write the north star
+## 5. Write the north star (step `northstar`)
 
 `.peep/reel.md` per `references/northstar.md` §4.
 
-## 6. Tour
+## 6. Tour (step `tour`)
 
 Read the tickets folder, then print the Core and Extras blocks in `references/tour.md`, then the next step. Do not run any skill.
 

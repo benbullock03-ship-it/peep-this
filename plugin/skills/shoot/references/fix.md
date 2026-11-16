@@ -31,6 +31,7 @@ peep scrub: fixed <numbers>; left <numbers>
 [sneak: <numbers> need a design choice; run /peep:sneak <screen>]
 [debt: <id> · <path> · <count>]   [earned to add: <line>]
 before <n> findings, after <m>[; new: <ids>]
+next: /peep:sneak <screen> | clear to proceed
 ```
 
-Nothing is staged or committed.
+`next` is `/peep:sneak <screen>` when the sneak line is there. Nothing is staged or committed.
