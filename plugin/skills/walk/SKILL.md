@@ -1,13 +1,13 @@
 ---
 name: walk
-description: "Walk Through: first run and tour that asks about the repo and how you work, then writes .peep/setup.md. Use when the user runs /peep:walk."
+description: "Walk Through: tour and customising that asks about the repo and how you work, then writes .peep/setup.md. Use when the user runs /peep:walk."
 disable-model-invocation: true
 label: "Walk Through"
 ---
 
 # /peep:walk
 
-Owns first run. Sets the repo up, tailors the pack, shows the order the skills go in. "F§1" and "F§4" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs.
+Optional: any skill sets up a repo with no setup itself (preamble). Walk asks the fuller rounds, tailors the pack, shows the order the skills go in. "F§1" and "F§4" cite `${CLAUDE_PLUGIN_ROOT}/references/formats.md`. Files in `references/` beside this file are read only when their step runs.
 
 **Nothing is written before the owner's yes to the read-back.** Walk is never switched off by `skills.off`.
 
@@ -43,4 +43,4 @@ next: <command>
 
 ## Last step: run count
 
-Bump `walk` in `.peep/runs` (F§1). If it was below 3, add a final line: `Why: a minute of setup now saves every later skill from guessing.`
+Per `${CLAUDE_PLUGIN_ROOT}/references/preamble.md`: `Why: a minute of setup now saves every later skill from guessing.`

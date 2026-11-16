@@ -12,7 +12,7 @@ Sessions on one repo talk through the board; a live ping is a nudge to read it. 
 ## 0. Repo setup
 
 1. Repo root: `git rev-parse --show-toplevel`. The board is `<root>/.peep/tweets.md` (F§7).
-2. Read `<root>/.peep/setup.md` (F§1) if there is one: `skills.off` lists `tweet`: F§1 applies. Its areas are needed only to fold (`references/fold.md`). No setup: post and reply still work.
+2. Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, run count). Runs without a setup (no self-setup): post and reply still work; its areas are needed only to fold (`references/fold.md`).
 3. Handle: the ticket this session is working, else a short name for its task. Use the same one on every tweet and reply.
 
 ## 1. Sub-command
@@ -52,4 +52,4 @@ List: the lines from §2, then `board: .peep/tweets.md, <k> open`.
 
 ## 5. Last step: run count
 
-Bump `tweet` in `.peep/runs` (F§1). If it was below 3, end the reply with `Why: a question on the board costs a minute; a clash found at commit costs the afternoon.`
+Per the preamble: `Why: a question on the board costs a minute; a clash found at commit costs the afternoon.`

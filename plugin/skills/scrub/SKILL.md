@@ -13,11 +13,7 @@ Finds the defaults nobody chose in a UI, teaches where each comes from, and fixe
 
 ## 1. Read the repo setup
 
-Read `.peep/setup.md` (formats §1). Missing: reply with exactly this and stop:
-
-`peep: no repo setup here. Run /peep:walk first, so Scrubadubdub knows your themes and widths.`
-
-`skills.off` lists `scrub`: §1 applies.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count).
 
 ## 2. Scope and the house style
 
@@ -61,4 +57,4 @@ Follow `references/fix.md`.
 
 ## Last step: run count
 
-Bump `scrub` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: a re-scan after the fix proves it works; a default you can name is one you can choose against.`
+Per the preamble: `Why: a re-scan after the fix proves it works; a default you can name is one you can choose against.`

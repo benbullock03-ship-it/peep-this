@@ -31,9 +31,9 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). 
 | `bigpeep` | `/peep:bigpeep` | none yet (AV-94) | none yet | AV-90 |
 | `tweet` | `/peep:tweet` | none yet (AV-94) | none yet | AV-91 |
 
-## Why line (AV-74)
+## Preamble (AV-117)
 
-Every skill, and every new one from AV-75 on, ends with a run-count step: bump its line in `.peep/runs` and, while the old count is below 3, close the reply with one `Why:` line tied to a habit (think before code, finish before starting, prove it works). Rule: `references/formats.md` §1.
+Every skill cites `references/preamble.md` once and keeps only its own `Why:` line. The preamble reads `.peep/setup.md`, applies `skills.off`, and bumps the run count in `.peep/runs`, showing the Why line while the old count is below 3. With no setup, the skill guesses one from the repo, shows a 5-line read-back, writes it on yes and carries on; Walk is not needed first. Pack Up and Tweet run without a setup.
 
 ## Context budget (every pack skill)
 

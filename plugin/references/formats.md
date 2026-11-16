@@ -6,11 +6,11 @@ All frontmatter is flat: one `key: value` per line, no nesting, no multi-line va
 
 ## 1. Repo setup: `.peep/setup.md`
 
-At the repo root. Walk (`/peep:walk`) writes it on first run; the owner may hand-edit it. Every Peep skill reads it instead of guessing. The `.peep/` folder also holds `handoff.md`, Pack Up's note (AV-60).
+At the repo root. The first Peep skill to run writes it after a 5-line read-back (`preamble.md`, self-setup); Walk (`/peep:walk`) customises it; the owner may hand-edit it. Every Peep skill reads it instead of guessing. The `.peep/` folder also holds `handoff.md`, Pack Up's note (AV-60).
 
 | Key | Meaning | Default |
 |---|---|---|
-| `prefix` | Ticket id prefix, e.g. `AV` | none; Walk asks |
+| `prefix` | Ticket id prefix, e.g. `AV` | none; self-setup guesses it |
 | `tickets` | Tickets folder, relative to the repo root | `tickets/` |
 | `archive` | Where `closed` tickets move | `<tickets>archive/` |
 | `index` | Command that regenerates a ticket index after a status change | none (skip) |
@@ -27,17 +27,14 @@ At the repo root. Walk (`/peep:walk`) writes it on first run; the owner may hand
 | `stale.days` | Days a `doing` ticket's file may sit unchanged before Ducks lists it first and the peep worries | `3` |
 | `skills.off` | Pack skills to switch off, comma-separated names (`coderot, reel`) | none |
 
-- `skills.off`: a skill listed there replies `peep <name>: switched off in .peep/setup.md.` and stops, not counted as a run. Walk is never switched off.
-
+- `skills.off`, self-setup and the run count: `preamble.md`.
 - `tickets` is read by the widget backend too: keep it on its own line, value only, trailing `/`.
 - Area names are lowercase words or hyphens; the name is also the area note's filename. A file belongs to the first area whose prefix matches.
 - The body below the frontmatter is free notes for humans; skills ignore it.
 
 ### Run counts: `.peep/runs`
 
-Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. A `<skill>.<key>: <value>` line holds that skill's own small state (`ducks.reel: 2026-11-16`) and is not a count. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it.
-
-Last step of every Peep skill (the why-line rule): read the file, treat a missing skill line as 0, write `n + 1` back by Edit or Write, and if the old `n` was below 3 end the reply with one `Why: <line>` tied to one of three habits (think before code, finish before starting, prove it works). From the fourth run on, no Why line. A run that stopped early (no setup, bad argument) is not counted.
+Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. A `<skill>.<key>: <value>` line holds that skill's own small state (`ducks.reel: 2026-11-16`) and is not a count. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it. Each skill's `Why:` line is tied to one of three habits (think before code, finish before starting, prove it works); the bump and when the line shows: `preamble.md`.
 
 ## 2. Ticket: `<tickets>/<PREFIX>-<NN>-<slug>.md`
 

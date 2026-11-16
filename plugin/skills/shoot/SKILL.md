@@ -11,7 +11,7 @@ Verdicts and facts, not impressions. No praise anywhere in the report.
 
 ## 1. Setup
 
-Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1): `url`, `dev`, `themes` (default `light, dark`), widths from `shoot.widths`, else `widths` (default `375, 1280`). `skills.off` lists `shoot`: F§1 applies.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). Take `url`, `dev`, `themes` (default `light, dark`), widths from `shoot.widths`, else `widths` (default `375, 1280`).
 
 - **No `url`:** reply with exactly `Shoot doesn't apply: no url in .peep/setup.md (Shoot is for web UIs only).`, nothing else, and stop. Do not guess a URL or open a browser.
 - **Desktop webview** (the change is in a Tauri, WebView2 or Electron app's page, not a browser tab): follow `references/webview.md` instead of the Playwright MCP for DOM facts and shots; every other step is unchanged.
@@ -59,6 +59,6 @@ Never claim what is owed.
 
 ## 8. Last step: run count
 
-Bump `shoot` in `.peep/runs` (formats §1). If it was below 3, add a final line after the report: `Why: a shot you checked proves it works; reading the code does not.`
+Per the preamble, after the report: `Why: a shot you checked proves it works; reading the code does not.`
 
 Not here: pixel-diff baselines, cross-browser runs, multi-page E2E flows, native UI with no web page behind it.

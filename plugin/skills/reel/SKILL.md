@@ -12,11 +12,7 @@ Gives the project a reason to finish. The project is the text after `/peep:reel`
 
 ## 1. Read the repo setup
 
-Read `.peep/setup.md` at the repo root (formats §1). If it is missing, reply with exactly this and stop:
-
-`peep: no repo setup here. Run /peep:walk first, so Reel knows where .peep/ lives.`
-
-`skills.off` lists `reel`: formats §1 applies.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count).
 
 ## 2. Look before asking
 
@@ -57,4 +53,4 @@ north star: <one line>
 
 ## Last step: run count
 
-Bump `reel` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: a project with a reason to finish gets finished.`
+Per the preamble: `Why: a project with a reason to finish gets finished.`

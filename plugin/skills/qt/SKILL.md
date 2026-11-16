@@ -12,12 +12,7 @@ The idea is the text after `/peep:qt`. If there is none, ask for it in one line 
 
 ## 1. Read the repo setup
 
-Read `.peep/setup.md` at the repo root (formats §1).
-If it is missing, reply with exactly this and stop:
-
-`peep: no repo setup here. Run /peep:walk first, so Question Time knows where tickets go.`
-
-From it take `prefix`, `tickets` and `qt.round` (defaults per §1). `skills.off` lists `qt`: §1 applies.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). From the setup take `prefix`, `tickets` and `qt.round` (defaults per formats §1).
 
 ## 2. Look before asking
 
@@ -68,4 +63,4 @@ No recap of the questions or answers.
 
 ## Last step: run count
 
-Bump `qt` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: ten minutes of questions cost less than rewriting the wrong code.`
+Per the preamble: `Why: ten minutes of questions cost less than rewriting the wrong code.`

@@ -11,9 +11,8 @@ One ticket per run. "F§1" to "F§7" below cite the pack's shared file `${CLAUDE
 
 ## 0. Repo setup
 
-1. Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` (F§1), applying its defaults.
-2. No file, or no `prefix`: print exactly `peep ticket: no repo setup here. Run /peep:walk first.` and stop. Never guess commands, folders or a prefix. `skills.off` lists `ticket`: F§1 applies.
-3. A bare number is an id: `57` means `<prefix>-57`. Ticket file: `<tickets><id>-*.md` (F§2). Not there: look in `<archive>` for that one id only. Never list or read the rest of the archive.
+1. Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). Never use a command, folder or prefix the owner has not said yes to.
+2. A bare number is an id: `57` means `<prefix>-57`. Ticket file: `<tickets><id>-*.md` (F§2). Not there: look in `<archive>` for that one id only. Never list or read the rest of the archive.
 
 ## 1. Sub-command
 
@@ -50,4 +49,4 @@ Session ending or context filling up: suggest `/peep:packup`.
 
 ## 4. Last step: run count
 
-Bump `ticket` in `.peep/runs` (F§1). If it was below 3, add a fifth line: `Why: one ticket finished beats three half-built.`
+Per the preamble, as a fifth line: `Why: one ticket finished beats three half-built.`

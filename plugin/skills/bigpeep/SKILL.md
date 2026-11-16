@@ -12,9 +12,8 @@ Big Peep reads, orders, briefs, watches, reviews and commits. Little peeps build
 
 ## 0. Repo setup
 
-1. Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` (F§1), applying its defaults.
-2. No file, or no `prefix`: print exactly `peep bigpeep: no repo setup here. Run /peep:walk first.` and stop. `skills.off` lists `bigpeep`: F§1 applies.
-3. Ids: bare numbers take the prefix; `73-77` or `AV-73 to AV-77` is every id in that range that has a live ticket file. No ids: print the argument hint and stop.
+1. Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count).
+2. Ids: bare numbers take the prefix; `73-77` or `AV-73 to AV-77` is every id in that range that has a live ticket file. No ids: print the argument hint and stop.
 
 ## 1. Plan
 
@@ -62,4 +61,4 @@ Report table exactly per `references/output.md`. Then write the Pack Up note: `$
 
 ## Last step: run count
 
-Bump `bigpeep` in `.peep/runs` (F§1). If it was below 3, end the reply with `Why: watch the diffs, not the reports; a report is a claim, the diff is the evidence.`
+Per the preamble: `Why: watch the diffs, not the reports; a report is a claim, the diff is the evidence.`

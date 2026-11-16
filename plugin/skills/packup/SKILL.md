@@ -10,7 +10,7 @@ Any time the user ends a session, not only at high context. The note opens the n
 
 ## 1. Gather (do not print)
 
-- Repo setup `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1) for the tickets folder, `build`/`test` commands and `packup.questions`. No setup: assume `tickets/`, no commands, `ask`. `skills.off` lists `packup`: §1 applies.
+- Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, run count): the tickets folder, `build`/`test` commands and `packup.questions`. Runs without a setup (no self-setup): assume `tickets/`, no commands, `ask`.
 - `git status --short`, `git branch --show-current`, `git log --oneline -1`.
 - The ticket in progress this session and its status; any parked tickets (`blocked`, `deferred`) touched this session, with `reason` and `wake`.
 - The last `build`/`test` run this session and its result, if any.
@@ -40,6 +40,6 @@ Safe to /clear or exit. Paste it as the first message of the next session.
 
 ## 5. Last step: run count
 
-Bump `packup` in `.peep/runs` (formats §1). If it was below 3, add a fourth reply line: `Why: close the session cleanly so the next one starts where this one stopped.`
+Per the preamble, as a fourth reply line: `Why: close the session cleanly so the next one starts where this one stopped.`
 
 Never commit, push or stage the note. If `.peep/handoff.md` is not ignored and not tracked, leave the ignore file alone.

@@ -12,7 +12,7 @@ Finds the goose in the ducks: which file calls which. Agents query the map inste
 
 ## 1. Read the repo setup
 
-Read `.peep/setup.md` (formats §1) for the `area.<name>` lines. `skills.off` lists `goose`: §1 applies. No setup: say `No repo setup here. Run /peep:walk first.` and stop (not counted). The page still groups by area; files outside every area go in `other`.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). Take the `area.<name>` lines. The page still groups by area; files outside every area go in `other`.
 
 ## 2. Pick the engine
 
@@ -47,4 +47,4 @@ At most 6 lines: engine used, files, imports, areas, sessions shown, page path. 
 
 ## 6. Last step: run count
 
-Bump `goose` in `.peep/runs` (formats §1). If it was below 3, end the reply with: `Why: know what a change touches before making it, so you think before code.`
+Per the preamble: `Why: know what a change touches before making it, so you think before code.`

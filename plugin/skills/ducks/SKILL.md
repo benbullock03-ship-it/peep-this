@@ -13,8 +13,7 @@ The present-tense check of a repo. "F§1" to "F§4" cite the pack's shared file 
 
 ## 0. Repo setup
 
-Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` (F§1), applying its defaults.
-No file, or no `prefix`: reply with exactly `peep: no repo setup here. Run /peep:walk first, it sets the repo up.` and stop; write nothing. `skills.off` lists `ducks`: F§1 applies.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count). Its setup yes is separate from the read-back yes below.
 
 ## 1. Pack Up note
 
@@ -67,4 +66,4 @@ next: /peep:ticket <id> | clear to proceed
 
 ## Last step: run count
 
-Bump `ducks` in `.peep/runs` (F§1). If it was below 3, add a final line: `Why: finish what is loose before you start something new.`
+Per the preamble: `Why: finish what is loose before you start something new.`

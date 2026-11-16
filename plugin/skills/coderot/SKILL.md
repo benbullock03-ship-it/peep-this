@@ -12,11 +12,7 @@ Facts and survivors, not reassurance. The owner's working tree is never edited; 
 
 ## 1. Setup
 
-Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1). If it is missing, reply with exactly this and stop:
-
-`peep: no repo setup here. Run /peep:walk first, so Coderot knows the test command and areas.`
-
-`skills.off` lists `coderot`: F§1 applies ("F§1" is `${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1).
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count).
 
 - No `test`: reply `peep: no test command in .peep/setup.md; Coderot needs one.` and stop.
 - Target: the first argument names an `area.<name>` (use its prefixes) or is a path prefix. No argument: the hot spot, the area whose prefixes the files of `git log -20 --name-only --format=` fall under most often (ties: setup order). Say `target: <area> (hot spot, <n> of the last 20 commits' files)` before step 2. No area matched: reply `peep: name an area: <area names>` and stop.
@@ -63,6 +59,6 @@ Write tickets only on "yes" or named rows; anything else writes nothing.
 
 ## 7. Last step: run count
 
-Bump `coderot` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: a test that cannot fail proves nothing.`
+Per the preamble: `Why: a test that cannot fail proves nothing.`
 
 Not here: mutating the owner's tree, uncommitted changes (Coderot rots HEAD), coverage tools, fixing the tests.

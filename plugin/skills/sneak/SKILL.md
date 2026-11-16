@@ -12,11 +12,7 @@ Puts a UI design in front of the owner before it touches the app. The UI is the 
 
 ## 1. Read the repo setup
 
-Read `.peep/setup.md` (formats §1). If it is missing, reply with exactly this and stop:
-
-`peep: no repo setup here. Run /peep:walk first, so Sneak Peep knows where .peep/ lives.`
-
-`skills.off` lists `sneak`: §1 applies.
+Preamble `${CLAUDE_PLUGIN_ROOT}/references/preamble.md` (setup, `skills.off`, self-setup, run count).
 
 ## 2. Look before asking
 
@@ -59,4 +55,4 @@ nothing in the app changed; a later ticket builds from the reference
 
 ## Last step: run count
 
-Bump `sneak` in `.peep/runs` (formats §1). If it was below 3, add a final line: `Why: seeing three directions costs minutes, rebuilding the wrong one costs a day.`
+Per the preamble: `Why: seeing three directions costs minutes, rebuilding the wrong one costs a day.`
