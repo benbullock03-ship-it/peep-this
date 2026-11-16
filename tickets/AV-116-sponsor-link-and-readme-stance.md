@@ -39,4 +39,5 @@ Not submitted. Submitting needs the owner's yes at the time, a public repo link,
 
 ## Owed before done
 
-- Owner check in `npm run tauri dev`: tray menu, About, Sponsor Peep This opens the sponsor page in the browser.
+- Owner enables GitHub Sponsors on `benbullock03-ship-it`: on 2026-11-16 `github.com/sponsors/benbullock03-ship-it` redirected to the profile, so the page does not exist yet.
+- Owner check: tray menu, About, Sponsor Peep This opens the sponsor page. The same `open_url` path opened a browser live from the learned list (AV-110).
