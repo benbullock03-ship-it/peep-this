@@ -1,7 +1,7 @@
 ---
 id: AV-72
 title: Owner walkthrough - the checks only a human can do
-status: done
+status: closed
 depends: [AV-67, AV-68, AV-73]
 attended: true
 ---
