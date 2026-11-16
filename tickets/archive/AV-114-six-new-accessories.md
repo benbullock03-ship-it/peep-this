@@ -1,7 +1,7 @@
 ---
 id: AV-114
 title: Six new accessories for earned and supporter cosmetics
-status: done
+status: closed
 depends: []
 attended: true
 ---

@@ -18,6 +18,8 @@
 - The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`).
 - Clash: sessions with `mood: startled` and the same `Session.clash` path get a lettered bolt tag (`Bubble.bolt` in `src/bubble.ts`), "Both in <file>" bubble text (`clashTags`, `clashText` in `src/emote.ts`) and, when adjacent, a dotted plank-to-plank bracket in `--st-waiting` (`clash-down`/`clash-up`, `--plank-y` in `src/rows.ts`).
 
+- Identity (`src/identity.ts`): the cwd hashes over `COLORS` and the 14 `ACCESSORIES`; the six `EARNED_ACCESSORIES` (packed, clear, ten, spotless, architect, supporter) are never hashed and reach the picker only through `pickerAccessories(unlocked)`. `?accessories` (`src/accessories.ts`) renders every accessory for checks.
+
 ## Watch out
 
 - The disk seats only when the snapshot reports the skill; there is no optimistic seating.
@@ -43,4 +45,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-89, 2026-11-16
+last touched: AV-114, 2026-11-16
