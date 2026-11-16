@@ -1,7 +1,7 @@
 ---
 id: AV-127
 title: Floppy for every skill
-status: doing
+status: done
 depends: [AV-118, AV-119]
 ---
 
@@ -18,8 +18,14 @@ depends: [AV-118, AV-119]
 
 **Done when:** running each of the eleven skills in a session seats its floppy on that row, Tweet shows no tray cell, and the owner confirms in `npm run tauri dev`.
 
+## Checks (live, 2026-11-16, `tauri dev` over CDP)
+
+1. pass: each of the eleven skills seats its floppy. A headless `claude -p "/peep:<skill>" --plugin-dir plugin` in a scratch repo, for each skill, polled `get_snapshot` and the row DOM. Every one seated with the right `--col` and verb: walk 11, qt 1, ticket 2, shoot 3, packup 4, ducks 0, sneak 13, goose 17, coderot 5, bigpeep 15, tweet 16.
+2. pass: the open row's tray holds Walk, Question Time, Ticket, Shoot, Pack Up and Ducks, then `+4` (Sneak, Goose, Coderot, Big Peep). The tray HTML has no `tweet`. Evidence: `.playwright-mcp/live-tray.png`.
+
 ## Decisions taken without a ruling
 
+- Status set to `done` from the live run above. The visual pass is the owner's close.
 - AV-119 is `done`, not `closed`; treated as satisfied because Big Peep dispatched this ticket with scrub already removed and committed.
 - The sprite sheets in `src/assets/floppy/` already matched `design/skill-pack-2/sprites/` byte for byte; no files were copied.
 - The tour has no Walk line, so Walk's hover card keeps SPEC §06's "Use the first time, or when the pack feels off." The tour was not edited, because Walk prints that tour after it runs.
