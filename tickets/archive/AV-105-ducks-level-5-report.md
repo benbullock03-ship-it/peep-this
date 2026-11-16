@@ -1,7 +1,7 @@
 ---
 id: AV-105
 title: Ducks level 5 - architecture report on the goose page
-status: done
+status: closed
 depends: [AV-104]
 ---
 

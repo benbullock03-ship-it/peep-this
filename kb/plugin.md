@@ -15,6 +15,7 @@
 - Ducks lists `done` tickets first as one item with a count, and the read-back's **Do** line `close <n> done: <ids>` closes them all on one yes, one `<id>: close` commit each (`leave <ids>` drops some). Stale `doing` comes second: ticket file unchanged for the setup's `stale.days` (default 3, file mtime), asked as finish, park with a reason, or close. The widget's backend worries the repo's peeps on the same rule (`tickets.rs` `Repo.stale`).
 - `/peep:sneak` asks Question Time-style design rounds, reads back, builds 2 or 3 self-contained variants in `.peep/sneak/<slug>/{a,b,c}/`, serves them side by side with `skills/sneak/scripts/serve.mjs` (127.0.0.1, random port), and moves the pick to `design/<slug>/`, deleting the rest. It adds `.peep/sneak/` to `.gitignore` itself and never touches the app.
 - `/peep:goose` runs `skills/goose/scripts/map.mjs`: ts/js and Rust imports (or `--graphify graphify-out/graph.json`), files grouped by setup areas, written to `.peep/graph/graph.json` (`edges` `[from, to]`) and a standalone `index.html` with `peep.js` inlined from `skills/goose/assets/`. Query instructions sit in `kb/INDEX.md`. A live session's peep stands on each area its Edit and Write calls touched in the last 30 minutes, read from the tail of its transcript (`~/.claude/projects/<cwd with non-alphanumerics as ->/<sessionId>.jsonl`); with none it falls back to its cwd's area or a `repo root` card.
+- `map.mjs --report <candidates.json>` puts Ducks' architecture candidates above the map (Ducks level 5, `ducks/references/report.md` holds the JSON schema). Legend, the top pick beside a 96px house peep, then cards. Each card has a peep whose state shows strength (Strong waiting, Worth exploring thinking, Speculative idle), a pattern lesson from `references/patterns.md`, a stuck/working/success comic strip with before and after SVGs, an ELI5 fold with its source, and a "Copy fix brief" button.
 - `/peep:bigpeep` is the global `/batch` rebuilt on the repo setup: little peeps follow `work.md` but never stage, commit or set status; Big Peep sets `doing`, reviews the diff, commits one per ticket. A little peep quiet 10 minutes gets one SendMessage status ask (`references/watch.md`), never a stop, and answers by SendMessage to `main`. An in-batch dep that reaches `done` earlier in the run counts as met.
 - `/peep:tweet` posts to `.peep/tweets.md` (F§7), never staged or committed; a live ping via SendMessage is only a nudge to read the board. `/peep:ticket` reads the board before building (work.md 1.5) and folds answered tweets into area notes on close (close.md 4).
 - `/peep:shoot` checks a desktop app's webview over CDP (`shoot/references/webview.md`: debug port, `Runtime.evaluate`, the app's own commands, OS screenshots for native chrome) and applies `references/stable.md` before every fact and shot; a verdict that changes on rerun is `flaky`.
@@ -22,6 +23,8 @@
 - `/peep:packup` writes `.peep/handoff.md` (template in `skills/packup/references/note.md`) with `First command: /peep:ducks` when the next step is clear. Ducks reads the note first, checks branch, commit, uncommitted files and named ticket statuses against it (`ducks/references/drift.md`), reads back the drift, and on yes runs the note's `Then` before its other Do lines.
 
 ## Watch out
+
+- Pattern names on report cards come only from `references/patterns.md` (6 entries, which also feed the learned list). A new pattern needs the owner's yes. Diagram nodes come from `graph.json`, never invented.
 
 - Runs that stop early (no setup, bad argument) are not counted.
 - `skills.off` is stated once in F§1; each skill carries a one-line cite. Walk can never be switched off; the tour lists The Reel unless `skills.off` names it.
@@ -45,4 +48,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-107, 2026-11-16
+last touched: AV-105, 2026-11-16
