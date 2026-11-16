@@ -1,7 +1,7 @@
 ---
 id: AV-96
 title: Backend end_session command
-status: doing
+status: done
 depends: [AV-95]
 ---
 
@@ -21,9 +21,11 @@ depends: [AV-95]
 - Tests in `focus.rs`: `end_allows_matching_start_time`, `end_refuses_reused_pid`, `end_fails_closed_when_start_cannot_be_compared`, `end_errors_for_unknown_session`, and on Windows `end_refusal_leaves_the_process_running` and `end_kills_a_verified_throwaway_process` (a spawned `ping`, never a claude session).
 - The lifecycle item needs no code: after the kill the session watcher's next scan sees the PID dead and emits `Ended`, as for any exit.
 
-## Owed before done
+## Done 2026-11-16
 
-- Live check in `npm run tauri dev` against a throwaway `claude` session: it ends, the row goes to done and fades. Not run here, so no real session was killed. No UI calls `end_session` yet (AV-97); invoke it from the devtools console.
+- Live check in `npm run tauri dev`, invoked over WebView2 CDP: an unknown id returned `no live session with that id`; a throwaway `claude` session (PID 34612) returned `true`, the PID was gone, the snapshot showed it not live (`7 sessions (6 live)`) and it was dropped within 75s.
+- `procStart` mismatch is proven by `end_refuses_reused_pid` and `end_refusal_leaves_the_process_running`.
+- Seen while testing: a session started with the parent's `CLAUDE_CODE_CHILD_SESSION` writes no `sessions/<pid>.json`; its hook-only row stays "live" after its process dies.
 
 ## Decisions taken without a ruling
 
