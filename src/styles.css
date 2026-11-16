@@ -1263,6 +1263,83 @@ body[data-fold] > .ps-strip {
   font-size: 11px;
 }
 
+.ps-end-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ps-end-row[hidden] {
+  display: none;
+}
+
+.ps-end {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 3px 9px;
+  border: 2px solid var(--red);
+  background: transparent;
+  color: var(--red);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.ps-end:hover {
+  box-shadow: var(--shadow-lift);
+}
+
+.ps-end:disabled {
+  cursor: default;
+  box-shadow: none;
+}
+
+.ps-end:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 2px;
+}
+
+.ps-end::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--red) 35%, transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: -1;
+}
+
+/* Ten blocks over the hold, like the bars (AV-37 steps every motion). */
+.ps-end.holding::before {
+  transform: scaleX(1);
+  transition: transform var(--hold-ms, 1s) steps(10, end);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-end.holding::before {
+    transition: none;
+  }
+}
+
+.is-end-err .ps-bubble {
+  background: var(--st-error);
+  color: var(--ps-on-st);
+  border-color: var(--st-error);
+  font-weight: 500;
+}
+
+.is-end-err .ps-bubble::before {
+  background: var(--st-error);
+  box-shadow: -4px 4px 0 var(--st-error);
+}
+
+.is-end-err .ps-bubble > .em {
+  display: none;
+}
+
 /* ---------- floppy tray, Pack Up and first-run disk box (AV-67, FLOPPY-SPEC §02, §08, §10) ---------- */
 .fl {
   --px: 1px;

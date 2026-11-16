@@ -2,7 +2,7 @@ import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
 import { createClosedShelf } from "./closedShelf";
-import { demoClosed, demoDecide, demoDigest, demoIdentity, demoLimits, demoSnapshot, demoStep } from "./demo";
+import { demoClosed, demoDecide, demoDigest, demoEnd, demoIdentity, demoLimits, demoSnapshot, demoStep } from "./demo";
 import { NUDGE_RANGE } from "./emote";
 import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
@@ -235,12 +235,24 @@ function runDemo() {
   const withLimits = (s: Snapshot, now: number) => (lim?.length === 2 ? demoLimits(s, lim[0], lim[1], now) : s);
   let snap = withLimits(demoSnapshot(Date.now()), Date.now());
   let inbox: ReturnType<typeof mountInbox> | null = null;
-  const render = createList(root, demoIdentity, undefined, async (id, decision) => {
-    snap = demoDecide(snap, id, decision, Date.now());
-    render(snap.sessions);
-    inbox?.sync(snap.sessions);
-    return true;
-  });
+  const render = createList(
+    root,
+    demoIdentity,
+    undefined,
+    async (id, decision) => {
+      snap = demoDecide(snap, id, decision, Date.now());
+      render(snap.sessions);
+      inbox?.sync(snap.sessions);
+      return true;
+    },
+    undefined,
+    undefined,
+    async (id) => {
+      snap = demoEnd(snap, id, params.get("end"));
+      render(snap.sessions);
+      return true;
+    },
+  );
   const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
   const renderClosed = createClosedShelf(root);
   const closed = demoClosed(Date.now(), params.get("closed"));
@@ -328,6 +340,7 @@ async function runLive() {
       revoke: (ruleId) => invoke<RulesView>("revoke_rule", { ruleId }),
       live: (id) => ruleLive(rulesView, id),
     },
+    (id) => invoke<boolean>("end_session", { sessionId: id }),
   );
   const renderStrip = createStrip(stripEl, stripActions);
   const renderClosed = createClosedShelf(root);

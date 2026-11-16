@@ -1,5 +1,6 @@
 import { createCards, type Decide } from "./approvalCard";
 import { fillBubble, FLOPPIES } from "./bubble";
+import { bindHold } from "./hold";
 import { createBar, type Bar } from "./bar";
 import { createArc } from "./arc";
 import { openFacts } from "./details";
@@ -18,6 +19,8 @@ import { entryTitle, markOf, shownTarget, trailKey } from "./trail";
 import { createTray, jumpCommand, type Jump } from "./tray";
 
 export type TrailOf = (sessionId: string) => readonly TrailEntry[] | undefined;
+/** `end_session` (AV-96): rejects with the reason when the session was not ended. */
+export type EndSession = (sessionId: string) => Promise<unknown>;
 
 /** AV-31: offers under the row, and revoking a rule from its trail entry. */
 export type RowRules = {
@@ -38,6 +41,7 @@ const TICK_MS = 1000;
 /** The tray's "Copied" and hint timings (FLOPPY-SPEC §08). */
 const COPIED_MS = 1200;
 const HINT_MS = 6000;
+const END_LABEL = "Hold to end session";
 const STAGGER_MS = 40;
 const MAX_STAGGER = 8;
 
@@ -55,6 +59,7 @@ type Facts = {
   clearHint: () => void;
   shelf: (tickets: readonly RepoTicket[] | undefined) => void;
   arc: (repo: Repo | undefined) => void;
+  end?: HTMLButtonElement;
 };
 
 type Row = {
@@ -83,6 +88,9 @@ type Row = {
   /** FLOPPY-SPEC §09 buttons; under the plank, since the closed row is itself a button. */
   nudge: HTMLElement;
   nudgeLater: HTMLButtonElement;
+  /** A failed end, shown in the bubble over the snapshot's text until it times out. */
+  endNote?: string;
+  endTimer?: number;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
@@ -108,7 +116,7 @@ function bubble(parent: HTMLElement): HTMLElement {
   return el("span", "", el("span", "ps-bubble", parent));
 }
 
-function createFacts(jump: Jump): Facts {
+function createFacts(jump: Jump, withEnd: boolean): Facts {
   const box = el("div", "ps-facts");
   const tray = createTray(jump);
   box.appendChild(tray.el);
@@ -131,10 +139,16 @@ function createFacts(jump: Jump): Facts {
   const cwd = el("div", "ps-path", box);
   const trail = el("div", "ps-trail", box);
   trail.setAttribute("aria-label", "Recent approval decisions");
-  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render };
+  let end: HTMLButtonElement | undefined;
+  if (withEnd) {
+    end = button("ps-end", el("div", "ps-end-row", box));
+    end.textContent = END_LABEL;
+    end.title = "Hold for 1 second to end this session's process";
+  }
+  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, end };
 }
 
-function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): Row {
+function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, withEnd = false): Row {
   const item = el("div", "ps-item");
   item.dataset.id = s.id;
 
@@ -171,7 +185,7 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): R
   pack.setAttribute("aria-label", `Pack up: copy ${jumpCommand("packup")}`);
   const nudgeLater = button("nudge-later", nudge);
   nudgeLater.textContent = "Not yet";
-  const facts = createFacts(jump);
+  const facts = createFacts(jump, withEnd);
 
   let cards: Row["cards"];
   if (decide) {
@@ -249,7 +263,8 @@ function updateRow(r: Row, v: RowView) {
     }
   }
   if (l.label !== v.label) for (const x of r.labels) x.textContent = v.label;
-  if (l.say !== v.say || l.bubble?.tab !== v.bubble.tab || l.bubble?.bolt !== v.bubble.bolt) for (const x of r.says) fillBubble(x, v.bubble);
+  if (!r.endNote && (l.say !== v.say || l.bubble?.tab !== v.bubble.tab || l.bubble?.bolt !== v.bubble.bolt))
+    for (const x of r.says) fillBubble(x, v.bubble);
   if (l.emote !== v.emote) setEmote(r, v.emote);
   if (l.nudge !== v.nudge) {
     r.el.classList.toggle("is-nudge", !!v.nudge);
@@ -303,6 +318,7 @@ function fillFacts(r: Row, now: number) {
   x.ctx.set(f.ctx ?? 0);
   setText(x.ctxValue, f.ctx === null ? "—" : `${Math.round(f.ctx)}%`);
   setText(x.cwd, f.cwd);
+  if (x.end) x.end.parentElement!.hidden = !r.session.alive;
   x.arc(r.repo);
   x.shelf(r.repo?.tickets);
 }
@@ -392,6 +408,7 @@ export function createList(
   onDecide?: Decide,
   trailOf?: TrailOf,
   rules?: RowRules,
+  onEnd?: EndSession,
 ) {
   const list = el("div", "list", root);
   const empty = el("div", "empty", root);
@@ -460,6 +477,45 @@ export function createList(
     }, ok ? COPIED_MS : HINT_MS);
   }
 
+  function showEndError(r: Row, text: string) {
+    r.endNote = text;
+    r.el.classList.add("is-end-err");
+    for (const x of r.says) fillBubble(x, { text });
+    clearTimeout(r.endTimer);
+    r.endTimer = window.setTimeout(() => {
+      r.endNote = undefined;
+      r.el.classList.remove("is-end-err");
+      if (r.last.bubble) for (const x of r.says) fillBubble(x, r.last.bubble);
+    }, HINT_MS);
+  }
+
+  function bindEnd(r: Row, b: HTMLButtonElement) {
+    let ending = false;
+    const settle = () => {
+      ending = false;
+      b.disabled = false;
+      b.textContent = END_LABEL;
+    };
+    bindHold(
+      b,
+      async () => {
+        ending = true;
+        b.disabled = true;
+        b.textContent = "Ending…";
+        try {
+          await onEnd!(r.session.id);
+          // Ended: the lifecycle takes the row to done; settle only if it is still here.
+          setTimeout(settle, HINT_MS);
+        } catch (err) {
+          console.error("peepthis: end_session failed", err);
+          showEndError(r, `Could not end: ${err instanceof Error ? err.message : String(err)}`);
+          settle();
+        }
+      },
+      () => !ending,
+    );
+  }
+
   const rowOf = (e: Event) => {
     const id = (e.target as Element).closest<HTMLElement>(".ps-item")?.dataset.id;
     return id ? rows.get(id) : undefined;
@@ -502,7 +558,8 @@ export function createList(
       seen.add(s.id);
       let r = rows.get(s.id);
       if (!r) {
-        r = createRow(s, jumpFor(s.id), onDecide, rules);
+        r = createRow(s, jumpFor(s.id), onDecide, rules, !!onEnd);
+        if (r.facts.end) bindEnd(r, r.facts.end);
         rows.set(s.id, r);
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }

@@ -1,9 +1,7 @@
 import {
   byOldest,
-  createHold,
   diffFor,
   formatArgs,
-  HOLD_MS,
   pushReason,
   questionOf,
   riskParts,
@@ -11,6 +9,7 @@ import {
   SHELL_TOOLS,
   targetOf,
 } from "./approval";
+import { bindHold } from "./hold";
 import type { PendingApproval } from "./model";
 
 export type Decide = (requestId: string, decision: "allow" | "deny", reason?: string) => Promise<boolean>;
@@ -217,36 +216,9 @@ function createCard(p: PendingApproval, decide: Decide): Card {
   let holdStart: () => void = () => void send("allow");
   let holdStop: () => void = () => {};
   if (tier === "destructive") {
-    allow.style.setProperty("--hold-ms", `${HOLD_MS}ms`);
-    const hold = createHold(() => {
-      allow.classList.remove("holding");
-      void send("allow");
-    });
-    const start = () => {
-      if (busy) return;
-      allow.classList.add("holding");
-      hold.start();
-    };
-    const stop = () => {
-      allow.classList.remove("holding");
-      hold.cancel();
-    };
-    holdStart = start;
-    holdStop = stop;
-    allow.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
-      allow.setPointerCapture(e.pointerId);
-      start();
-    });
-    allow.addEventListener("pointerup", stop);
-    allow.addEventListener("pointercancel", stop);
-    allow.addEventListener("lostpointercapture", stop);
-    allow.addEventListener("keydown", (e) => {
-      if ((e.key === " " || e.key === "Enter") && !e.repeat) start();
-      if (e.key === " " || e.key === "Enter") e.preventDefault();
-    });
-    allow.addEventListener("keyup", stop);
-    allow.addEventListener("blur", stop);
+    const hold = bindHold(allow, () => void send("allow"), () => !busy);
+    holdStart = hold.start;
+    holdStop = hold.stop;
   } else {
     allow.addEventListener("click", () => void send("allow"));
   }

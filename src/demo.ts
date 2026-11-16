@@ -314,7 +314,13 @@ export function demoDecide(snap: Snapshot, requestId: string, decision: "allow" 
   return { ...snap, sessions };
 }
 
-type ClosedSeed = [name: string, state: State, agoM: number, bubble: string, ticket: string | null, flags: string];
+/** `?demo&end=fail` stubs `end_session` refusing with AV-96's mismatch error; otherwise the session's process dies. */
+export function demoEnd(snap: Snapshot, sessionId: string, mode: string | null): Snapshot {
+  if (mode === "fail") throw "the PID now belongs to another process";
+  return { ...snap, sessions: snap.sessions.map((s) => (s.id === sessionId ? { ...s, alive: false, pending: undefined } : s)) };
+}
+
+type ClosedSeed =[name: string, state: State, agoM: number, bubble: string, ticket: string | null, flags: string];
 
 // design/skill-pack-2/ref/ClosedShelf.dc.html rows; flags: u uncommitted, d ticket left doing, p no Pack Up.
 const CLOSED: ClosedSeed[] = [
