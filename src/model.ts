@@ -1,5 +1,4 @@
 // Mirrors the serialised Rust types in src-tauri/src/state.rs and store.rs (spec §5.3).
-import type { Unlock } from "./unlocks";
 
 export const STATES = ["idle", "thinking", "working", "waiting", "success", "error", "stuck"] as const;
 export type State = (typeof STATES)[number];
@@ -158,7 +157,6 @@ export type Repo = {
   /** `north_star` from `.peep/reel.md`; absent without a reel. */
   northStar?: string;
   arc: ArcLine;
-  unlock?: Unlock;
 };
 
 /** tickets.rs `ArcLine`: `open` counts open, doing and done; `parked` blocked and deferred; `last` is the newest closed file. */

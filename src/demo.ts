@@ -174,12 +174,9 @@ const REPOS: Repo[] = [
     northStar: "A calm desk pet that teaches new Claude Code users a rhythm",
     arc: { closed: 41, open: 4, parked: 2, last: { id: "AV-70", title: "cheer when a ticket closes" } },
   },
-  // AV-83: no north star (sync-05), and nothing closed yet (research-02). AV-108: research-02 is a fresh repo, so its Extras are locked.
+  // AV-83: no north star (sync-05), and nothing closed yet (research-02).
   { root: "C:/demo/sync-05", sessions: ["demo-5"], tickets: LONG, arc: { closed: 6, open: 13, parked: 4, last: { id: "AV-06", title: "" } } },
-  {
-    root: "C:/demo/research-02", sessions: ["demo-2"], tickets: [], northStar: "Ward maps anyone can read", arc: { closed: 0, open: 0, parked: 0 },
-    unlock: { ticketRuns: 1, closedUi: false, test: true, url: false },
-  },
+  { root: "C:/demo/research-02", sessions: ["demo-2"], tickets: [], northStar: "Ward maps anyone can read", arc: { closed: 0, open: 0, parked: 0 } },
 ];
 
 // AV-70: one row per mood, both nudges, plus sync-05 (error) holding a worry the bubble must hide. They sit out demoStep.

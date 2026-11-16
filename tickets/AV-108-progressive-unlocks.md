@@ -7,6 +7,8 @@ depends: [AV-103]
 
 # AV-108 — Progressive unlocks in the Walk tour and floppies
 
+Superseded by AV-125 on 2026-11-16
+
 **What to build:** A beginner sees the core rhythm first; Extras appear as they earn them. Skills stay callable at any time; only the tour and floppies stage them.
 
 - [x] Unlocks from `.peep/runs` and tickets: Big Peep after 5 `ticket` runs; Coderot after the first ticket closed with a test command in setup; Goose after 3 tickets closed; Sneak and Scrub after the first ticket closed that touched a UI area; Shoot in Core when setup has a `url`

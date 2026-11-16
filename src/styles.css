@@ -1639,22 +1639,6 @@ body[data-fold] > .ps-strip {
   color: var(--ps-muted);
 }
 
-/* AV-108: the sprite dims, never the text; the hint text stays full colour. */
-.tray-disk.is-locked > .fl {
-  filter: grayscale(1);
-  opacity: 0.45;
-}
-
-.tray-disk.is-locked {
-  border-style: dashed;
-  border-color: var(--ps-line);
-}
-
-.tray-card-lock {
-  color: var(--ps-text);
-  font-weight: 500;
-}
-
 .tray-hint {
   display: flex;
   align-items: center;

@@ -62,7 +62,6 @@ type Facts = {
   clearHint: () => void;
   shelf: (tickets: readonly RepoTicket[] | undefined) => void;
   arc: (repo: Repo | undefined) => void;
-  locks: (repo: Repo | undefined) => void;
   end?: HTMLButtonElement;
   pick?: (s: Session) => void;
 };
@@ -155,7 +154,7 @@ function createFacts(jump: Jump, withEnd: boolean, looks?: LookStore): Facts {
     end.textContent = END_LABEL;
     end.title = "Hold for 1 second to end this session's process";
   }
-  return { el: box, since, model, kind, branch, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, locks: tray.lock, end, pick: picker?.fill };
+  return { el: box, since, model, kind, branch, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, end, pick: picker?.fill };
 }
 
 function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, withEnd = false, looks?: LookStore): Row {
@@ -339,7 +338,6 @@ function fillFacts(r: Row, now: number) {
   setText(x.cwd, f.cwd);
   if (x.end) x.end.parentElement!.hidden = !r.session.alive;
   x.arc(r.repo);
-  x.locks(r.repo);
   x.shelf(r.repo?.tickets);
   x.pick?.(r.session);
 }

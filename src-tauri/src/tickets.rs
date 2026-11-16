@@ -76,66 +76,9 @@ pub struct Repo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub north_star: Option<String>,
     pub arc: ArcLine,
-    pub unlock: Unlock,
     /// Open tweets on `.peep/tweets.md` (formats.md §7, AV-94 mood).
     #[serde(skip)]
     pub tweets: Vec<Tweet>,
-}
-
-/// What the floppy tray's unlocks read beside `arc.closed` (AV-108, `walk/references/tour.md`).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Unlock {
-    /// `ticket:` in `.peep/runs`.
-    pub ticket_runs: u32,
-    /// A closed ticket's file names a path under a UI area of the setup.
-    pub closed_ui: bool,
-    pub test: bool,
-    pub url: bool,
-}
-
-fn run_count(repo: &Path, skill: &str) -> u32 {
-    let runs = std::fs::read_to_string(repo.join(".peep").join("runs")).unwrap_or_default();
-    runs.lines()
-        .filter_map(|l| l.split_once(':'))
-        .find(|(k, _)| k.trim() == skill)
-        .and_then(|(_, n)| n.trim().parse().ok())
-        .unwrap_or(0)
-}
-
-const UI_WORDS: [&str; 8] = ["frontend", "front", "ui", "web", "client", "app", "site", "www"];
-
-/// Paths of the setup's `area.<name>` keys whose name has a UI word as a `-`, `_` or `.` separated part.
-fn ui_areas(setup: &HashMap<&str, &str>) -> Vec<String> {
-    setup
-        .iter()
-        .filter_map(|(k, v)| Some((k.strip_prefix("area.")?, v)))
-        .filter(|(name, _)| name.split(['-', '_', '.']).any(|w| UI_WORDS.contains(&w.to_ascii_lowercase().as_str())))
-        .map(|(_, v)| {
-            let p = v.trim().trim_start_matches("./").replace('\\', "/");
-            if p.ends_with('/') { p } else { format!("{p}/") }
-        })
-        .filter(|p| p != "/")
-        .collect()
-}
-
-/// `text` names a path starting with `prefix` at a word start, so `src/` does not match inside `src-tauri/src/`.
-fn names_path(text: &str, prefix: &str) -> bool {
-    text.match_indices(prefix).any(|(i, _)| {
-        text[..i].chars().next_back().is_none_or(|c| c.is_whitespace() || matches!(c, '`' | '(' | '[' | '"' | '\'' | ','))
-    })
-}
-
-fn unlock(repo: &Path, closed_files: &[(PathBuf, String)]) -> Unlock {
-    let setup = std::fs::read_to_string(repo.join(".peep").join("setup.md")).unwrap_or_default();
-    let fm = frontmatter(&setup).unwrap_or_default();
-    let has = |k: &str| fm.get(k).is_some_and(|v| !v.is_empty());
-    let areas = ui_areas(&fm);
-    let closed_ui = !areas.is_empty()
-        && closed_files.iter().any(|(p, _)| {
-            std::fs::read_to_string(p).is_ok_and(|t| areas.iter().any(|a| names_path(&t.replace('\\', "/"), a)))
-        });
-    Unlock { ticket_runs: run_count(repo, "ticket"), closed_ui, test: has("test"), url: has("url") }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -338,7 +281,7 @@ impl Shelf {
                     .map(|(_, t)| t.id.clone())
                     .collect();
                 let tickets: Vec<Ticket> = live.into_iter().map(|(_, t)| t).collect();
-                // Archive files are listed, never parsed: the newest is read for its title, and `unlock` reads them until one names a UI path.
+                // Archive files are listed, never parsed: only the newest is read, for its title.
                 let closed_files: Vec<(PathBuf, String)> = closed
                     .into_iter()
                     .map(|(p, t)| (p, t.id))
@@ -366,7 +309,6 @@ impl Shelf {
                     last_closed: last.clone(),
                     stale,
                     north_star: north_star(&root),
-                    unlock: unlock(&root, &closed_files),
                     arc,
                     tweets: tweets(&root),
                 }
@@ -584,33 +526,6 @@ mod tests {
 
         write(dir.join(".peep/reel.md"), "---\nnorth_star:\n---\n");
         assert_eq!(arc(&mut Shelf::default()).north_star, None, "an empty north star is none");
-    }
-
-    #[test]
-    fn unlock_reads_runs_setup_and_closed_ui_tickets() {
-        let dir = repo("unlock");
-        std::fs::create_dir_all(dir.join(".git")).unwrap();
-        let sessions = [s("s1", &dir)];
-        let read = || Shelf::default().read(&sessions, 1).remove(0).unlock;
-        assert_eq!(read(), Unlock::default(), "fresh repo");
-
-        write(dir.join(".peep/runs"), "ducks: 3\nticket: 19\nducks.reel: 2026-11-16\n");
-        write(dir.join(".peep/setup.md"), "---\ntest: npm test\nurl: http://localhost:1420\narea.frontend: src\narea.backend: src-tauri/\n---\n");
-        write(dir.join("tickets/archive/AV-1-x.md"), "---\nid: AV-1\nstatus: closed\n---\nTouched src-tauri/src/lib.rs.\n");
-        assert_eq!(read(), Unlock { ticket_runs: 19, closed_ui: false, test: true, url: true }, "src/ inside src-tauri/src/ is not the UI area");
-
-        write(dir.join("tickets/AV-2-y.md"), "---\nid: AV-2\nstatus: closed\n---\nFiles: `src/tray.ts`\n");
-        assert!(read().closed_ui, "a closed ticket not yet archived counts");
-        write(dir.join("tickets/AV-2-y.md"), "---\nid: AV-2\nstatus: done\n---\nFiles: `src/tray.ts`\n");
-        assert!(!read().closed_ui, "only closed tickets count");
-    }
-
-    #[test]
-    fn ui_areas_match_whole_name_parts() {
-        let fm = frontmatter("---\narea.web-app: web\narea.build: tools/\narea.ui: ./ui/\n---\n").unwrap();
-        let mut got = ui_areas(&fm);
-        got.sort();
-        assert_eq!(got, vec!["ui/", "web/"], "`build` holds `ui` but not as a part");
     }
 
     #[test]

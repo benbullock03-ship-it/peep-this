@@ -33,14 +33,14 @@ Exactly per F§4, one read-back covering all three rounds: groups and rules in `
 
 ## 6. Tour
 
-Read `.peep/runs` and the tickets and archive folders, then print the Core and Extras blocks in `references/tour.md` with locked Extras staged per its Unlocks, then the next step. Do not run any skill.
+Read the tickets folder, then print the Core and Extras blocks in `references/tour.md`, then the next step. Do not run any skill.
 
 ## Output
 
 ```
 peep walk: setup written (.peep/setup.md new, uncommitted; .peep/reel.md new, uncommitted)
 north star: <one line>
-<the Core and Extras blocks, then any locked Extras>
+<the Core and Extras blocks>
 next: <command>
 ```
 

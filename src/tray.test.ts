@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FLOPPIES } from "./bubble";
 import { hintText, jumpCommand, TRAY, TRAY_SHOWN } from "./tray";
-import { UNLOCKS } from "./unlocks";
 
 describe("jumpCommand", () => {
   it("copies the bare skill command", () => {
@@ -22,11 +21,6 @@ describe("hintText", () => {
     expect(hintText("/peep:qt", 3)).toBe("Copied /peep:qt · now paste it in the terminal");
     expect(hintText("/peep:qt", 4)).toBe("Copied /peep:qt");
   });
-});
-
-it("every unlock rule names a skill the tray or the tour knows", () => {
-  const known = new Set(TRAY.map((f) => f.skill));
-  for (const s of Object.keys(UNLOCKS)) expect(known.has(s)).toBe(true);
 });
 
 it("every tray floppy has sprite art", () => {
