@@ -47,6 +47,22 @@ test("diff scope keeps only changed lines; --full sees committed ones", () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test("repeat hits of one id in one file are one finding; scanned counts only UI files", () => {
+  const root = repo({ "a.css": "a { backdrop-filter: blur(2px); }\nb { backdrop-filter: blur(4px); }\n", "notes.md": "x" });
+  const out = run(root);
+  expect(out.scanned).toBe(1);
+  expect(out.findings).toHaveLength(1);
+  expect(out.findings[0]).toMatchObject({ id: "glass", line: 1, lines: [1, 2] });
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("falls back to master when there is no main", () => {
+  const root = repo({ "a.css": "a { backdrop-filter: blur(2px); }\n" });
+  execFileSync("git", ["branch", "-m", "main", "master"], { cwd: root });
+  expect(run(root).scope).toBe("since master");
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test("single non-P0 hit is capped at P2", () => {
   const { findings } = rank([{ file: "a.css", line: 1, id: "glass" }], { earned: [], debt: [] });
   expect(findings[0]).toMatchObject({ severity: "P2", together: [] });
@@ -58,7 +74,8 @@ test("earned suppresses; debt suppresses at or under its count, reports over it"
   const one = rank([{ file: "src/x.css", line: 1, id: "glass" }, { file: "a.css", line: 2, id: "tracked-caps" }], ex);
   expect(one.findings).toEqual([]);
   const two = rank([{ file: "a.css", line: 2, id: "tracked-caps" }, { file: "a.css", line: 9, id: "tracked-caps" }], ex);
-  expect(two.findings).toHaveLength(2);
+  expect(two.findings).toHaveLength(1);
+  expect(two.findings[0].lines).toEqual([2, 9]);
   expect(two.debt).toEqual([{ id: "tracked-caps", path: "a.css", count: 1, now: 2 }]);
   expect(rank([], ex).debt).toEqual([{ id: "tracked-caps", path: "a.css", count: 1, now: 0 }]);
 });

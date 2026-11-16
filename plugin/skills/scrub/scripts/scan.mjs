@@ -78,13 +78,18 @@ export function rank(hits, exceptions) {
     if (!idsByFile.has(h.file)) idsByFile.set(h.file, new Set());
     idsByFile.get(h.file).add(h.id);
   }
+  // One finding per id per file, so eleven colour literals in one stylesheet are one number to approve.
+  const groups = new Map();
   for (const h of kept) {
     if (h.debt) continue;
+    const key = `${h.file}\0${h.id}`;
+    if (groups.has(key)) { groups.get(key).lines.push(h.line); continue; }
     const rule = BY_ID.get(h.id);
     const together = [...idsByFile.get(h.file)].filter((id) => id !== h.id);
     const severity = together.length === 0 && rule.severity !== "P0" ? "P2" : rule.severity;
-    out.push({ file: h.file, line: h.line, id: h.id, group: rule.group, severity, together, score: WEIGHT[rule.severity] + together.length });
+    groups.set(key, { file: h.file, line: h.line, lines: [h.line], id: h.id, group: rule.group, severity, together, score: WEIGHT[rule.severity] + together.length });
   }
+  out.push(...groups.values());
   out.sort((a, b) => b.score - a.score || a.file.localeCompare(b.file) || a.line - b.line);
   return { findings: out.map((f, i) => ({ n: i + 1, ...f })), debt: debtNotes };
 }
@@ -97,17 +102,21 @@ export function run(root, { full = false, base = "main", skips = [] } = {}) {
   let scope;
   if (full) scope = new Map(walk(root).map((f) => [f, null]));
   else {
+    const has = (ref) => { try { git("rev-parse", "--verify", "-q", ref); return true; } catch { return false; } };
+    if (!has(base)) base = ["master", "HEAD"].find(has) ?? base;
     scope = parseDiff(git("diff", "-U0", "--no-color", base));
     for (const f of git("ls-files", "--others", "--exclude-standard").split("\n").filter(Boolean)) scope.set(norm(f), null);
   }
   const hits = [];
+  let scanned = 0;
   for (const [file, lines] of scope) {
     if (!scannable(file, allSkips) || !fs.existsSync(path.join(root, file))) continue;
+    scanned++;
     for (const h of scan(fs.readFileSync(path.join(root, file), "utf8"))) if (!lines || lines.has(h.line)) hits.push({ file, ...h });
   }
   const scrubPath = path.join(root, ".peep", "scrub.md");
   const exceptions = parseScrub(fs.existsSync(scrubPath) ? fs.readFileSync(scrubPath, "utf8") : "");
-  return { scope: full ? "full" : `since ${base}`, files: scope.size, ...rank(hits, exceptions) };
+  return { scope: full ? "full" : `since ${base}`, files: scope.size, scanned, ...rank(hits, exceptions) };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
