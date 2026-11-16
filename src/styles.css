@@ -34,6 +34,9 @@
   --lim-out: var(--st-error);
   --bar-amber: var(--st-waiting);
   --bar-red: var(--st-error);
+  --cl-dim: 0.5;
+  --cl-flag: var(--ps-accent);
+  --ps-edge: #4a4458;
   --scroll: rgba(255, 255, 255, 0.16);
   --risk-text: #ffb3b3;
   --diff-add-bg: rgba(94, 214, 140, 0.12);
@@ -75,6 +78,8 @@
   --tk-parked: #645c70;
 
   --ps-dim: #665f70;
+  --cl-dim: 0.55;
+  --ps-edge: #2a2233;
   --amber: 150, 81, 0;
   --scroll: rgba(42, 34, 51, 0.24);
   --risk-text: #9e1f1f;
@@ -2110,6 +2115,231 @@ body[data-fold] > .ps-strip {
 
 .empty-text {
   margin: 12px 0 0;
+}
+
+/* ---------- closed shelf (AV-82, skill-pack-2 SPEC §01) ---------- */
+.cl {
+  margin-top: 6px;
+}
+
+.cl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-top: 2px solid var(--ps-edge);
+  background: repeating-linear-gradient(0deg, transparent 0 3px, var(--ps-line) 3px 4px);
+  color: var(--ps-text);
+  font: 600 11px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cl-head > span {
+  padding: 1px 6px;
+  background: var(--ps-panel);
+}
+
+.cl-sub,
+.cl-check {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cl-sub {
+  margin-right: auto;
+  color: var(--ps-muted);
+  font-weight: 500;
+}
+
+.cl-check {
+  color: var(--cl-flag);
+}
+
+.cl-head:focus-visible,
+.cl-row:focus-visible,
+.cl-all:focus-visible {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: -2px;
+}
+
+.cl-empty {
+  padding: 10px 12px 12px;
+  color: var(--ps-muted);
+  font: 12px var(--sans);
+}
+
+/* Five rows, then it scrolls inside; closedShelf.ts sets the exact height. */
+.cl-list {
+  position: relative;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll) transparent;
+}
+
+.cl-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  width: 100%;
+  padding: 8px 12px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 13px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cl-row + .cl-row {
+  border-top: 1px solid var(--ps-line);
+}
+
+.cl-row:hover .cl-name {
+  color: var(--ps-text);
+}
+
+.cl-pcol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: var(--cl-dim);
+  filter: grayscale(0.6);
+}
+
+.cl-plank {
+  display: block;
+  width: 32px;
+  height: 4px;
+  margin: 0 2px;
+  background: repeating-linear-gradient(90deg, var(--ps-shelf) 0 4px, var(--ps-shelf-top) 4px 8px);
+}
+
+.cl-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 8px;
+}
+
+.cl-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cl-name {
+  font-size: 12px;
+}
+
+.cl-chip {
+  flex: none;
+  padding: 1px 6px;
+  box-shadow: inset 0 0 0 1px var(--st);
+  color: var(--st);
+  font: 600 11px var(--mono);
+  white-space: nowrap;
+}
+
+.cl-ago {
+  flex: none;
+  color: var(--ps-muted);
+  font: 11px var(--mono);
+  white-space: nowrap;
+}
+
+.cl-ghost {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 6px;
+  box-shadow: inset 0 0 0 1px var(--ps-line);
+  color: var(--ps-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cl-row.is-flagged .cl-ghost {
+  box-shadow: inset 2px 0 0 var(--cl-flag), inset 0 0 0 1px var(--ps-line);
+}
+
+.cl-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.cl-tk,
+.cl-flag {
+  padding: 0 5px;
+  color: var(--ps-text);
+  font-size: 10px;
+}
+
+.cl-tk {
+  box-shadow: inset 0 0 0 1px var(--ps-muted);
+  font: 600 10px var(--mono);
+}
+
+.cl-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: inset 0 0 0 1px var(--cl-flag);
+}
+
+.cl-flag::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  background: var(--cl-flag);
+}
+
+/* SPEC §01.7: the copied row wakes, outlined in accent, with a real bubble. */
+.cl-row.is-copied-row {
+  box-shadow: inset 0 0 0 2px var(--ps-accent);
+  background: var(--ps-panel-2);
+}
+
+.cl-row.is-copied-row .cl-pcol {
+  opacity: 1;
+  filter: none;
+}
+
+.cl-bub {
+  margin-left: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.cl-more {
+  padding: 6px 12px 10px;
+  border-top: 1px solid var(--ps-line);
+  color: var(--ps-muted);
+  font-size: 11px;
+}
+
+.cl-all {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ps-text);
+  font: inherit;
+  box-shadow: inset 0 -1px 0 var(--ps-text);
+  cursor: pointer;
+}
+
+.cl-hint {
+  margin: 0 12px 8px;
 }
 
 .notice {

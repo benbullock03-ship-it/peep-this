@@ -1,7 +1,8 @@
 import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
-import { demoDecide, demoDigest, demoIdentity, demoLimits, demoSnapshot, demoStep } from "./demo";
+import { createClosedShelf } from "./closedShelf";
+import { demoClosed, demoDecide, demoDigest, demoIdentity, demoLimits, demoSnapshot, demoStep } from "./demo";
 import { NUDGE_RANGE } from "./emote";
 import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
@@ -20,6 +21,8 @@ import { ROW_TRAIL } from "./trail";
 import { watchContent } from "./windowFit";
 
 const DEMO_STEP_MS = 3200;
+// Every row still in the snapshot, fading done rows too, so an ended session lands on the shelf once its row leaves.
+const liveIds = (sessions: readonly Session[]) => new Set(sessions.map((s) => s.id));
 const theme = initTheme();
 
 /** Mirrors `ModeView` in src-tauri/src/window.rs. `layout` is the visible shape even while hidden. */
@@ -239,6 +242,8 @@ function runDemo() {
     return true;
   });
   const renderStrip = createStrip(stripEl, stripActions, demoIdentity);
+  const renderClosed = createClosedShelf(root);
+  const closed = demoClosed(Date.now(), params.get("closed"));
   let trailOn = true;
   let hotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+I", registered: true };
   let toggleHotkey: HotkeyStatus = { hotkey: "Ctrl+Alt+P", registered: true };
@@ -271,6 +276,7 @@ function runDemo() {
   }
   render(snap.sessions, snap.repos, snap.rateLimits ?? null);
   renderStrip(snap.sessions);
+  renderClosed(closed, liveIds(snap.sessions));
   inbox.sync(snap.sessions);
   renderLimits(snap.rateLimits);
   setInterval(() => {
@@ -324,6 +330,7 @@ async function runLive() {
     },
   );
   const renderStrip = createStrip(stripEl, stripActions);
+  const renderClosed = createClosedShelf(root);
   const settings = mountSettings({
     log: () => invoke<TrailEntry[]>("trail_log"),
     enabled: () => invoke<boolean>("trail_enabled"),
@@ -428,6 +435,7 @@ async function runLive() {
     sessions = snap.sessions;
     renderList(snap.sessions, snap.repos ?? [], snap.rateLimits ?? null);
     renderStrip(snap.sessions);
+    renderClosed(snap.closed ?? [], liveIds(snap.sessions));
     flySessions = snap.sessions;
     syncFlyouts();
     inbox.sync(snap.sessions);

@@ -1,5 +1,5 @@
 import type { Identity } from "./identity";
-import type { Agent, Digest, LastTool, Mood, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State } from "./model";
+import type { Agent, ClosedSession, Digest, LastTool, Mood, PendingApproval, Repo, RepoTicket, Session, Shell, Snapshot, State } from "./model";
 
 // The six mock agents from the "In a monitor" section of design/peep-this.dc.html.
 const AGENTS: { name: string; identity: Identity; tool: LastTool & { target: string }; state: State }[] = [
@@ -305,6 +305,51 @@ export function demoDecide(snap: Snapshot, requestId: string, decision: "allow" 
     return { ...s, pending: undefined, agents, state, stateSince: now, task: taskFor(i, state) };
   });
   return { ...snap, sessions };
+}
+
+type ClosedSeed = [name: string, state: State, agoM: number, bubble: string, ticket: string | null, flags: string];
+
+// design/skill-pack-2/ref/ClosedShelf.dc.html rows; flags: u uncommitted, d ticket left doing, p no Pack Up.
+const CLOSED: ClosedSeed[] = [
+  ["polling-91", "waiting", 14, "Allow rm -rf dist?", "P-12", "udp"],
+  ["peep-this-6c", "success", 60, "AV-70: mood emotes · packed up", "AV-70", ""],
+  ["siambr-01", "error", 120, "API error 529: overloaded", "W-71", "d"],
+  ["datamapuk-3d", "success", 180, "S-308: sitemap index · packed up", "S-308", ""],
+  ["peep-this-5f", "idle", 300, "All done!", "AV-68", ""],
+  ["polling-90", "success", 420, "P-11: poll card copy · packed up", "P-11", ""],
+];
+const CLOSED_LONG: ClosedSeed = [
+  "accounts-payable-ingest-pipeline-normaliser-07",
+  "stuck",
+  25,
+  "Reading pipelines/ingest/invoices/batch-14/normalise_line_items.py and the vendor schema it maps onto",
+  "AV-104",
+  "udp",
+];
+
+function closedFrom([name, state, agoM, bubble, ticket, flags]: ClosedSeed, i: number, now: number): ClosedSession {
+  return {
+    sessionId: `3f9a2c1e-0000-4000-8000-${String(i).padStart(12, "0")}`,
+    name,
+    cwd: `C:/demo/${name.replace(/-[0-9a-f]+$/, "")}`,
+    bubble,
+    state,
+    ticket: ticket ? { id: ticket } : undefined,
+    endedAt: now - agoM * 60_000,
+    flags: { uncommitted: flags.includes("u"), ticketDoing: flags.includes("d"), noPackup: flags.includes("p"), attention: ["waiting", "error", "stuck"].includes(state) },
+  };
+}
+
+/** `?demo&closed=none|one|many|long`: empty, one row, the design's six, or twenty with an overlong first row. Default many. */
+export function demoClosed(now: number, mode: string | null): ClosedSession[] {
+  if (mode === "none") return [];
+  if (mode === "one") return [closedFrom(CLOSED[0], 0, now)];
+  if (mode !== "long") return CLOSED.map((c, i) => closedFrom(c, i, now));
+  const seeds = [CLOSED_LONG, ...Array.from({ length: 19 }, (_, i): ClosedSeed => {
+    const [name, state, , bubble, ticket, flags] = CLOSED[i % CLOSED.length];
+    return [`${name}-${i}`, state, 30 + i * 22, bubble, ticket, i % 4 === 2 ? "p" : flags];
+  })];
+  return seeds.map((c, i) => closedFrom(c, i, now));
 }
 
 const BRIEF: readonly (Mood | undefined)[] = ["startled", "cheer", "greet"];
