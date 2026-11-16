@@ -46,12 +46,6 @@ export const TRAY: readonly { skill: string; name: string; what: string; when: s
     when: "Use the first time, or when the pack feels off.",
   },
   {
-    skill: "reel",
-    name: "The Reel",
-    what: "Pins down what the project is for in one line, plus its hook and what it will not do.",
-    when: "Use when starting out, or when the work starts to drift.",
-  },
-  {
     skill: "sneak",
     name: "Sneak Peep",
     what: "Mocks up two or three versions of a screen on a local server, side by side, before anything is built. You pick one.",

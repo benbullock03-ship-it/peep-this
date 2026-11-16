@@ -1,7 +1,7 @@
 ---
 id: AV-118
 title: Fold Reel into Walk and write the Peep This north star
-status: open
+status: done
 depends: [AV-117]
 ---
 
@@ -9,13 +9,30 @@ depends: [AV-117]
 
 **What to build:** `/peep:reel` goes; Walk asks its questions as one round and writes `.peep/reel.md` (Question Time 2026-11-16).
 
-- [ ] Walk gains a north star round (for, problem, hook, non-goals; comparables search only on a yes) and writes `.peep/reel.md` per formats §5 after its read-back
+- [x] Walk gains a north star round (for, problem, hook, non-goals; comparables search only on a yes) and writes `.peep/reel.md` per formats §5 after its read-back
 - [ ] Delete `plugin/skills/reel/`; remove `reel` from `PEEP_SKILLS` (`src-tauri/src/state.rs`), the floppy tray, the tour, `plugin/README.md`, spec §13 and `CONTEXT.md`
-- [ ] Ducks' `no north star yet: /peep:reel` line points at `/peep:walk`
-- [ ] Write this repo's `.peep/reel.md`:
+- [x] Ducks' `no north star yet: /peep:reel` line points at `/peep:walk`
+- [x] Write this repo's `.peep/reel.md`:
   - north star: "For people new to Claude Code: a desk companion that shows which session needs you and teaches a working rhythm, one floppy at a time."
   - hook: it tells you what to do next
   - non-goals: never types into a session; no accounts or cloud
-- [ ] Fix tests and fixtures that name `reel`
+- [x] Fix tests and fixtures that name `reel`
 
 **Done when:** `/peep:reel` is not a skill, `/peep:walk` in a fresh repo ends with a `.peep/reel.md`, this repo has the file above, and the full run passes.
+
+## Owed before done
+
+- `CONTEXT.md`: drop the **The Reel** entry and repoint **North star** at Walk. Both entries sit inside another session's uncommitted hunk, so this waits until that session commits `CONTEXT.md`. Everything else in that checklist item is done; spec §13 never named Reel.
+- Live check: `/peep:walk` in a throwaway repo, through round C, ends with `.peep/reel.md` (headless child per `kb/plugin.md`, `--add-dir <repo>/plugin`).
+- Shoot the open row's arc line with no north star: the button now reads "Walk Through", copies `/peep:walk`, with the `--fl-walk` underline.
+
+## Decisions taken without a ruling
+
+- Round C is a fourth AskUserQuestion: For, Problem, Hook, Non-goals. Comparables are the Hook question's "Look up comparables first" option, so a search happens only on that pick (`walk/references/northstar.md`).
+- Walk's read-back regroups as **Repo**, **Areas**, **Habits**, **North star** to stay within F§4's four groups.
+- The tour's Core drops its "why" line and renumbers; Walk's `next` follows the tour (`/peep:qt` with no open tickets, else `/peep:ducks`).
+- `skills.off` examples and Walk's "Skills off" options swap Reel for Sneak.
+- The arc line's "No north star yet" button jumps to `/peep:walk` and takes the walk floppy's label colour (`--fl-walk` from `design/skill-pack-2/tokens.css`) in place of `--fl-reel`.
+- Floppy art column 12 (reel) stays in the sprite sheet unused; the art is the owner's.
+- `.peep/reel.md` stays uncommitted like `.peep/setup.md`.
+

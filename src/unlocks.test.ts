@@ -11,7 +11,7 @@ describe("lockHint", () => {
   });
 
   it("never locks the Core or unruled skills", () => {
-    for (const s of ["ducks", "qt", "ticket", "packup", "reel", "walk", "tweet"]) expect(lockHint(s, repo(0))).toBeNull();
+    for (const s of ["ducks", "qt", "ticket", "packup", "walk", "tweet"]) expect(lockHint(s, repo(0))).toBeNull();
   });
 
   it("unlocks each Extra at its threshold", () => {

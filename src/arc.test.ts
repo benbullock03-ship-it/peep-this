@@ -14,7 +14,7 @@ describe("arcTip", () => {
   it("shows the full north star, every count and the last ticket's title", () => {
     const arc = { closed: 1, open: 0, parked: 3, last: { id: "AV-70", title: "cheer" } };
     expect(arcTip({ northStar: "A calm desk pet", arc })).toBe("A calm desk pet\n1 closed · 3 parked\nLast closed: AV-70 · cheer");
-    expect(arcTip({ arc: { ...arc, last: { id: "AV-70", title: "" } } })).toBe("No north star yet. The Reel pins one down.\n1 closed · 3 parked\nLast closed: AV-70");
+    expect(arcTip({ arc: { ...arc, last: { id: "AV-70", title: "" } } })).toBe("No north star yet. Walk Through pins one down.\n1 closed · 3 parked\nLast closed: AV-70");
     expect(arcTip({ northStar: "x", arc: { closed: 0, open: 0, parked: 0 } })).toBe("x\nNone closed yet");
   });
 });

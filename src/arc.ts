@@ -18,7 +18,7 @@ export function arcTip(repo: Pick<Repo, "northStar" | "arc">): string {
   const last = repo.arc.last;
   const counts = arcCounts(repo.arc).map((c) => `${c.n} ${c.label}`).join(" · ");
   return [
-    repo.northStar ?? "No north star yet. The Reel pins one down.",
+    repo.northStar ?? "No north star yet. Walk Through pins one down.",
     counts,
     last ? `Last closed: ${last.id}${last.title ? ` · ${last.title}` : ""}` : "None closed yet",
   ]
@@ -67,9 +67,9 @@ export function createArc(jump: (b: HTMLButtonElement, command: string) => void)
       el("span", "arc-ns", line).textContent = "No north star yet ·";
       const b = el("button", "arc-jump", line);
       b.type = "button";
-      b.textContent = "The Reel";
-      b.setAttribute("aria-label", `The Reel: copy ${jumpCommand("reel")}`);
-      b.addEventListener("click", () => jump(b, jumpCommand("reel")));
+      b.textContent = "Walk Through";
+      b.setAttribute("aria-label", `Walk Through: copy ${jumpCommand("walk")}`);
+      b.addEventListener("click", () => jump(b, jumpCommand("walk")));
     }
     const cnt = el("span", "arc-cnt", line);
     for (const c of arcCounts(arc)) {

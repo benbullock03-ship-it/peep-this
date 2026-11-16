@@ -31,7 +31,6 @@ const TIPS: Record<Tip, Omit<Lesson, "kind" | "id" | "line">> = {
 
 // The Why lines from each plugin/skills/<id>/SKILL.md; learned.test.ts keeps them in step.
 const SKILLS: Record<string, Omit<Lesson, "kind" | "id">> = {
-  reel: { topic: "rhythm", line: "a project with a reason to finish gets finished.", eli5: "You keep walking when you know where the path goes.", source: S.practices },
   qt: { topic: "rhythm", line: "ten minutes of questions cost less than rewriting the wrong code.", eli5: "Measure twice, cut once.", source: S.practices },
   ticket: { topic: "rhythm", line: "one ticket finished beats three half-built.", eli5: "One finished sandcastle beats three piles of sand.", source: S.practices },
   packup: { topic: "context", line: "close the session cleanly so the next one starts where this one stopped.", eli5: "Leave a bookmark so tomorrow you open the right page.", source: S.middle },

@@ -34,7 +34,7 @@ One call, up to 4 questions, same rules. Skip a question whose answer cannot cha
 | `Themes/widths` | Which themes and widths should Shoot cover? | the guess or defaults; "Mobile and desktop only" (`shoot.widths: 375, 1280`) |
 | `Round size` | How many questions per Question Time round? | "4 (recommended)", "3", "2" (`qt.round`) |
 | `Pack Up` | Should Pack Up ask when the next step is unclear? | "Ask (recommended)", "Never, just write it" (`packup.questions`) |
-| `Skills off` | Which skills should stay off? | "None (recommended)", "Coderot", "Reel", "Coderot and Reel" (`skills.off`) |
+| `Skills off` | Which skills should stay off? | "None (recommended)", "Coderot", "Sneak", "Coderot and Sneak" (`skills.off`) |
 
 No `url`: leave out themes and widths. Defaults are not written: only a key whose answer differs from F§1's default goes in the file.
 
@@ -42,7 +42,7 @@ If no answers come back, give the read-back with the guesses marked `(unconfirme
 
 ## 4. Read-back
 
-Per F§4, groups **Tickets** (prefix, folder, archive, index command), **Commands** (build, test, dev, url), **Areas** (one per line), **Habits** (the preference keys that differ from their defaults, else "defaults"). A correction gets a fresh, complete read-back.
+Per F§4, groups **Repo** (prefix, folder, archive, index; build, test, dev, url), **Areas** (one per line), **Habits** (the preference keys that differ from their defaults, else "defaults"), then **North star** (`northstar.md` §3). A correction gets a fresh, complete read-back.
 
 ## 5. Write on yes
 

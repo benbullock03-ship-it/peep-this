@@ -25,7 +25,7 @@ At the repo root. The first Peep skill to run writes it after a 5-line read-back
 | `packup.questions` | `ask` (ask when the next step is unclear) or `never` (write straight away) | `ask` |
 | `shoot.widths` | Widths Shoot covers; wins over `widths` | `widths` |
 | `stale.days` | Days a `doing` ticket's file may sit unchanged before Ducks lists it first and the peep worries | `3` |
-| `skills.off` | Pack skills to switch off, comma-separated names (`coderot, reel`) | none |
+| `skills.off` | Pack skills to switch off, comma-separated names (`coderot, sneak`) | none |
 
 - `skills.off`, self-setup and the run count: `preamble.md`.
 - `tickets` is read by the widget backend too: keep it on its own line, value only, trailing `/`.
@@ -76,7 +76,7 @@ last touched: AV-26, 2026-11-15
 - `last touched`: the last ticket that edited the note and the date.
 - `kb/INDEX.md`: heading `# Areas`, then one line per area: `- [<area>](<area>.md): <one-line summary>`, in setup order.
 
-## 4. Read-back (Walk, Question Time, Ducks, Reel)
+## 4. Read-back (Walk, Question Time, Ducks)
 
 What Claude now understands, given after the questions and before anything is written.
 
@@ -84,9 +84,9 @@ What Claude now understands, given after the questions and before anything is wr
 - Last line exactly: `Reply "yes", or name what to change.`
 - Only "yes" (or plain agreement) lets the skill write. A correction gets a fresh, complete read-back, never a patch, and waits again.
 
-## 5. Reel: `.peep/reel.md`
+## 5. North star: `.peep/reel.md`
 
-Reel writes it; the owner may hand-edit it. Question Time and Ducks read it only to flag drift.
+Walk writes it after its read-back (`skills/walk/references/northstar.md`); the owner may hand-edit it. Question Time and Ducks read it only to flag drift.
 
 ```
 ---

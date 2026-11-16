@@ -41,7 +41,7 @@ Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 - **Watch**: at most 3 `CLAUDE.md` rules that bite the next ticket, each with its file and a few words; the next ticket goes here too, as `next: <id>`.
 
 If `.peep/reel.md` exists (F§5) and the next ticket or a loose ticket does not serve its `north_star` or hits a `non_goals` entry, add one line under **Watch**: `drift: <id> <why>`. It never blocks and is not a question.
-No `.peep/reel.md` and the `ducks.reel` date in `.peep/runs` is not today: one **Watch** line `no north star yet: /peep:reel` (also in the output's `loose:` when there is no read-back), then set `ducks.reel: <YYYY-MM-DD>`.
+No `.peep/reel.md` and the `ducks.reel` date in `.peep/runs` is not today: one **Watch** line `no north star yet: /peep:walk` (also in the output's `loose:` when there is no read-back), then set `ducks.reel: <YYYY-MM-DD>`.
 
 No line outside the groups except F§4's last line.
 

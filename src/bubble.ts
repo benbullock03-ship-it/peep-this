@@ -10,7 +10,6 @@ export const FLOPPIES: Record<string, { col: number; verb: string }> = {
   packup: { col: 4, verb: "packing up" },
   coderot: { col: 5, verb: "rotting" },
   walk: { col: 11, verb: "walking through" },
-  reel: { col: 12, verb: "reeling" },
   sneak: { col: 13, verb: "mocking up" },
   scrub: { col: 14, verb: "scrubbing" },
   bigpeep: { col: 15, verb: "running a batch" },
