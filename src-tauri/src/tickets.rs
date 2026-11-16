@@ -42,8 +42,25 @@ pub struct Closed {
     pub at: u64,
 }
 
-/// One repo with live sessions: its open and parked tickets, read once for all its sessions.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LastTicket {
+    pub id: String,
+    pub title: String,
+}
+
+/// The open row's arc line (AV-83): `open` counts open, doing and done; `parked` blocked and deferred.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct ArcLine {
+    pub closed: usize,
+    pub open: usize,
+    pub parked: usize,
+    /// The closed ticket whose file changed last, archive included.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last: Option<LastTicket>,
+}
+
+/// One repo with live sessions: its open and parked tickets, read once for all its sessions.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Repo {
     pub root: String,
@@ -55,6 +72,15 @@ pub struct Repo {
     /// `doing` tickets whose file has not changed for the setup's `stale.days` (AV-78 worry).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub stale: Vec<String>,
+    /// `north_star` from `.peep/reel.md` (formats.md §5).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub north_star: Option<String>,
+    pub arc: ArcLine,
+}
+
+fn north_star(repo: &Path) -> Option<String> {
+    let reel = std::fs::read_to_string(repo.join(".peep").join("reel.md")).ok()?;
+    frontmatter(&reel)?.get("north_star").filter(|v| !v.is_empty()).map(|v| v.to_string())
 }
 
 pub const STALE_DAYS_DEFAULT: u64 = 3;
@@ -139,6 +165,10 @@ fn title(repo: &Path, id: &str) -> Option<String> {
         let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_uppercase();
         name.starts_with(&prefix)
     })?;
+    file_title(&file)
+}
+
+fn file_title(file: &Path) -> Option<String> {
     let text = std::fs::read_to_string(file).ok()?;
     frontmatter(&text)?.get("title").filter(|t| !t.is_empty()).map(|t| t.to_string())
 }
@@ -216,18 +246,36 @@ impl Shelf {
                     .map(|(_, t)| t.id.clone())
                     .collect();
                 let tickets: Vec<Ticket> = live.into_iter().map(|(_, t)| t).collect();
-                // Archive files are only listed, never parsed.
-                let now_closed: HashSet<String> = closed
+                // Archive files are only listed, never parsed; only the newest one is read, for its title.
+                let closed_files: Vec<(PathBuf, String)> = closed
                     .into_iter()
-                    .map(|(_, t)| t.id)
-                    .chain(md_files(&archive_dir(&root)).iter().filter_map(|p| id_from_name(p)))
+                    .map(|(p, t)| (p, t.id))
+                    .chain(md_files(&archive_dir(&root)).into_iter().filter_map(|p| id_from_name(&p).map(|id| (p, id))))
                     .collect();
+                let now_closed: HashSet<String> = closed_files.iter().map(|(_, id)| id.clone()).collect();
+                let parked = tickets.iter().filter(|t| matches!(t.status, Status::Blocked | Status::Deferred)).count();
+                let arc = ArcLine {
+                    closed: now_closed.len(),
+                    open: tickets.len() - parked,
+                    parked,
+                    last: closed_files.iter().max_by_key(|(p, id)| (modified_ms(p), id.clone())).map(|(p, id)| {
+                        LastTicket { id: id.clone(), title: file_title(p).unwrap_or_default() }
+                    }),
+                };
                 let (seen, last) = self.closed.entry(root.clone()).or_insert_with(|| (now_closed.clone(), None));
                 if let Some(id) = now_closed.difference(seen).max() {
                     *last = Some(Closed { id: id.clone(), at: now });
                 }
                 *seen = now_closed;
-                Repo { root: root.to_string_lossy().into_owned(), sessions, tickets, last_closed: last.clone(), stale }
+                Repo {
+                    root: root.to_string_lossy().into_owned(),
+                    sessions,
+                    tickets,
+                    last_closed: last.clone(),
+                    stale,
+                    north_star: north_star(&root),
+                    arc,
+                }
             })
             .collect()
     }
@@ -395,6 +443,43 @@ mod tests {
         assert_eq!(shelf.read(&sessions, 4)[0].last_closed, Some(Closed { id: "AV-2".into(), at: 4 }));
         std::fs::rename(dir.join("tickets/AV-2-y.md"), dir.join("tickets/archive/AV-2-y.md")).unwrap();
         assert_eq!(shelf.read(&sessions, 5)[0].last_closed.as_ref().unwrap().at, 4,"the archive move is the same closing");
+    }
+
+    fn touch(path: PathBuf, ms: u64) {
+        let f = std::fs::File::options().write(true).open(path).unwrap();
+        f.set_modified(std::time::UNIX_EPOCH + Duration::from_millis(ms)).unwrap();
+    }
+
+    #[test]
+    fn arc_line_reads_the_reel_counts_tickets_and_names_the_last_closed() {
+        let dir = repo("arc");
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        let sessions = [s("s1", &dir)];
+        let arc = |shelf: &mut Shelf| shelf.read(&sessions, 1).remove(0);
+
+        let r = arc(&mut Shelf::default());
+        assert_eq!((r.north_star, r.arc), (None, ArcLine::default()), "no reel, no tickets");
+
+        for (n, status) in ["open", "doing", "done", "blocked", "deferred", "closed"].iter().enumerate() {
+            write(dir.join(format!("tickets/AV-{n}-x.md")), &format!("---\nid: AV-{n}\ntitle: T{n}\nstatus: {status}\n---\n"));
+        }
+        write(dir.join("tickets/archive/AV-9-old.md"), "---\nid: AV-9\ntitle: \"Archived: last\"\nstatus: closed\n---\n");
+        write(dir.join("tickets/archive/AV-8-older.md"), "---\nid: AV-8\nstatus: closed\n---\n");
+        touch(dir.join("tickets/AV-5-x.md"), 1_000);
+        touch(dir.join("tickets/archive/AV-8-older.md"), 2_000);
+        touch(dir.join("tickets/archive/AV-9-old.md"), 3_000);
+        write(dir.join(".peep/reel.md"), "---\nnorth_star: A calm desk pet: one line\nhook: h\n---\n\n- comparable\n");
+
+        let r = arc(&mut Shelf::default());
+        assert_eq!(r.north_star.as_deref(), Some("A calm desk pet: one line"));
+        assert_eq!((r.arc.closed, r.arc.open, r.arc.parked), (3, 3, 2));
+        assert_eq!(r.arc.last, Some(LastTicket { id: "AV-9".into(), title: "Archived: last".into() }), "newest file wins");
+
+        touch(dir.join("tickets/AV-5-x.md"), 4_000);
+        assert_eq!(arc(&mut Shelf::default()).arc.last.unwrap().id, "AV-5", "a closed ticket not yet archived counts");
+
+        write(dir.join(".peep/reel.md"), "---\nnorth_star:\n---\n");
+        assert_eq!(arc(&mut Shelf::default()).north_star, None, "an empty north star is none");
     }
 
     #[test]

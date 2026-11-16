@@ -219,8 +219,7 @@ mod tests {
             root: dir.to_str().unwrap().into(),
             sessions: vec!["s1".into()],
             tickets: vec![Ticket { id: "AV-1".into(), title: "t".into(), status, reason: None, wake: None }],
-            last_closed: None,
-            stale: vec![],
+            ..Default::default()
         };
         assert!(Ended::new(&s, &[repo(Status::Doing)], T0).ticket_doing);
         assert!(!Ended::new(&s, &[repo(Status::Done)], T0).ticket_doing);

@@ -1,6 +1,7 @@
 import { createCards, type Decide } from "./approvalCard";
 import { fillBubble, FLOPPIES } from "./bubble";
 import { createBar, type Bar } from "./bar";
+import { createArc } from "./arc";
 import { openFacts } from "./details";
 import { clashLinks, clashTags, EMOTES, type Emote } from "./emote";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
@@ -53,6 +54,7 @@ type Facts = {
   trailKey: string;
   clearHint: () => void;
   shelf: (tickets: readonly RepoTicket[] | undefined) => void;
+  arc: (repo: Repo | undefined) => void;
 };
 
 type Row = {
@@ -77,7 +79,7 @@ type Row = {
   /** Red dot on the peep for a failed shell; survives the chip folding and the row closing. */
   fail: HTMLElement;
   floppy?: HTMLElement;
-  tickets?: readonly RepoTicket[];
+  repo?: Repo;
   /** FLOPPY-SPEC §09 buttons; under the plank, since the closed row is itself a button. */
   nudge: HTMLElement;
   nudgeLater: HTMLButtonElement;
@@ -110,6 +112,8 @@ function createFacts(jump: Jump): Facts {
   const box = el("div", "ps-facts");
   const tray = createTray(jump);
   box.appendChild(tray.el);
+  const arc = createArc((b, cmd) => void tray.fire(b, cmd));
+  box.appendChild(arc.el);
   const shelf = createShelf((b, cmd) => void tray.fire(b, cmd));
   box.appendChild(shelf.el);
   const tags = el("div", "ps-tags", box);
@@ -127,7 +131,7 @@ function createFacts(jump: Jump): Facts {
   const cwd = el("div", "ps-path", box);
   const trail = el("div", "ps-trail", box);
   trail.setAttribute("aria-label", "Recent approval decisions");
-  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render };
+  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render };
 }
 
 function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules): Row {
@@ -299,7 +303,8 @@ function fillFacts(r: Row, now: number) {
   x.ctx.set(f.ctx ?? 0);
   setText(x.ctxValue, f.ctx === null ? "—" : `${Math.round(f.ctx)}%`);
   setText(x.cwd, f.cwd);
-  x.shelf(r.tickets);
+  x.arc(r.repo);
+  x.shelf(r.repo?.tickets);
 }
 
 function fillTrail(r: Row, entries: readonly TrailEntry[] | undefined, rules?: RowRules) {
@@ -502,7 +507,7 @@ export function createList(
         enter(r.el, firstRender ? Math.min(seen.size - 1, MAX_STAGGER) * STAGGER_MS : 0);
       }
       r.session = s;
-      r.tickets = repos.find((p) => p.sessions.includes(s.id))?.tickets;
+      r.repo = repos.find((p) => p.sessions.includes(s.id));
       if (r.el.classList.contains("leaving")) {
         clearTimeout(Number(r.el.dataset.leaveTimer));
         r.el.classList.remove("leaving");

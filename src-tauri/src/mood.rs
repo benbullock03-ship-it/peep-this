@@ -196,7 +196,7 @@ mod tests {
             sessions: vec!["a".into(), "b".into()],
             tickets: vec![],
             last_closed: Some(Closed { id: "AV-7".into(), at: T0 + 10 }),
-            stale: vec![],
+            ..Default::default()
         };
         let repos = [repo];
         let all = [&a, &closer, &elsewhere];
@@ -210,7 +210,7 @@ mod tests {
     fn a_stale_doing_ticket_worries_every_session_in_its_repo() {
         let a = session("a", T0);
         let elsewhere = session("c", T0);
-        let repo = Repo { root: "F:/p".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: None, stale: vec!["AV-7".into()] };
+        let repo = Repo { root: "F:/p".into(), sessions: vec!["a".into()], tickets: vec![], stale: vec!["AV-7".into()], ..Default::default() };
         let repos = [repo];
         let all = [&a, &elsewhere];
         assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + NAP_AFTER_MS), Some(Mood::Worry), "worry beats nap");

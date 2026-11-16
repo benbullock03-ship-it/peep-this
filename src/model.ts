@@ -146,7 +146,13 @@ export type Repo = {
   lastClosed?: { id: string; at: number };
   /** `doing` ticket ids unchanged for the setup's `stale.days`; absent when none. */
   stale?: string[];
+  /** `north_star` from `.peep/reel.md`; absent without a reel. */
+  northStar?: string;
+  arc: ArcLine;
 };
+
+/** tickets.rs `ArcLine`: `open` counts open, doing and done; `parked` blocked and deferred; `last` is the newest closed file. */
+export type ArcLine = { closed: number; open: number; parked: number; last?: { id: string; title: string } };
 
 export type Snapshot = {
   sessions: Session[];
