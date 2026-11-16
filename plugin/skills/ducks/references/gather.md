@@ -24,7 +24,7 @@ Listed in this order.
 | Wake free text | parked, `wake` is neither form: listed for the owner, never judged |
 | Parked, broken | parked without `reason` or `wake` (F§2 says it must have both) |
 | Failing tests | `test` exit code not 0 |
-| Uncommitted | any line in `git status`. Mark "not mine" if the handoff lists it, "unrelated" if it is outside `<tickets>` and no `doing` ticket names its path |
+| Uncommitted | any line in `git status` except `.peep/runs` and `.peep/handoff.md`, the pack's own files: never a loose end, never mentioned. Mark "not mine" if the handoff lists it, "unrelated" if it is outside `<tickets>` and no `doing` ticket names its path |
 | Rule that bites | a `CLAUDE.md` rule the next ticket's paths or kind would trip (commits, file edits, generated files, release). At most 3 |
 
 ## Is ticket X closed?
