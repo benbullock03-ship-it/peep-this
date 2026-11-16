@@ -1,7 +1,7 @@
 ---
 id: AV-126
 title: "Design brief: floppy motion, Make it yours page, Goose report page"
-status: open
+status: done
 depends: []
 ---
 
@@ -9,11 +9,15 @@ depends: []
 
 **What to build:** Nothing in the app. The owner hands the prompt below to a design session; this ticket is done when its three folders land in `design/` (Question Time 2026-11-16).
 
-- [ ] `design/skill-pack-3/` delivered
-- [ ] `design/make-it-yours/` delivered
-- [ ] `design/goose-report/` delivered
+- [x] `design/skill-pack-3/` delivered
+- [x] `design/make-it-yours/` delivered
+- [x] `design/goose-report/` delivered
 
 **Done when:** all three folders hold their `SPEC.md`, `tokens.css` and `ref/` artboards, and the owner accepts the look.
+
+## Done 2026-11-16
+
+All three folders hold `SPEC.md`, `tokens.css` and `ref/`, committed in b532e5c. The owner delivered them and said "I've done all the design work now", which is taken as accepting the look.
 
 ## Prompt
 
