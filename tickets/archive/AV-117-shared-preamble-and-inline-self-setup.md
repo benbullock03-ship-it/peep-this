@@ -1,7 +1,7 @@
 ---
 id: AV-117
 title: Shared preamble and inline self-setup
-status: done
+status: closed
 depends: []
 ---
 

@@ -3,11 +3,12 @@
 ## How it works now
 
 - `plugin/` is the `peep` Claude Code plugin; each skill is `plugin/skills/<name>/SKILL.md` with step detail in its `references/`. 13 skills; only ticket, packup, tweet and shoot are model-invocable, the rest set `disable-model-invocation` because every invocable description loads into every session.
-- `/peep:walk` owns first run: two batched rounds (repo, then how the owner works), a read-back, then `.peep/setup.md` (F§1) with only non-default preference keys (`qt.round`, `packup.questions`, `shoot.widths`, `skills.off`), a tour (a numbered **Core** block in rhythm order: reel, qt, ticket, packup, ducks; then an unnumbered **Extras** block, each skill with a "use when" line) and a suggested first step, usually `/peep:reel`. Every other skill with no setup points to `/peep:walk`.
+- Every skill cites `plugin/references/preamble.md` once at the top: read `.peep/setup.md`, apply `skills.off`, and with no setup self-set up (guess as `walk/references/setup.md` step 1, a 5-line read-back, write on yes with `Written by /peep:<name>`, then carry on; "no" or no reply writes nothing). Pack Up and Tweet run without a setup instead.
+- `/peep:walk` is optional tour and customising: two batched rounds (repo, then how the owner works), a read-back, then `.peep/setup.md` (F§1) with only non-default preference keys (`qt.round`, `packup.questions`, `shoot.widths`, `skills.off`), a tour (a numbered **Core** block in rhythm order: reel, qt, ticket, packup, ducks; then an unnumbered **Extras** block, each skill with a "use when" line) and a suggested first step, usually `/peep:reel`.
 - Shared formats live once in `plugin/references/formats.md` (F§1 to F§7); skills cite the section instead of restating it.
 - The AI hallmark catalogue is `plugin/references/ai-tells.md` (82 entries, slug IDs, P0 to P2 by who notices); its grep rules live in `ai-tells/rules.mjs` with `scan(text)`, and `rules.test.mjs` holds a bad and a good snippet per rule and keeps the md and `RULES` in step. Per-repo exceptions are `.peep/scrub.md` (F§6: `earned` permanent, `debt` may only shrink) plus inline `scrub-ignore: <id> <reason>`.
 - `/peep:scrub` (Scrubadubdub) runs `skills/scrub/scripts/scan.mjs`: catalogue grep rules over changed lines since `main` (falls back to `master`, then `HEAD`) plus untracked files, or `--full`; exceptions applied; one finding per ID per file, scored by severity plus the other IDs in that file. Then an eye pass (`references/eye.md`) that always covers spacing and text, on Shoot shots or `inferred` without a `url`. The numbered report phrases alternatives in the repo's own tokens. On the reply (`references/fix.md`) it fixes only the approved numbers, sends design choices to `/peep:sneak`, writes debt on `debt <n>`, and on `wrong <n>` offers an earned line or names a rule bug.
-- Every skill's last step bumps its line in `.peep/runs` and, while the old count is below 3, ends with one `Why:` line tied to a habit: think before code, finish before starting, prove it works.
+- Every skill's last step (preamble) bumps its line in `.peep/runs` and, while the old count is below 3, ends with its own `Why:` line tied to a habit: think before code, finish before starting, prove it works. The Why text is the only run-count wording left in each `SKILL.md`.
 - `/peep:reel` asks batched rounds on who it is for, the problem, the hook and non-goals, reads back, then writes `.peep/reel.md` (F§5). Research of comparables runs only if asked, at most 5.
 - Question Time asks AskUserQuestion rounds while its run count is below 3 (or whenever `qt.round` is set); from the third run it gives the whole frontier as one numbered list answered with "agree all" or named overrides (`qt/references/rounds.md`).
 - `/peep:coderot` with no area argument targets the hot spot, the setup area most touched by the last 20 commits' files, and says which; the cap stays 20 mutants.
@@ -29,8 +30,9 @@
 
 - Pattern names on report cards come only from `references/patterns.md` (6 entries, which also feed the learned list). A new pattern needs the owner's yes. Diagram nodes come from `graph.json`, never invented.
 
-- Runs that stop early (no setup, bad argument) are not counted.
-- `skills.off` is stated once in F§1; each skill carries a one-line cite. Walk can never be switched off; the tour lists The Reel unless `skills.off` names it.
+- Runs that stop early (switched off, self-setup declined, bad argument) are not counted.
+- `skills.off`, self-setup and the run count are stated once in the preamble; never copy them back into a `SKILL.md`.
+- A headless live check of a pack skill needs `--add-dir <repo>/plugin` beside `--plugin-dir`, or the child cannot read the preamble and silently skips it. Walk can never be switched off; the tour lists The Reel unless `skills.off` names it.
 - The Why line is the only addition allowed after a skill's fixed output format.
 - `.peep/runs` is per machine and not committed; skills mention a missing `.gitignore` entry rather than editing it.
 - Stale tickets and drift never block new work.
@@ -54,6 +56,6 @@
 - New users learn the reason behind each step, then stop seeing it once the habit is familiar.
 - The Reel gives a project a reason to finish rather than abandon.
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
-- Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
+- Any skill sets the repo up inline so a new user's first command just works; the full setup questions stay in Walk alone.
 
-last touched: AV-106, 2026-11-16
+last touched: AV-117, 2026-11-16
