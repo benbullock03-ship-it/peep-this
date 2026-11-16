@@ -5,7 +5,7 @@
 - The open row hosts the floppy tray and a Pack up button (`src/tray.ts`, wired in `src/rows.ts`); each is a Jump.
 - Jump writes the command with `navigator.clipboard.writeText`, then calls `focus_session`; a failed write still focuses and the hint says to type it.
 - `jumpCommand(skill, arg?)` builds the command; the hint bar sits in the tray section under the disks.
-- The tray shows six disks, then a `+N` cell (`TRAY_SHOWN` in `src/tray.ts`) that opens the rest in a grid under the row, its own roving tab stop. Sprite sheets in `src/assets/floppy/` are the 18-column sheets from `design/skill-pack-2/sprites/` (16px columns, CSS width 288 units); `FLOPPIES` in `src/bubble.ts` maps skill to column and bubble verb. The tray lists 11: the six, then walk, reel, bigpeep, tweet, goose behind `+5`.
+- The tray shows six disks, then a `+N` cell (`TRAY_SHOWN` in `src/tray.ts`) that opens the rest in a grid under the row, its own roving tab stop. Sprite sheets in `src/assets/floppy/` are the 18-column sheets from `design/skill-pack-2/sprites/` (16px columns, CSS width 288 units); `FLOPPIES` in `src/bubble.ts` maps skill to column and bubble verb. The tray lists 13: the six, then walk, reel, sneak, scrub, bigpeep, tweet, goose behind `+7` (a 5-column grid, so two rows). A new floppy needs a `TRAY` entry, a `FLOPPIES` column and a `PEEP_SKILLS` entry in `state.rs`, or it never seats.
 - The first-run disk box shows once; dismissal lives in `localStorage` `peepthis.diskBox.dismissed`.
 - The ticket shelf (`src/shelf.ts`) sits after the tray and lists the repo's tickets from `Snapshot.repos`, passed as `render(sessions, repos?)` in `src/main.ts`; a click Jumps `/peep:ticket <id>` through the tray's hint bar (`createTray().fire`).
 - The arc line (`src/arc.ts`) sits between tray and shelf: north star from `.peep/reel.md`, closed/open/parked counts and the last closed id, all from `Repo.northStar` and `Repo.arc` (`src-tauri/src/tickets.rs`). Counts that do not fit drop whole from the end; closed always stays. No north star shows a Jump to `/peep:reel`.
@@ -43,4 +43,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-94, 2026-11-16
+last touched: AV-89, 2026-11-16
