@@ -1,9 +1,7 @@
 ---
 id: AV-46
 title: Peep animation CPU against the §8 budget
-status: deferred
-reason: the idle measurement needs every Claude session idle, so a Claude session cannot take it
-wake: owner measures peep-this.exe 2x30s with 0, 3 and 10 idle sessions from a plain terminal
+status: closed
 depends: []
 attended: true
 ---
@@ -23,3 +21,7 @@ attended: true
 
 - The measurement. The case §8 now names needs every session idle, and the session doing the measuring is itself busy, so it was not taken in this run. Measure `peep-this.exe` for 2 × 30s with 0, 3 and 10 idle sessions from a plain terminal, not from a Claude session.
 - AV-35's busy figures (0.91% to 1.22% with 3 busy) are now outside the budget's scope; nothing to cap unless the idle number is over.
+
+## Done 2026-11-16
+
+Owner marked done and closed on 2026-11-16 without the idle measurement.
