@@ -20,12 +20,6 @@ depends: [AV-117]
 
 **Done when:** `/peep:reel` is not a skill, `/peep:walk` in a fresh repo ends with a `.peep/reel.md`, this repo has the file above, and the full run passes.
 
-## Owed before done
-
-- `CONTEXT.md`: drop the **The Reel** entry and repoint **North star** at Walk. Both entries sit inside another session's uncommitted hunk, so this waits until that session commits `CONTEXT.md`. Everything else in that checklist item is done; spec §13 never named Reel.
-- Live check: `/peep:walk` in a throwaway repo, through round C, ends with `.peep/reel.md` (headless child per `kb/plugin.md`, `--add-dir <repo>/plugin`).
-- Shoot the open row's arc line with no north star: the button now reads "Walk Through", copies `/peep:walk`, with the `--fl-walk` underline.
-
 ## Decisions taken without a ruling
 
 - Round C is a fourth AskUserQuestion: For, Problem, Hook, Non-goals. Comparables are the Hook question's "Look up comparables first" option, so a search happens only on that pick (`walk/references/northstar.md`).
@@ -36,3 +30,10 @@ depends: [AV-117]
 - Floppy art column 12 (reel) stays in the sprite sheet unused; the art is the owner's.
 - `.peep/reel.md` stays uncommitted like `.peep/setup.md`.
 
+## Done 2026-11-16
+
+- `plugin/skills/reel/` deleted; `PEEP_SKILLS` has 12 names; tray, bubble, learned, tour and README drop `reel` (7f263be). Spec §13 never named Reel.
+- Walk's round C and write: `plugin/skills/walk/references/northstar.md`. This repo's `.peep/reel.md` exists (uncommitted).
+- Full run passes: vitest 369, cargo 424+17.
+- `CONTEXT.md` Reel entry is fixed in another session's uncommitted edit; it lands when that session commits.
+- Owner confirmed done 2026-11-16 without the live `/peep:walk` run or a shoot of the arc line's "Walk Through" button.
