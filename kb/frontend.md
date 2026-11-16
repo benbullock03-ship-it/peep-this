@@ -19,6 +19,8 @@
 - Clash: sessions with `mood: startled` and the same `Session.clash` path get a lettered bolt tag (`Bubble.bolt` in `src/bubble.ts`), "Both in <file>" bubble text (`clashTags`, `clashText` in `src/emote.ts`) and, when adjacent, a dotted plank-to-plank bracket in `--st-waiting` (`clash-down`/`clash-up`, `--plank-y` in `src/rows.ts`).
 
 - Identity (`src/identity.ts`): the cwd hashes over `COLORS` and the 14 `ACCESSORIES`; the six `EARNED_ACCESSORIES` (packed, clear, ten, spotless, architect, supporter) are never hashed and reach the picker only through `pickerAccessories(unlocked)`. `?accessories` (`src/accessories.ts`) renders every accessory for checks.
+- Own your peep: the open row's "Change peep" picker (`src/picker.ts`) writes an override through `set_peep_look`, stored as `peepLooks` in the widget `settings.json`, keyed by `cwdKey` (FNV-1a of the normalised cwd, 8 hex; `look.rs` `cwd_key` matches). `createLookStore` (`src/look.ts`) resolves the override over the hash for row, strip, children (colour only), closed shelf (`forCwd`) and, through the `peep-looks` event, the flyout. A pick equal to the hash is dropped, so picking the hash back is a reset.
+- Toast icons: `src/toastIcon.ts` draws each live project's `waiting` peep and hands it to `set_toast_icon` (`%APPDATA%/PeepThis/icons/<key>.png`); the waiting toast uses it as its app logo. The goose page reads the same `peepLooks`.
 
 ## Watch out
 
@@ -45,4 +47,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-114, 2026-11-16
+last touched: AV-113, 2026-11-16
