@@ -1,6 +1,6 @@
 # AI hallmarks
 
-The checklist Scrubadubdub (`/peep:scrubadubdub`, AV-87) reads. An AI hallmark is a pattern that marks a UI as made by default: nobody chose it. Exceptions live in `.peep/scrub.md` (`formats.md` §6).
+The checklist Scrubadubdub (`/peep:scrub`, AV-87) reads. An AI hallmark is a pattern that marks a UI as made by default: nobody chose it. Exceptions live in `.peep/scrub.md` (`formats.md` §6).
 
 Each entry: `ID · severity · how · signal · where it comes from · alternatives · [credit]`.
 

@@ -15,6 +15,7 @@ Extras: reach for these when the moment comes.
 /peep:sneak    use when you want to compare 2 or 3 UI directions before building
 /peep:goose    use when you need to know what calls what before changing it
 /peep:shoot    use after a web UI change, before calling it done
+/peep:scrub    use when a screen works but looks generated
 /peep:coderot  use between tickets, to check the tests can actually fail
 /peep:bigpeep  use when several tickets are ready and you want them worked in order, one commit each
 /peep:tweet    use when stuck on something another session may know, or about to change a file another session is in
