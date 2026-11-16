@@ -1,7 +1,7 @@
 ---
 id: AV-109
 title: Signal tips with a Pack Up Jump at the context line
-status: doing
+status: done
 depends: []
 ---
 
@@ -37,6 +37,12 @@ Yes. Per the Claude Code statusline docs, `context_window.total_input_tokens` (i
 - Manual `/compact` raises nothing; only auto-compact teaches.
 - Suggestion bubbles (nudge and tip) clamp at 4 lines instead of 2: the helper and compacted texts were cut mid-sentence at 2.
 
-## Owed before done
+## Live check (2026-11-16, run by Claude)
 
-- Owner confirms one live tip in `npm run tauri dev` (e.g. the helper tip after a session's first subagent, or crowded past 120k), and that Pack up on the crowded tip copies `/peep:packup` and focuses the terminal. The Jump reuses the nudge's Pack up path, which is already live-checked.
+In `npm run tauri dev` with CDP:
+
+- A real crowded tip was already raised on a busy session from its own statusline and stayed hidden while it was `thinking`/`working`.
+- A throwaway CLI session reached `success`. A statusline POST with `total_input_tokens: 140000` raised `tip: crowded`. The row showed "Getting crowded; answers get fuzzier from here." in the dashed bubble, with Pack up and Got it under the plank.
+- A CDP mouse click on Pack up put `/peep:packup` on the clipboard. The foreground window became that session's Windows Terminal tab. The tip stayed up after the click; only Got it or a prompt clears it.
+
+Owed: the owner rules on the two decisions above, then closes the ticket.
