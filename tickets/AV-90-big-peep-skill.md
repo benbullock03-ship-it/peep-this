@@ -1,7 +1,7 @@
 ---
 id: AV-90
 title: Big Peep skill - run a ticket batch, ask stale little peeps
-status: doing
+status: done
 depends: [AV-74]
 ---
 
@@ -32,6 +32,16 @@ depends: [AV-74]
 - Pack Up note via packup steps 1, 3 and 4 with no questions; it does not bump `packup` in `.peep/runs`.
 - Why habit: finish before starting.
 
-## Owed before done
+## Done 2026-11-16
 
-- Live check per "Done when": a three-ticket batch with one dependency, three commits, a status ask for a deliberately slow ticket shown in the report. Owner runs it.
+- Live check in a scratch repo (setup `test: node --test`): T-01, T-02 (`depends: [T-01]`), T-03 (waits 12 min before writing). Wave 1 ran T-01 and T-03; T-02 started only after T-01 reached `done` and was committed. Three commits, one per ticket, each staging only its files; full `node --test` 3/3 after the last.
+- Watch: checks at 5 and 10 min; at 10.5 quiet minutes (no file change since spawn) T-03 got the fixed status ask by SendMessage and kept running; it finished at 08:52.
+- Found: T-03 answered the ask in its own output, which never reaches Big Peep, so the report could only say "no answer". Fixed in `references/brief.md`: little peeps reply with SendMessage to "main".
+
+Report from the run:
+
+| ticket | status | commit | notes |
+|---|---|---|---|
+| T-01 Add one() | open -> done | d606a24 | none |
+| T-03 Add ten() after a slow wait | open -> done | 09502e6 | asked at 10m: no answer (replied in its own output; brief fixed) |
+| T-02 Add two() built on one() | open -> done | cd3bde5 | started after T-01 done in the same run |

@@ -15,7 +15,7 @@ Files you may touch: <paths> and the ticket file.
 Must not touch: <other little peeps' files, other sessions' uncommitted files, shared files Big Peep owns>.
 Open tweets on your files (.peep/tweets.md): <numbers, or none>. Read them first.
 Build: <setup build>. Test: <setup test>.
-If Big Peep asks for a status, answer in one line and keep working.
+If Big Peep asks for a status, answer in one line with SendMessage to "main" and keep working; text in your own output does not reach Big Peep.
 Report: files changed, checklist status, build and test result, what is owed, decisions taken.
 ```
 
