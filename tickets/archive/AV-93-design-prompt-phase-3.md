@@ -1,7 +1,7 @@
 ---
 id: AV-93
 title: Claude Design prompt for phase 3 art
-status: doing
+status: closed
 depends: []
 attended: true
 ---
@@ -10,8 +10,8 @@ attended: true
 
 **What to deliver:** The owner runs the prompt below in Claude Design and adds the result to `design/skill-pack-2/`.
 
-- [ ] Run the prompt; deliverables added to `design/skill-pack-2/`
-- [ ] Owner says they are final
+- [x] Run the prompt; deliverables added to `design/skill-pack-2/`
+- [x] Owner says they are final
 
 **Done when:** the phase 3 floppies, tweet emote and graph page style are in `design/skill-pack-2/` and the owner says they're final.
 
@@ -28,4 +28,6 @@ Attach: `design/skill-pack/` (FLOPPY-SPEC.md, tokens.css, emotes.json, sprites/)
 ## Owed before done
 
 - Prompt checked 2026-11-16: attach list names the delivered phase 1 set; the colour rule covers whatever floppy sets are attached. Ready to paste; runs best after AV-88 so phase 2 colours are known.
-- Owner runs it in Claude Design, adds the result to `design/skill-pack-2/`, and says it is final.
+- Run 2026-11-16 as one merged pass with AV-88 (five floppies, one colour rule over all 14). Delivered in `design/skill-pack-2/`: SPEC.md §07 to §09, tokens.css, sprites/, emotes.json, sprites.py, graph.html, ref/. Canvas: https://claude.ai/artifact/J3QvHUUUg4MejSVxFCxUaN. 
+- Decisions for the owner to overrule (SPEC §07 to §09): clash takes the emote slot over tweet, tweet outranks sweat/yawn/zzz; `--em-tweet` aliases `--em-dream`; sheet is 18 columns with 0 to 9 unchanged; graph router is demo only.
+- Owner said final 2026-11-16.

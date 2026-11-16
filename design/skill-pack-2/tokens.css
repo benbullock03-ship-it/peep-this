@@ -14,10 +14,26 @@
   --cl-flag: var(--ps-accent);
   /* Arc line */
   --arc-star: var(--ps-accent);
+  /* Phases 2 and 3: floppies, tweet emote, graph page */
+  --fl-sneak: #E060EC;
+  --fl-scrub: #BFE6F7;
+  --fl-bigpeep: #5560D8;
+  --fl-tweet: #DC4667;
+  --fl-goose: #A47552;
+  --em-tweet: var(--em-dream);
+  --gr-edge: var(--ps-edge);
+  --gr-edge-hot: var(--ps-accent);
+  --gr-file: var(--ps-edge);
+  --gr-file-hot: var(--ps-accent);
 }
 :root[data-theme="light"] {
   --fl-unpack: #13959E;
   --fl-walk: #76A01A;
   --fl-reel: #B8702E;
   --cl-dim: .55;
+  --fl-sneak: #A82EB5;
+  --fl-scrub: #7CC2E8;
+  --fl-bigpeep: #2A2E8C;
+  --fl-tweet: #AE2348;
+  --fl-goose: #6F4728;
 }

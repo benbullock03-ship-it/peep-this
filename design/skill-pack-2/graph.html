@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peep This · graph</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../skill-pack/tokens.css">
+<link rel="stylesheet" href="tokens.css">
+<script src="../peep.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: var(--ps-desk); color: var(--ps-text); font: 13px/1.4 'IBM Plex Mono', monospace; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, .gnode:focus-visible { outline: 2px solid var(--ps-accent); outline-offset: 2px; }
+.demo { display: flex; gap: 8px; margin-bottom: 16px; }
+.demo button { background: var(--ps-panel); border: 2px solid var(--ps-edge); padding: 2px 8px; }
+.gwin { width: max-content; max-width: 100%; background: var(--ps-panel); border: 2px solid var(--ps-edge); box-shadow: var(--shadow-hard); }
+.head { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 10px; border-bottom: 2px solid var(--ps-edge); background: repeating-linear-gradient(0deg, transparent 0 3px, var(--ps-line) 3px 4px); }
+.title { font-weight: 600; color: var(--ps-accent); background: var(--ps-panel); padding: 2px 6px; text-transform: uppercase; letter-spacing: .04em; }
+.sub { font-size: 11px; color: var(--ps-muted); background: var(--ps-panel); padding: 2px 6px; margin-right: auto; }
+.gbody { display: flex; overflow-x: auto; }
+.gmap { position: relative; flex: none; background: var(--ps-desk) repeating-linear-gradient(0deg, transparent 0 15px, var(--ps-line) 15px 16px); }
+.gnode { position: absolute; width: 120px; z-index: 2; padding: 0; border: 0; background: none; text-align: left; }
+.gstand { display: flex; justify-content: center; align-items: flex-end; gap: 4px; height: 48px; }
+.plank { display: block; height: 6px; background: repeating-linear-gradient(90deg, var(--ps-shelf) 0 8px, var(--ps-shelf-top) 8px 16px); }
+.gcard { display: flex; flex-direction: column; gap: 5px; height: 40px; padding: 5px 6px; background: var(--ps-panel); border: 2px solid var(--ps-edge); border-top: 0; }
+.gn { display: flex; justify-content: space-between; gap: 6px; font: 600 12px/14px 'IBM Plex Mono', monospace; }
+.gn span { font-weight: 400; font-size: 10px; color: var(--ps-muted); }
+.gfiles { display: flex; gap: 2px; height: 4px; overflow: hidden; }
+.gfiles i { flex: none; width: 4px; height: 4px; background: var(--gr-file); }
+.gfiles i.on { background: var(--gr-file-hot); }
+.gnode.dim .gstand, .gnode.dim .plank, .gnode.dim .gfiles { opacity: .45; }
+.gnode.dim .gcard { color: var(--ps-muted); border-color: color-mix(in srgb, var(--ps-edge) 45%, var(--ps-desk)); }
+.gnode.hot .gcard { box-shadow: 0 0 0 2px var(--gr-edge-hot); }
+.gnode.sel .gcard { background: var(--ps-panel-2); }
+.gnode.att .gcard { border-color: var(--st-waiting); }
+.gedge { position: absolute; background: var(--gr-edge); }
+.gedge.hot { background: var(--gr-edge-hot); z-index: 1; }
+.gedge.dim { opacity: .4; }
+.gtip { position: absolute; z-index: 3; width: 250px; padding: 6px 8px; background: var(--ps-panel); border: 2px solid var(--ps-edge); box-shadow: var(--shadow-hard); font-size: 11px; line-height: 15px; pointer-events: none; }
+.gtip span, .gpanel .m { color: var(--ps-muted); }
+.gpanel { flex: none; width: 280px; border-left: 2px solid var(--ps-edge); padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.gpanel[hidden] { display: none; }
+.gpanel h3 { margin: 0; font: 600 14px 'IBM Plex Mono', monospace; }
+.gpanel .k { color: var(--ps-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.links button { font-size: 11px; padding: 1px 6px; background: none; border: 0; box-shadow: inset 0 0 0 1px var(--ps-muted); }
+.links button:hover { box-shadow: inset 0 0 0 2px var(--ps-accent); }
+.sess { display: flex; align-items: flex-end; gap: 10px; }
+.gfoot { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 6px 10px; border-top: 2px solid var(--ps-edge); font-size: 11px; color: var(--ps-muted); }
+</style>
+</head>
+<body>
+<div class="demo"><button id="repo">Big repo</button><button id="theme">Light</button></div>
+<div class="gwin">
+  <div class="head"><span class="title">Peep This · graph</span><span class="sub" id="sub"></span></div>
+  <div class="gbody"><div class="gmap" id="map"></div><div class="gpanel" id="panel" hidden></div></div>
+  <div class="gfoot">Hover an area for its links. Click to pin it. Esc clears.</div>
+</div>
+<script>
+// Demo data and a demo router (adjacent columns only). The build supplies its own layout.
+const P = (name, state, color, acc) => ({ name, state, color, acc });
+const REPOS = {
+  small: { name: 'peep-this', pitch: 200, cols: 3, rows: 2,
+    nodes: [['ui', 0, 0, 34, 1, [P('peep-this-7b', 'thinking', 'lavender', 'glasses')]], ['plugin', 0, 1, 18], ['core', 1, 0, 21, 2, [P('peep-this-7a', 'working', 'yellow', 'headphones')]], ['design', 1, 1, 46], ['source', 2, 1, 9]],
+    edges: [['ui', 'core'], ['ui', 'design'], ['plugin', 'core'], ['plugin', 'design'], ['core', 'source']] },
+  big: { name: 'datamap', pitch: 180, cols: 5, rows: 4,
+    nodes: [['web', 0, 0, 48, 1, [P('datamap-2c', 'idle', 'green', 'chef')]], ['admin', 0, 1, 27], ['cli', 0, 2, 12], ['worker', 0, 3, 15],
+      ['maps', 1, 0, 31, 2, [P('datamap-3a', 'thinking', 'lavender', 'glasses')]], ['search', 1, 1, 19], ['accounts', 1, 2, 22], ['exports', 1, 3, 14],
+      ['geo', 2, 0, 24], ['datasets', 2, 1, 38, 3, [P('datamap-3e', 'working', 'yellow', 'headphones'), P('datamap-41', 'thinking', 'blue', 'hardhat')]], ['auth', 2, 2, 17], ['jobs', 2, 3, 11],
+      ['api-client', 3, 0, 13], ['db', 3, 1, 29, 1, [P('datamap-44', 'waiting', 'pink', 'bow')]], ['cache', 3, 2, 8], ['queue', 3, 3, 10],
+      ['config', 4, 0, 6], ['types', 4, 1, 41], ['logging', 4, 2, 7], ['testkit', 4, 3, 16]],
+    edges: [['web', 'maps'], ['web', 'search'], ['web', 'accounts'], ['admin', 'accounts'], ['admin', 'exports'], ['cli', 'exports'], ['worker', 'exports'],
+      ['maps', 'geo'], ['maps', 'datasets'], ['search', 'datasets'], ['accounts', 'auth'], ['exports', 'datasets'], ['exports', 'jobs'],
+      ['geo', 'db'], ['datasets', 'db'], ['datasets', 'cache'], ['auth', 'db'], ['auth', 'api-client'], ['jobs', 'queue'],
+      ['api-client', 'config'], ['api-client', 'types'], ['db', 'config'], ['db', 'types'], ['cache', 'logging'], ['queue', 'logging'], ['queue', 'types']] }
+};
+const map = document.getElementById('map'), panel = document.getElementById('panel');
+let repo = 'small', hover = null, pinned = null;
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; };
+
+function draw() {
+  const R = REPOS[repo], at = {};
+  map.replaceChildren();
+  map.style.width = 20 + (R.cols - 1) * R.pitch + 120 + (repo === 'small' ? 240 : 20) + 'px';
+  map.style.height = 14 + (R.rows - 1) * 128 + 114 + 'px';
+  document.getElementById('sub').textContent = `${R.name} · ${R.nodes.length} areas · ${R.edges.length} links`;
+  R.nodes.forEach(([id, c, r, n, edit = 0, peeps = []]) => {
+    const x = 20 + c * R.pitch, y = 14 + r * 128;
+    const node = el('button', 'gnode' + (peeps.some((p) => p.state === 'waiting') ? ' att' : ''));
+    node.style.cssText = `left:${x}px;top:${y}px`;
+    node.setAttribute('aria-label', `${id}, ${n} files`);
+    const stand = el('div', 'gstand');
+    peeps.forEach((p) => { const b = document.createElement('peep-bot'); b.setAttribute('state', p.state); b.setAttribute('color', p.color); b.setAttribute('accessory', p.acc); b.setAttribute('size', '48'); stand.append(b); });
+    const blocks = Array.from({ length: Math.min(16, Math.ceil(n / 3)) }, (_, i) => `<i${i < edit ? ' class="on"' : ''}></i>`).join('');
+    node.append(stand, el('span', 'plank'), el('div', 'gcard', `<div class="gn">${id}<span>${n}</span></div><div class="gfiles">${blocks}</div>`));
+    node.onmouseenter = node.onfocus = () => { hover = id; mark(); };
+    node.onmouseleave = node.onblur = () => { hover = null; mark(); };
+    node.onclick = () => { pinned = pinned === id ? null : id; mark(); };
+    map.append(node);
+    at[id] = { id, x, y, r, n, edit, peeps, node, segs: [] };
+  });
+  R.edges.forEach(([a, b]) => {
+    const A = at[a], B = at[b], x1 = A.x + 120, y1 = A.y + 73, y2 = B.y + 73, mx = x1 + 10 + A.r * 12;
+    [[x1, y1, mx - x1 + 2, 2], [mx, Math.min(y1, y2), 2, Math.abs(y2 - y1) + 2], [mx, y2, B.x - mx, 2], [B.x - 6, y2 - 2, 6, 6]].forEach(([x, y, w, h]) => {
+      const s = el('span', 'gedge'); s.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`; s.dataset.a = a; s.dataset.b = b; map.append(s);
+    });
+  });
+  draw.at = at; mark();
+}
+
+function mark() {
+  const R = REPOS[repo], at = draw.at, focus = hover || pinned;
+  const needs = (id) => R.edges.filter((e) => e[0] === id).map((e) => e[1]), usedBy = (id) => R.edges.filter((e) => e[1] === id).map((e) => e[0]);
+  const near = focus ? new Set([focus, ...needs(focus), ...usedBy(focus)]) : null;
+  Object.values(at).forEach((n) => { n.node.classList.toggle('dim', !!near && !near.has(n.id)); n.node.classList.toggle('hot', n.id === focus); n.node.classList.toggle('sel', n.id === pinned); });
+  map.querySelectorAll('.gedge').forEach((s) => { const on = s.dataset.a === focus || s.dataset.b === focus; s.classList.toggle('hot', on); s.classList.toggle('dim', !!focus && !on); });
+  map.querySelector('.gtip')?.remove();
+  if (hover && hover !== pinned) {
+    const n = at[hover], tip = el('div', 'gtip', `<b>${n.id}</b><br>${n.n} files · ${n.edit} being edited<br><span>needs</span> ${needs(hover).join(', ') || 'nothing'} · <span>used by</span> ${usedBy(hover).join(', ') || 'nothing'}`);
+    tip.style.cssText = `left:${n.x + 128}px;top:${n.y}px`; map.append(tip);
+  }
+  panel.hidden = !pinned;
+  if (!pinned) return;
+  const n = at[pinned], links = (ids) => ids.map((id) => `<button data-go="${id}">${id}</button>`).join('') || '<span class="m">nothing</span>';
+  panel.innerHTML = `<div><h3>${n.id}</h3><div class="m">${n.n} files · ${n.edit} being edited</div></div>
+    <div><div class="k">Needs</div><div class="links">${links(needs(pinned))}</div></div>
+    <div><div class="k">Used by</div><div class="links">${links(usedBy(pinned))}</div></div>
+    <div class="k">Peeps here</div>` + (n.peeps.map((p) => `<div class="sess"><peep-bot state="${p.state}" color="${p.color}" accessory="${p.acc}" size="48"></peep-bot><span>${p.name}<br><span class="m">${p.state}</span></span></div>`).join('') || '<span class="m">No one is editing here.</span>');
+  panel.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => { pinned = b.dataset.go; mark(); }; });
+}
+
+document.getElementById('repo').onclick = (e) => { repo = repo === 'small' ? 'big' : 'small'; e.target.textContent = repo === 'small' ? 'Big repo' : 'Small repo'; hover = pinned = null; draw(); };
+document.getElementById('theme').onclick = (e) => { const light = document.documentElement.dataset.theme !== 'light'; document.documentElement.dataset.theme = light ? 'light' : ''; e.target.textContent = light ? 'Dark' : 'Light'; };
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { pinned = null; mark(); } });
+draw();
+</script>
+</body>
+</html>

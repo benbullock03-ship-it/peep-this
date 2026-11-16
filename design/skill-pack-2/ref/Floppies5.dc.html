@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Five new floppies</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1700px; background: #141218;">
+<div class="board-h">
+<h1>07 · Five new floppies</h1>
+<p>Sneak Peep, Scrubadubdub, Big Peep, Tweet Tweet and Duck Duck Goose, on the same 16 px body as the nine. Every hue was taken, so the new five sit apart by lightness as well: the closest pair among all fourteen is still Pack Up and Coderot, in both themes.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · the nine, then the five · 32 px</p>
+<div style="display: flex; gap: 6px; align-items: center;">
+<span class="fl fl32 fl-ducks" role="img" aria-label="Ducks"></span>
+<span class="fl fl32 fl-qt" role="img" aria-label="Question Time"></span>
+<span class="fl fl32 fl-ticket" role="img" aria-label="Ticket"></span>
+<span class="fl fl32 fl-shoot" role="img" aria-label="Shoot"></span>
+<span class="fl fl32 fl-packup" role="img" aria-label="Pack Up"></span>
+<span class="fl fl32 fl-coderot" role="img" aria-label="Coderot"></span>
+<span class="fl fl32 fl-unpack" role="img" aria-label="Unpack"></span>
+<span class="fl fl32 fl-walk" role="img" aria-label="Walk Through"></span>
+<span class="fl fl32 fl-reel" role="img" aria-label="The Reel"></span>
+</div>
+<div style="display: flex; gap: 6px; align-items: center;">
+<span class="fl fl32 fl-sneak" role="img" aria-label="Sneak Peep"></span>
+<span class="fl fl32 fl-scrub" role="img" aria-label="Scrubadubdub"></span>
+<span class="fl fl32 fl-bigpeep" role="img" aria-label="Big Peep"></span>
+<span class="fl fl32 fl-tweet" role="img" aria-label="Tweet Tweet"></span>
+<span class="fl fl32 fl-goose" role="img" aria-label="Duck Duck Goose"></span>
+</div>
+
+<p class="cap">Five resting states</p>
+<div style="display: grid; grid-template-columns: 140px repeat(5, 52px); gap: 6px 4px; align-items: center; font-size: 11px;">
+<span></span><span class="k">tray</span><span class="k">hover</span><span class="k">focus</span><span class="k">plank</span><span class="k">off</span>
+<sc-for list="{{fl}}" as="f" hint-placeholder-count="5">
+<span class="swatch"><i style="background: var({{f.var}});"></i><span><b>{{f.name}}</b><br><span style="color: var(--ps-muted);">{{f.hex}}</span></span></span>
+<span class="fbox"><span class="fl fl32 {{f.cls}}"></span></span>
+<span class="fbox hov"><span class="fl fl32 {{f.cls}}"></span></span>
+<span class="fbox foc"><span class="fl fl32 {{f.cls}}"></span></span>
+<span class="seat"><span class="fl fl32 {{f.cls}}"></span><span class="plank"></span></span>
+<span class="fbox"><span class="fl fl32 off {{f.cls}}"></span></span>
+</sc-for>
+</div>
+
+<p class="cap">Sizes · 16 / 32 / 48 / 96</p>
+<div style="display: flex; gap: 14px; align-items: flex-end;">
+<span class="fl fl-tweet"></span><span class="fl fl32 fl-tweet"></span><span class="fl fl48 fl-tweet"></span><span class="fl fl96 fl-tweet"></span><span class="fl fl96 fl-goose"></span>
+</div>
+
+<p class="cap">Hover cards</p>
+<sc-for list="{{fl}}" as="f" hint-placeholder-count="5">
+<div class="card">
+<span class="fl fl48 {{f.cls}}"></span>
+<div>
+<h3>{{f.name}}</h3>
+<div class="cmd">{{f.cmd}} · {{f.glyph}}</div>
+<p>{{f.what}}</p>
+<p class="when">{{f.when}}</p>
+</div>
+</div>
+</sc-for>
+
+<p class="cap">The sheet · 18 columns · 0 to 9 unchanged</p>
+<span class="sheet" role="img" aria-label="Floppy sheet, normal and disabled rows"></span>
+<p class="note">Columns: the six, blank, three templates, Unpack, Walk Through, The Reel, then the five.</p>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const fl = [
+      { name: 'Sneak Peep', cls: 'fl-sneak', var: '--fl-sneak', hex: '#E060EC / #A82EB5', cmd: '/peep:sneak', glyph: 'an eye',
+        what: 'Mocks up two or three versions of a screen on a local server, side by side, before anything is built. You pick one.',
+        when: 'Use when you can only say what it should look like once you see it.' },
+      { name: 'Scrubadubdub', cls: 'fl-scrub', var: '--fl-scrub', hex: '#BFE6F7 / #7CC2E8', cmd: '/peep:scrub', glyph: 'suds',
+        what: 'Finds the AI-made tells in a UI, plus messy spacing and text, says where each one comes from, and fixes only the ones you approve.',
+        when: 'Use when a screen works but looks generated.' },
+      { name: 'Big Peep', cls: 'fl-bigpeep', var: '--fl-bigpeep', hex: '#5560D8 / #2A2E8C', cmd: '/peep:bigpeep', glyph: 'one big, four little',
+        what: 'Runs a batch of tickets, one little peep per ticket, and checks on any that go quiet.',
+        when: 'Use when several tickets are ready and none needs you in between.' },
+      { name: 'Tweet Tweet', cls: 'fl-tweet', var: '--fl-tweet', hex: '#DC4667 / #AE2348', cmd: '/peep:tweet', glyph: 'a beak and its call',
+        what: 'Tells the other sessions on this repo that this one is stuck, or is about to touch their files.',
+        when: 'Use when another session may know the answer, or before changing a file one of them is in.' },
+      { name: 'Duck Duck Goose', cls: 'fl-goose', var: '--fl-goose', hex: '#A47552 / #6F4728', cmd: '/peep:goose', glyph: 'a V of linked nodes',
+        what: 'Maps what depends on what across the codebase and draws it as a graph.',
+        when: 'Use when you need to know what a change will touch.' }
+    ];
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }], fl };
+  }
+}
+</script>
+</body>
+</html>

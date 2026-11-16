@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tweet emote</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp3.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 980px; height: 1080px; background: #141218;">
+<div class="board-h">
+<h1>08 · Tweet emote</h1>
+<p>Row 7 of the emote sheet: a beak that opens and shuts with its call going out sideways. Same 8 px cell, 4 frames, 8 fps stepped. It is a mood, so it never changes the state and an attention state takes the bubble first.</p>
+</div>
+<div class="themes" style="flex: 1;">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<p class="cap">{{t.label}} · frames 0 to 3 at 48 px, then live at 16</p>
+<div class="frames">
+<span class="frame"><span><span class="em em48" style="--r: 7; --f: 0;"></span></span>0</span>
+<span class="frame hold"><span><span class="em em48" style="--r: 7; --f: 1;"></span></span>1 · hold</span>
+<span class="frame"><span><span class="em em48" style="--r: 7; --f: 2;"></span></span>2</span>
+<span class="frame"><span><span class="em em48" style="--r: 7; --f: 3;"></span></span>3</span>
+<span class="frame"><span><span class="em loop" style="--r: 7;" role="img" aria-label="Tweet emote playing"></span></span>8 fps</span>
+</div>
+<p class="note">Plays twice, then holds frame 1. Reduced motion shows frame 1 only.</p>
+
+<p class="cap">In the bubble</p>
+<div class="win">
+<div class="list">
+<div class="row st-working">
+<div class="pcol"><peep-bot state="working" color="yellow" accessory="headphones" size="48"></peep-bot><span class="plank" style="width: 48px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">peep-this-7a</span><span class="chip">working</span></div>
+<div class="bub"><span class="t"><span class="id">AV-94:</span> tweet emote <span class="vb">· tweeting</span></span><span class="em em-tweet" role="img" aria-label="Tweet posted"></span></div>
+</div>
+</div>
+<div class="why">Posted a tweet. State stays working.</div>
+<div class="row st-thinking">
+<div class="pcol"><peep-bot state="thinking" color="lavender" accessory="glasses" size="48"></peep-bot><span class="plank" style="width: 48px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">peep-this-7b</span><span class="chip">thinking</span></div>
+<div class="bub"><span class="t"><span class="id">AV-97:</span> hold to end session <span class="vb">· ticketing</span></span><span class="em em-tweet" role="img" aria-label="Tweet received"></span></div>
+</div>
+</div>
+<div class="why">Received one. Same emote, bubble line unchanged.</div>
+<div class="row st-waiting">
+<div class="pcol"><peep-bot state="waiting" color="pink" accessory="bow" size="48"></peep-bot><span class="plank" style="width: 48px;"></span></div>
+<div class="body">
+<div class="meta"><span class="name">peep-this-7c</span><span class="chip">waiting</span></div>
+<div class="bub att"><span class="idtab">AV-98</span><span class="t">Allow edit to styles.css?</span><span class="em mono em-startled" aria-hidden="true"></span></div>
+</div>
+</div>
+<div class="why">Has a tweet too, but waiting takes the bubble. The tweet shows again once it clears.</div>
+</div>
+</div>
+
+<p class="cap">Tweet next to clash</p>
+<div class="vs">
+<div>
+<span class="frame"><span><span class="em em48 em-startled"></span></span></span>
+<b>Clash · startled</b>
+<ul><li>upright, centred</li><li>bounces, sparks both sides</li><li>tint --em-startled</li></ul>
+</div>
+<div>
+<span class="frame"><span><span class="em em48 em-tweet"></span></span></span>
+<b>Tweet</b>
+<ul><li>sideways, anchored left</li><li>opens and shuts, call goes right</li><li>tint --em-tweet</li></ul>
+</div>
+</div>
+<p class="note">When one peep has both, clash wins the slot. Tweet outranks sweat, yawn and zzz.</p>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":980,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 'th th-dark', label: 'Dark' }, { cls: 'th th-light', label: 'Light' }] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graph page</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./pp3.css">
+<script src="./peep.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="board" style="width: 1240px; height: 2330px; background: #141218;">
+<div class="board-h">
+<h1>09 · Graph page</h1>
+<p>What Duck Duck Goose draws. Each area is a shelf plank over a card: name, file count, and a strip of file blocks, lit where a session is editing. Dependency lines are 2 px, square-cornered, and end in a block at the area depended on. Live 48 px peeps stand on the areas their sessions are in.</p>
+</div>
+<div class="themes" style="flex: 1; grid-template-columns: minmax(0, 1fr);">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="{{t.cls}}">
+<sc-for list="{{t.graphs}}" as="g" hint-placeholder-count="2">
+<p class="cap">{{t.label}} · {{g.cap}}</p>
+<div class="gwin" style="width: {{g.w}}px;">
+<div class="head"><span class="title">Peep This · graph</span><span class="sub">{{g.repo}} · {{g.count}}</span><button class="ibtn" aria-label="Close graph">×</button></div>
+<div class="gbody">
+<div class="gmap" style="height: {{g.h}}px;">
+<sc-for list="{{g.edges}}" as="e" hint-placeholder-count="12">
+<span class="{{e.cls}}" style="left: {{e.x}}px; top: {{e.y}}px; width: {{e.w}}px; height: {{e.h}}px;"></span>
+</sc-for>
+<sc-for list="{{g.nodes}}" as="n" hint-placeholder-count="5">
+<div class="{{n.cls}}" style="left: {{n.x}}px; top: {{n.y}}px;">
+<div class="gstand">
+<sc-for list="{{n.peeps}}" as="p" hint-placeholder-count="1">
+<peep-bot state="{{p.state}}" color="{{p.color}}" accessory="{{p.acc}}" size="48"></peep-bot>
+</sc-for>
+</div>
+<span class="plank"></span>
+<div class="gcard">
+<div class="gn">{{n.id}}<span>{{n.files}}</span></div>
+<div class="gfiles"><sc-for list="{{n.blocks}}" as="b" hint-placeholder-count="8"><i class="{{b.cls}}"></i></sc-for></div>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{g.tip}}" hint-placeholder-val="{{ true }}">
+<div class="gtip" style="left: 352px; top: 14px;"><b>core</b> <span>src-tauri/src/</span><br>21 files · 2 being edited<br><span>needs</span> source · <span>used by</span> ui, plugin</div>
+</sc-if>
+</div>
+<sc-if value="{{g.panel}}" hint-placeholder-val="{{ true }}">
+<div class="gpanel">
+<div><h3>datasets</h3><div class="path">packages/datasets/ · 38 files · 3 being edited</div></div>
+<div><div class="k">Needs</div><div class="links" style="margin-top: 4px;"><a href="#db">db</a><a href="#cache">cache</a></div></div>
+<div><div class="k">Used by</div><div class="links" style="margin-top: 4px;"><a href="#maps">maps</a><a href="#search">search</a><a href="#exports">exports</a></div></div>
+<hr>
+<div class="k">Peeps here</div>
+<div class="sess st-working">
+<div class="pcol"><peep-bot state="working" color="yellow" accessory="headphones" size="48"></peep-bot><span class="plank" style="width: 48px;"></span></div>
+<div class="body"><div class="meta"><span class="name">datamap-3e</span><span class="chip">working</span></div><div class="bub"><span class="t"><span class="id">S-309:</span> ingest schema</span></div></div>
+</div>
+<div class="sess st-thinking">
+<div class="pcol"><peep-bot state="thinking" color="blue" accessory="hardhat" size="48"></peep-bot><span class="plank" style="width: 48px;"></span></div>
+<div class="body"><div class="meta"><span class="name">datamap-41</span><span class="chip">thinking</span></div><div class="bub"><span class="t"><span class="id">S-312:</span> dataset tags</span><span class="em em-tweet" role="img" aria-label="Tweet received"></span></div></div>
+</div>
+<hr>
+<div class="k">Open tweets · 1</div>
+<div class="tw"><span class="fl fl-tweet" aria-hidden="true"></span><span><b>datamap-3e</b> · S-309<br>Moving the schema in ingest.ts. Hold edits there for now.</span></div>
+</div>
+</sc-if>
+</div>
+<div class="gfoot">
+<span><i class="ln"></i>needs</span>
+<span><i class="ln hot"></i>of the hovered or selected area</span>
+<span><i class="sq"></i>3 files · the number is the area's file count</span>
+<span><i class="sq on"></i>being edited</span>
+<span style="margin-left: auto;">{{g.foot}}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1240,"height":2330}}'>
+class Component extends DCLogic {
+  build(spec) {
+    const W = 120, MID = 73, at = {};
+    spec.nodes.forEach((n) => { at[n.id] = n; n.x = spec.x0 + n.c * spec.pitch; n.y = 14 + n.r * 128; });
+    const hot = spec.focus, edges = [];
+    const near = new Set([hot]);
+    spec.edges.forEach(([a, b]) => { if (a === hot) near.add(b); if (b === hot) near.add(a); });
+    spec.edges.forEach(([a, b]) => {
+      const A = at[a], B = at[b], on = a === hot || b === hot;
+      const cls = 'gedge' + (on ? ' hot' : ' dim');
+      const x1 = A.x + W, y1 = A.y + MID, y2 = B.y + MID, mx = x1 + 10 + A.r * 12;
+      edges.push({ cls, x: x1, y: y1, w: mx - x1 + 2, h: 2 });
+      edges.push({ cls, x: mx, y: Math.min(y1, y2), w: 2, h: Math.abs(y2 - y1) + 2 });
+      edges.push({ cls, x: mx, y: y2, w: B.x - mx, h: 2 });
+      edges.push({ cls, x: B.x - 6, y: y2 - 2, w: 6, h: 6 });
+    });
+    const nodes = spec.nodes.map((n) => {
+      const peeps = n.peeps || [], att = peeps.find((p) => p.state === 'waiting');
+      const shown = Math.min(16, Math.ceil(n.n / 3));
+      return { ...n, peeps, files: String(n.n),
+        cls: 'gnode' + (n.id === hot ? ' ' + spec.mode : near.has(n.id) ? '' : ' dim') + (att ? ' att st-waiting' : ''),
+        blocks: Array.from({ length: shown }, (_, i) => ({ cls: i < (n.edit || 0) ? 'on' : '' })) };
+    });
+    return { ...spec, nodes, edges, tip: spec.mode === 'hov', panel: spec.mode === 'sel' };
+  }
+  renderVals() {
+    const P = (state, color, acc) => ({ state, color, acc });
+    const small = this.build({
+      cap: 'small repo · 5 areas · hovering core', repo: 'peep-this', count: '5 areas · 5 links · 2 peeps', foot: 'Hover an area for its links. Click to pin it.',
+      w: 660, h: 270, x0: 24, pitch: 200, focus: 'core', mode: 'hov',
+      nodes: [
+        { id: 'ui', c: 0, r: 0, n: 34, edit: 1, peeps: [P('thinking', 'lavender', 'glasses')] },
+        { id: 'plugin', c: 0, r: 1, n: 18 },
+        { id: 'core', c: 1, r: 0, n: 21, edit: 2, peeps: [P('working', 'yellow', 'headphones')] },
+        { id: 'design', c: 1, r: 1, n: 46 },
+        { id: 'source', c: 2, r: 1, n: 9 }
+      ],
+      edges: [['ui', 'core'], ['ui', 'design'], ['plugin', 'core'], ['plugin', 'design'], ['core', 'source']]
+    });
+    const big = this.build({
+      cap: 'big repo · 20 areas · datasets selected', repo: 'datamap', count: '20 areas · 26 links · 5 peeps', foot: 'Esc clears the selection.',
+      w: 1160, h: 530, x0: 20, pitch: 180, focus: 'datasets', mode: 'sel',
+      nodes: [
+        { id: 'web', c: 0, r: 0, n: 48, edit: 1, peeps: [P('idle', 'green', 'chef')] }, { id: 'admin', c: 0, r: 1, n: 27 }, { id: 'cli', c: 0, r: 2, n: 12 }, { id: 'worker', c: 0, r: 3, n: 15 },
+        { id: 'maps', c: 1, r: 0, n: 31, edit: 2, peeps: [P('thinking', 'lavender', 'glasses')] }, { id: 'search', c: 1, r: 1, n: 19 }, { id: 'accounts', c: 1, r: 2, n: 22 }, { id: 'exports', c: 1, r: 3, n: 14 },
+        { id: 'geo', c: 2, r: 0, n: 24 }, { id: 'datasets', c: 2, r: 1, n: 38, edit: 3, peeps: [P('working', 'yellow', 'headphones'), P('thinking', 'blue', 'hardhat')] }, { id: 'auth', c: 2, r: 2, n: 17 }, { id: 'jobs', c: 2, r: 3, n: 11 },
+        { id: 'api-client', c: 3, r: 0, n: 13 }, { id: 'db', c: 3, r: 1, n: 29, edit: 1, peeps: [P('waiting', 'pink', 'bow')] }, { id: 'cache', c: 3, r: 2, n: 8 }, { id: 'queue', c: 3, r: 3, n: 10 },
+        { id: 'config', c: 4, r: 0, n: 6 }, { id: 'types', c: 4, r: 1, n: 41 }, { id: 'logging', c: 4, r: 2, n: 7 }, { id: 'testkit', c: 4, r: 3, n: 16 }
+      ],
+      edges: [['web', 'maps'], ['web', 'search'], ['web', 'accounts'], ['admin', 'accounts'], ['admin', 'exports'], ['cli', 'exports'], ['worker', 'exports'],
+        ['maps', 'geo'], ['maps', 'datasets'], ['search', 'datasets'], ['accounts', 'auth'], ['exports', 'datasets'], ['exports', 'jobs'],
+        ['geo', 'db'], ['datasets', 'db'], ['datasets', 'cache'], ['auth', 'db'], ['auth', 'api-client'], ['jobs', 'queue'],
+        ['api-client', 'config'], ['api-client', 'types'], ['db', 'config'], ['db', 'types'], ['cache', 'logging'], ['queue', 'logging'], ['queue', 'types']]
+    });
+    const graphs = [small, big];
+    return { themes: [{ cls: 'th th-dark', label: 'Dark', graphs }, { cls: 'th th-light', label: 'Light', graphs }] };
+  }
+}
+</script>
+</body>
+</html>
