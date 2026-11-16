@@ -1,7 +1,7 @@
 ---
 id: AV-92
 title: Duck Duck Goose skill - dependency map and peep graph page
-status: done
+status: closed
 depends: [AV-74]
 ---
 
