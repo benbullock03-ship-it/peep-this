@@ -14,6 +14,7 @@
 - `/peep:goose` runs `skills/goose/scripts/map.mjs`: ts/js and Rust imports (or `--graphify graphify-out/graph.json`), files grouped by setup areas, live sessions placed by cwd, written to `.peep/graph/graph.json` (`edges` `[from, to]`) and a standalone `index.html` with `peep.js` inlined from `skills/goose/assets/`. Query instructions sit in `kb/INDEX.md`.
 - `/peep:bigpeep` is the global `/batch` rebuilt on the repo setup: little peeps follow `work.md` but never stage, commit or set status; Big Peep sets `doing`, reviews the diff, commits one per ticket. A little peep quiet 10 minutes gets one SendMessage status ask (`references/watch.md`), never a stop.
 - `/peep:tweet` posts to `.peep/tweets.md` (F§7), never staged or committed; a live ping via SendMessage is only a nudge to read the board. `/peep:ticket` reads the board before building (work.md 1.5) and folds answered tweets into area notes on close (close.md 4).
+- A blocked `/peep:ticket <id>` still parks it on the first direct dep not `closed`, then walks the depends tree depth-first (`ticket/references/work.md`) and names the next step in `owed`: `next: /peep:ticket <dep>` for the first open dep whose own depends are closed, or `/peep:ticket close <dep>` for a `done` one. `doing` deps are skipped; with none unblocked it names the nearest wake.
 - `/peep:packup` writes `.peep/handoff.md` (template in `skills/packup/references/note.md`) with `First command: /peep:unpack` when the next step is clear. `/peep:unpack` checks branch, commit, uncommitted files and named ticket statuses against it, reads back the drift, and on yes runs the first command.
 
 ## Watch out
@@ -35,4 +36,4 @@
 - Unpack makes carrying on a real step that catches what changed between sessions, not "do the handoff".
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-99, 2026-11-16
+last touched: AV-100, 2026-11-16

@@ -1,7 +1,7 @@
 ---
 id: AV-100
 title: Ticket skill offers the next unblocked dep
-status: done
+status: closed
 depends: []
 ---
 
