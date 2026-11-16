@@ -245,6 +245,8 @@ export function demoSnapshot(now: number): Snapshot {
       id: demoId(i),
       pid: 1000 + i,
       name: a.name,
+      title: [undefined, "Survey OCR papers", "Fix label colours", undefined, "Nightly sync retries", undefined][i],
+      branch: ["main", "research/ocr", "fix/label-colours-for-dark-theme", undefined, "main", undefined][i],
       cwd: i === 0 ? "C:/Users/demo/Projects/accounts-payable/pipelines/ingest-01" : `C:/demo/${a.name}`,
       kind: "interactive",
       entrypoint: i === 2 ? "claude-vscode" : "cli",

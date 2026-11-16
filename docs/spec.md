@@ -43,7 +43,7 @@ Follows the "In a monitor" mock in `design/peep-this.dc.html`, scaled to the wid
 | Column | Content |
 |---|---|
 | Peep | `<peep-bot>` at 32px, state from §4, colour and accessory from §3.5 |
-| Name | Session name from the session file (`name`), IBM Plex Mono, ellipsised |
+| Name | Session title, IBM Plex Mono, ellipsised: the session file's `name` when `nameSource` is `user` (`/rename`), else the transcript's last `custom-title`, else its last `ai-title`, else the session file's `name` (AV-112) |
 | Task | Per-state text (§4) — the last tool for `working`, else the state's canned line |
 | State | LED dot and label in the state's LED colour |
 | Context | Thin bar under the row, fill = used context %. Absent until a statusline payload arrives |
@@ -53,7 +53,7 @@ Sort: `waiting` first, then by most recent state change.
 
 ### 3.4 Session row (expanded)
 
-Click toggles. Adds a 64px peep plus: cwd, model, last tool with its target (file or command, truncated), time in current state, context `used / max` %, session kind and entrypoint. Only one row expanded at a time.
+Click toggles. Adds a 64px peep plus: cwd, model, last tool with its target (file or command, truncated), time in current state, context `used / max` %, session kind and entrypoint, git branch of the cwd (from `.git/HEAD`, short sha when detached, re-read on state change; AV-112). Only one row expanded at a time.
 
 ### 3.5 Identity
 
@@ -63,7 +63,7 @@ Stable FNV-1a hash of the normalised cwd (lower-cased, forward slashes, no trail
 
 When a session enters `waiting`:
 
-- Windows toast: title = session name, body = the notification message from the hook (e.g. "Claude needs your permission to use Bash"). Clicking it focuses the session's terminal.
+- Windows toast: title = `<session title> · <branch>` (branch dropped when not a repo), body = the notification message from the hook (e.g. "Claude needs your permission to use Bash"). Clicking it focuses the session's terminal.
 - The row pulses (subtle amber glow, about 1.5s period) until the state leaves `waiting`.
 - No toast if the widget's own window is focused and the row is visible, if the session's own terminal (the window `focus_session` would raise, §6.6) is the foreground window, or if the same session toasted within the last 30s. A suppressed toast does not start the 30s window; the row still pulses (AV-111).
 - The toast itself is silent. Settings "Play a sound on waiting or error" (off by default, `alertSound` in the widget's `settings.json`) plays the Windows Asterisk system sound on entering `waiting` or `error`, whether or not a toast shows; never for `success` or subagents (AV-111). Rate-limit toasts keep the default toast sound.

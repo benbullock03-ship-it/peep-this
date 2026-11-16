@@ -224,7 +224,8 @@ impl Store {
     pub fn apply(&self, id: &str, ev: Event, now: u64) {
         self.mutate(|inner| {
             let Some(s) = inner.sessions.get_mut(id) else { return false };
-            let next = state::apply(s.clone(), ev, now);
+            let mut next = state::apply(s.clone(), ev, now);
+            refresh_branch(Some(&*s), &mut next);
             let changed = next != *s;
             let alert = notify::entered_alert(Some(&*s), &next).then(|| next.clone());
             let before = std::mem::replace(s, next.clone());
@@ -250,7 +251,8 @@ impl Store {
                 None if matches!(ev, Event::Ended) => return false,
                 None => placeholder(id, cwd.unwrap_or(""), now),
             };
-            let next = state::apply(base, ev, now);
+            let mut next = state::apply(base, ev, now);
+            refresh_branch(before.as_ref(), &mut next);
             let changed = before.as_ref() != Some(&next);
             if notify::entered_alert(before.as_ref(), &next) {
                 inner.entered.push(next.clone());
@@ -382,12 +384,15 @@ impl Store {
             };
             s.pid = info.pid;
             s.name = info.name;
+            s.file_title = info.title;
+            s.refresh_title();
             s.cwd = info.cwd;
             s.kind = info.kind;
             s.entrypoint = info.entrypoint;
             if let Some(busy) = busy {
                 s = state::apply(s, Event::SessionFile { busy }, now);
             }
+            refresh_branch(before.as_ref(), &mut s);
             let changed = before.as_ref() != Some(&s);
             if notify::entered_alert(before.as_ref(), &s) {
                 inner.entered.push(s.clone());
@@ -420,6 +425,14 @@ fn refresh_moods(inner: &mut Inner, now: u64) -> bool {
     changed
 }
 
+/// Reads `.git/HEAD` only when the session is new, revived, moved or changed state.
+fn refresh_branch(before: Option<&Session>, next: &mut Session) {
+    let due = before.is_none_or(|b| !b.alive || b.state != next.state || b.cwd != next.cwd || b.pid != next.pid);
+    if due && next.alive {
+        next.branch = crate::git::branch(&next.cwd);
+    }
+}
+
 fn placeholder(id: &str, cwd: &str, now: u64) -> Session {
     let base = cwd.trim_end_matches(['/', '\\']).rsplit(['/', '\\']).next().unwrap_or("");
     let name = if base.is_empty() { id.chars().take(8).collect() } else { base.to_string() };
@@ -441,6 +454,7 @@ mod tests {
             id: id.into(),
             pid: 100,
             name: name.into(),
+            title: None,
             cwd: "C:/work/demo".into(),
             kind: "interactive".into(),
             entrypoint: "cli".into(),
@@ -508,6 +522,44 @@ mod tests {
         assert_eq!(s.state, State::Working);
         assert!(s.alive);
         assert_eq!(snap.integration, Integration::Missing);
+    }
+
+    #[test]
+    fn title_prefers_user_name_then_custom_then_ai_title() {
+        let (store, _) = recording_store();
+        let title = || store.snapshot().sessions[0].title.clone();
+        store.ingest(upsert("a", None), 1_000);
+        assert_eq!(title(), None);
+        store.apply("a", Event::TranscriptTitle { title: "AI guess".into(), user: false }, 2_000);
+        assert_eq!(title().as_deref(), Some("AI guess"));
+        store.apply("a", Event::TranscriptTitle { title: "Renamed".into(), user: true }, 3_000);
+        assert_eq!(title().as_deref(), Some("Renamed"));
+        let mut named = info("a", "From file");
+        named.title = Some("From file".into());
+        store.ingest(SourceEvent::Upsert { info: named, busy: None }, 4_000);
+        assert_eq!(title().as_deref(), Some("From file"));
+        store.ingest(upsert("a", None), 5_000);
+        assert_eq!(title().as_deref(), Some("Renamed"));
+    }
+
+    #[test]
+    fn branch_is_read_on_sight_and_refreshed_on_state_change() {
+        let repo = std::env::temp_dir().join(format!("peepthis-store-branch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&repo);
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        std::fs::write(repo.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+        let (store, _) = recording_store();
+        let mut i = info("a", "a");
+        i.cwd = repo.to_string_lossy().into_owned();
+        store.ingest(SourceEvent::Upsert { info: i, busy: None }, 1_000);
+        let branch = || store.snapshot().sessions[0].branch.clone();
+        assert_eq!(branch().as_deref(), Some("main"));
+        std::fs::write(repo.join(".git/HEAD"), "ref: refs/heads/feature\n").unwrap();
+        store.apply("a", Event::TranscriptModel { model: "Opus".into() }, 2_000);
+        assert_eq!(branch().as_deref(), Some("main"), "no state change, no read");
+        store.apply("a", Event::UserPromptSubmit, 3_000);
+        assert_eq!(branch().as_deref(), Some("feature"));
+        std::fs::remove_dir_all(repo).unwrap();
     }
 
     #[test]

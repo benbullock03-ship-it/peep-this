@@ -549,6 +549,7 @@ mod tests {
                     id: SID.into(),
                     pid: 100,
                     name: "demo".into(),
+                    title: None,
                     cwd: "C:\\work\\demo".into(),
                     kind: "interactive".into(),
                     entrypoint: "cli".into(),

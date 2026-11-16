@@ -68,7 +68,7 @@ export function toRowView(
       : bubbleFor(s, sayFor({ ...s, state }, now), attention, emote === "sweat" ? limit : null);
   return {
     id: s.id,
-    name: s.name || s.id.slice(0, 8),
+    name: s.title || s.name || s.id.slice(0, 8),
     say: bubbleLine(bubble),
     bubble,
     floppy: s.alive && s.skill ? (FLOPPIES[s.skill]?.col ?? BLANK_COL) : null,

@@ -50,6 +50,12 @@ pub struct Session {
     pub id: String,
     pub pid: u32,
     pub name: String,
+    /// User-set name, else the ai-title; shown over `name`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Branch of `cwd`'s repo (short sha when detached); the store refreshes it on state change.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
     pub cwd: String,
     pub kind: String,
     pub entrypoint: String,
@@ -101,6 +107,13 @@ pub struct Session {
     pub waiting_on_agent: Option<(String, State, String)>,
     #[serde(skip)]
     pub born_at: u64,
+    /// Title sources, highest precedence first: session file (user-named), transcript `custom-title`, `ai-title`.
+    #[serde(skip)]
+    pub file_title: Option<String>,
+    #[serde(skip)]
+    pub custom_title: Option<String>,
+    #[serde(skip)]
+    pub ai_title: Option<String>,
     /// Last failed run of the repo setup's test command; cleared when one passes.
     #[serde(skip)]
     pub worried_at: Option<u64>,
@@ -231,6 +244,8 @@ pub enum Event {
     TranscriptToolResult,
     TranscriptApiError { summary: String },
     TranscriptModel { model: String },
+    /// `user`: a `/rename` title; otherwise the ai-title.
+    TranscriptTitle { title: String, user: bool },
     Statusline { model: Option<String>, context_pct: Option<f64> },
     /// A hook event that also carries a background shell update; `event` is applied as usual afterwards.
     Shell { update: ShellEvent, event: Box<Event> },
@@ -264,6 +279,8 @@ impl Session {
             id: id.into(),
             pid,
             name: name.into(),
+            title: None,
+            branch: None,
             cwd: cwd.into(),
             kind: kind.into(),
             entrypoint: entrypoint.into(),
@@ -290,9 +307,16 @@ impl Session {
             pending_agents: Vec::new(),
             waiting_on_agent: None,
             born_at: now,
+            file_title: None,
+            custom_title: None,
+            ai_title: None,
             worried_at: None,
             edits: Vec::new(),
         }
+    }
+
+    pub fn refresh_title(&mut self) {
+        self.title = self.file_title.clone().or_else(|| self.custom_title.clone()).or_else(|| self.ai_title.clone());
     }
 
     /// The agent with this id, created if unknown; a new one takes the oldest pending `Agent` description.
@@ -708,6 +732,15 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
             }
             return s;
         }
+        Event::TranscriptTitle { title, user } => {
+            if user {
+                s.custom_title = Some(title);
+            } else {
+                s.ai_title = Some(title);
+            }
+            s.refresh_title();
+            return s;
+        }
         Event::ShellProbe { id, obs } => {
             s.probe_shell(&id, obs, now);
             return s;
@@ -894,6 +927,7 @@ pub fn apply(mut s: Session, event: Event, now: u64) -> Session {
         Event::SessionFile { .. }
         | Event::Statusline { .. }
         | Event::TranscriptModel { .. }
+        | Event::TranscriptTitle { .. }
         | Event::Shell { .. }
         | Event::Skill { .. }
         | Event::TestRun { .. }

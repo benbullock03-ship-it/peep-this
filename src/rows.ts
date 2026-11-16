@@ -50,6 +50,7 @@ type Facts = {
   since: HTMLElement;
   model: HTMLElement;
   kind: HTMLElement;
+  branch: HTMLElement;
   tool: HTMLElement;
   ctx: Bar;
   ctxValue: HTMLElement;
@@ -129,6 +130,7 @@ function createFacts(jump: Jump, withEnd: boolean): Facts {
   const since = el("span", "ps-tag is-st", tags);
   const model = el("span", "ps-tag", tags);
   const kind = el("span", "ps-tag", tags);
+  const branch = el("span", "ps-tag is-branch", tags);
   const toolRow = el("div", "ps-fact", box);
   el("span", "ps-k", toolRow).textContent = "Last tool";
   const tool = el("span", "ps-v ps-v--clamp", toolRow);
@@ -146,7 +148,7 @@ function createFacts(jump: Jump, withEnd: boolean): Facts {
     end.textContent = END_LABEL;
     end.title = "Hold for 1 second to end this session's process";
   }
-  return { el: box, since, model, kind, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, locks: tray.lock, end };
+  return { el: box, since, model, kind, branch, tool, ctx, ctxValue, cwd, trail, trailKey: "-", clearHint: tray.clear, shelf: shelf.render, arc: arc.render, locks: tray.lock, end };
 }
 
 function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, withEnd = false): Row {
@@ -314,6 +316,9 @@ function fillFacts(r: Row, now: number) {
   x.model.hidden = !f.model;
   setText(x.kind, f.kind);
   x.kind.hidden = !f.kind;
+  setText(x.branch, f.branch);
+  x.branch.hidden = !f.branch;
+  x.branch.title = f.branch ? `Git branch ${f.branch}` : "";
   setText(x.tool, f.tool);
   x.tool.title = f.tool === "—" ? "" : f.tool;
   x.ctx.set(f.ctx ?? 0);

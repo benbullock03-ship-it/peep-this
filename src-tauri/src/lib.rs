@@ -4,6 +4,7 @@ mod closed;
 mod cover;
 mod flyout;
 mod focus;
+mod git;
 mod hotkey;
 mod ingest;
 mod install;

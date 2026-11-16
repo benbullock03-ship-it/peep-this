@@ -41,6 +41,11 @@ describe("toRowView", () => {
     expect(v.name).toBe("abc12345");
     expect(v).toMatchObject({ state: "idle", label: "Idle" });
   });
+
+  it("shows the session title over the name", () => {
+    expect(toRowView({ ...base, title: "Fix the login flow" }).name).toBe("Fix the login flow");
+    expect(toRowView({ ...base, title: "" }).name).toBe("agentview");
+  });
 });
 
 describe("demo", () => {

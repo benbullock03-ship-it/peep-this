@@ -10,6 +10,10 @@ export type Session = {
   id: string;
   pid: number;
   name: string;
+  /** User-set name, else the ai-title; the row shows it over `name`. */
+  title?: string;
+  /** Git branch of `cwd`, or a short sha when detached. */
+  branch?: string;
   cwd: string;
   kind: string;
   entrypoint: string;

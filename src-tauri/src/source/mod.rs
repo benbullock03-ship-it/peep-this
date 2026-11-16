@@ -7,6 +7,8 @@ pub struct SessionInfo {
     pub id: String,
     pub pid: u32,
     pub name: String,
+    /// Set when the user named the session; shown over `name`.
+    pub title: Option<String>,
     pub cwd: String,
     pub kind: String,
     pub entrypoint: String,

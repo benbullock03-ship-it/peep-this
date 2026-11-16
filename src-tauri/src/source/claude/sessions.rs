@@ -25,6 +25,8 @@ struct Raw {
     kind: Option<String>,
     entrypoint: Option<String>,
     name: Option<String>,
+    /// `user` after `/rename`; `derived` for the generated name.
+    name_source: Option<String>,
     status: Option<String>,
 }
 
@@ -44,10 +46,9 @@ pub fn parse(bytes: &[u8], stem: &str) -> Result<Record, String> {
         .ok_or("missing sessionId")?;
     let pid = raw.pid.or_else(|| stem.parse().ok()).ok_or("missing pid")?;
     let cwd = raw.cwd.unwrap_or_default();
-    let name = raw
-        .name
-        .filter(|n| !n.trim().is_empty())
-        .unwrap_or_else(|| fallback_name(&cwd));
+    let name = raw.name.filter(|n| !n.trim().is_empty());
+    let title = name.clone().filter(|_| raw.name_source.as_deref() == Some("user"));
+    let name = name.unwrap_or_else(|| fallback_name(&cwd));
     let busy = match raw.status.as_deref() {
         Some("busy") => Some(true),
         Some("idle") => Some(false),
@@ -63,6 +64,7 @@ pub fn parse(bytes: &[u8], stem: &str) -> Result<Record, String> {
             id,
             pid,
             name,
+            title,
             cwd,
             kind: raw.kind.unwrap_or_default(),
             entrypoint: raw.entrypoint.unwrap_or_default(),
@@ -276,6 +278,13 @@ mod tests {
         assert_eq!(rec.info.entrypoint, "cli");
         assert_eq!(rec.busy, Some(true));
         assert_eq!(rec.proc_start, Some(BUSY_START));
+    }
+
+    #[test]
+    fn user_named_session_carries_a_title_and_derived_does_not() {
+        let rec = parse(&fixture("renamed.json"), "x").unwrap();
+        assert_eq!((rec.info.name.as_str(), rec.info.title.as_deref()), ("Fix the login flow", Some("Fix the login flow")));
+        assert_eq!(parse(&fixture("busy.json"), "x").unwrap().info.title, None);
     }
 
     #[test]

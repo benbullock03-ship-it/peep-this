@@ -1240,6 +1240,14 @@ body[data-fold] > .ps-strip {
   font-weight: 500;
 }
 
+.ps-tag.is-branch {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
 .ps-fact {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr) auto;

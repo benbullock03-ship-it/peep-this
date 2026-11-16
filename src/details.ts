@@ -13,11 +13,12 @@ export function formatDuration(ms: number): string {
   return `${s}s`;
 }
 
-/** The open row's facts: tags (time in state, model, kind), last tool, context and cwd. */
+/** The open row's facts: tags (time in state, model, kind, branch), last tool, context and cwd. */
 export type OpenFacts = {
   since: string;
   model: string;
   kind: string;
+  branch: string;
   /** Full text; CSS clamps it to two lines with an end ellipsis. */
   tool: string;
   ctx: number | null;
@@ -32,6 +33,7 @@ export function openFacts(s: Session, now: number): OpenFacts {
     since: `${STATE_LABEL[s.state] ?? s.state} for ${formatDuration(now - s.stateSince)}`,
     model: s.model ?? "",
     kind: [s.kind, s.entrypoint].filter(Boolean).join(" · "),
+    branch: s.branch ?? "",
     tool: tool || DASH,
     ctx: contextFill(s.contextPct),
     cwd: s.cwd,

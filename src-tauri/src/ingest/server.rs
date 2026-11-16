@@ -981,7 +981,7 @@ mod tests {
         });
 
         let store = quiet_store();
-        let info = SessionInfo { id: SID.into(), pid: 100, name: "demo".into(), cwd: "C:\\work\\demo".into(), kind: "interactive".into(), entrypoint: "cli".into() };
+        let info = SessionInfo { id: SID.into(), pid: 100, name: "demo".into(), title: None, cwd: "C:\\work\\demo".into(), kind: "interactive".into(), entrypoint: "cli".into() };
         store.ingest(SourceEvent::Upsert { info, busy: None }, 1_000);
         let mut at_curl = None;
         for (i, line) in lines.iter().enumerate() {
@@ -1140,7 +1140,7 @@ mod tests {
         let perm = format!(r#"{{"session_id":"{SID}","tool_name":"Bash","tool_input":{{"command":"ls"}}}}"#);
         let out = handle_full(&store, TOKEN, &req("/hook/PermissionRequest", ok), perm.as_bytes(), 1_000);
         assert!(matches!(out, Outcome::Status(204)));
-        let info = SessionInfo { id: SID.into(), pid: 7, name: "summary".into(), cwd: "C:/p".into(), kind: "interactive".into(), entrypoint: "sdk-cli".into() };
+        let info = SessionInfo { id: SID.into(), pid: 7, name: "summary".into(), title: None, cwd: "C:/p".into(), kind: "interactive".into(), entrypoint: "sdk-cli".into() };
         store.ingest(SourceEvent::Upsert { info, busy: Some(true) }, 1_000);
         assert!(store.snapshot().sessions.is_empty());
     }

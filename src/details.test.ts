@@ -31,6 +31,7 @@ describe("openFacts", () => {
       since: "Working for 5s",
       model: "",
       kind: "interactive · cli",
+      branch: "",
       tool: "—",
       ctx: null,
       cwd: "F:\\Projects\\agentview widget",
@@ -42,5 +43,6 @@ describe("openFacts", () => {
     expect(f.tool).toBe(`Bash ${target}`);
     expect(f.ctx).toBe(100);
     expect(f.since).toBe("Needs you for 0s");
+    expect(openFacts({ ...base, branch: "feature/login" }, 1_000).branch).toBe("feature/login");
   });
 });

@@ -50,6 +50,8 @@ pub enum Item {
     ToolUse { id: String, name: String, target: Option<String> },
     ToolResult { id: String },
     ApiError { summary: String },
+    /// `custom-title` (`/rename`, `user`) or `ai-title` line.
+    Title { title: String, user: bool },
 }
 
 /// Parses one transcript line. Sidechain (subagent) lines and unrelated line types yield nothing.
@@ -84,6 +86,13 @@ pub fn parse_line(line: &str, cwd: &str) -> Result<Vec<Item>, String> {
         Some("user") => {
             for b in blocks.iter().filter(|b| block_type(b) == "tool_result") {
                 items.push(Item::ToolResult { id: str_of(b, "tool_use_id") });
+            }
+        }
+        Some(kind @ ("custom-title" | "ai-title")) => {
+            let user = kind == "custom-title";
+            let title = str_of(&v, if user { "customTitle" } else { "aiTitle" });
+            if !title.trim().is_empty() {
+                items.push(Item::Title { title: title.trim().to_string(), user });
             }
         }
         _ => {}
@@ -258,16 +267,23 @@ pub fn translate(items: Vec<Item>, first: bool, last_model: &mut Option<String>)
     if first {
         let mut pending: Vec<(String, String, Option<String>)> = Vec::new();
         let mut model = None;
+        let mut titles: [Option<String>; 2] = [None, None];
         for item in items {
             match item {
                 Item::Model(m) => model = Some(m),
                 Item::ToolUse { id, name, target } => pending.push((id, name, target)),
                 Item::ToolResult { id } => pending.retain(|(p, _, _)| *p != id),
                 Item::ApiError { .. } => pending.clear(),
+                Item::Title { title, user } => titles[user as usize] = Some(title),
             }
         }
         if let Some(m) = model {
             model_event(m, &mut out);
+        }
+        for (user, title) in titles.into_iter().enumerate() {
+            if let Some(title) = title {
+                out.push(Event::TranscriptTitle { title, user: user == 1 });
+            }
         }
         if let Some((_, tool, target)) = pending.pop() {
             out.push(Event::TranscriptToolUse { tool, target });
@@ -280,6 +296,7 @@ pub fn translate(items: Vec<Item>, first: bool, last_model: &mut Option<String>)
             Item::ToolUse { name, target, .. } => out.push(Event::TranscriptToolUse { tool: name, target }),
             Item::ToolResult { .. } => out.push(Event::TranscriptToolResult),
             Item::ApiError { summary } => out.push(Event::TranscriptApiError { summary }),
+            Item::Title { title, user } => out.push(Event::TranscriptTitle { title, user }),
         }
     }
     out
@@ -601,6 +618,21 @@ mod tests {
         assert_eq!(translate(items, true, &mut model), vec![], "finished tools and a known model emit nothing");
         let (items, _) = parse_all(&fixture("api_error.jsonl"));
         assert_eq!(translate(items, true, &mut None), vec![], "old API errors are not replayed");
+    }
+
+    #[test]
+    fn transcript_titles_parse_and_first_scan_keeps_the_last_of_each() {
+        let (items, bad) = parse_all(&fixture("titles.jsonl"));
+        assert_eq!(bad, 0);
+        assert_eq!(items.len(), 3, "agent-name and blank titles are ignored");
+        assert_eq!(
+            translate(items.clone(), true, &mut None),
+            vec![
+                Event::TranscriptTitle { title: "Login flow refactor".into(), user: false },
+                Event::TranscriptTitle { title: "Fix the login flow".into(), user: true },
+            ]
+        );
+        assert_eq!(translate(items, false, &mut None).len(), 3);
     }
 
     #[test]

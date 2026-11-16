@@ -57,10 +57,19 @@ pub struct ToastContent {
     pub request: Option<String>,
 }
 
+/// `<title> · <branch>`, falling back to the session name and dropping a missing branch.
+pub fn toast_title(s: &Session) -> String {
+    let title = s.title.as_deref().unwrap_or(&s.name);
+    match s.branch.as_deref() {
+        Some(b) => format!("{title} · {b}"),
+        None => title.to_string(),
+    }
+}
+
 /// AV-25: buttons only for a `safe` request; other tiers point at the inbox.
 pub fn toast_content(s: &Session) -> ToastContent {
     let req = s.pending.iter().max_by(|a, b| (a.received_at, &a.id).cmp(&(b.received_at, &b.id)));
-    let mut c = ToastContent { title: s.name.clone(), body: s.task.clone(), hint: None, buttons: Vec::new(), request: None };
+    let mut c = ToastContent { title: toast_title(s), body: s.task.clone(), hint: None, buttons: Vec::new(), request: None };
     if let Some(p) = req {
         c.request = Some(p.id.clone());
         if p.risk.tier == crate::risk::Tier::Question {
@@ -331,6 +340,16 @@ mod tests {
         s.pending = vec![q];
         let c = toast_content(&s);
         assert_eq!((c.body.as_str(), c.hint, c.buttons.len(), c.request.as_deref()), ("Which colour?", None, 0, Some("ap-q")));
+    }
+
+    #[test]
+    fn notify_toast_title_joins_title_and_branch() {
+        let mut s = session(vec![]);
+        assert_eq!(toast_title(&s), "demo");
+        s.branch = Some("feature/login".into());
+        assert_eq!(toast_title(&s), "demo · feature/login");
+        s.title = Some("Fix the login flow".into());
+        assert_eq!(toast_title(&s), "Fix the login flow · feature/login");
     }
 
     #[test]
