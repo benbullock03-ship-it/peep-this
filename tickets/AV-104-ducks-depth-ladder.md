@@ -1,7 +1,7 @@
 ---
 id: AV-104
 title: Ducks depth ladder, levels 1 to 4
-status: doing
+status: done
 depends: [AV-103]
 ---
 
@@ -40,6 +40,12 @@ Throwaway worktree at e3e3710 plus a commit with an empty ticket folder and no t
 
 Same worktree, depth 5, "None for now". The candidate rejected in run A (tool lists) did not come back; 4 new cards, top pick "Hook payloads parsed outside the Claude adapter". Bug found: "None for now" was written to `kb/backend.md` as a rejection of the top pick (f3b1eff, throwaway branch). Fixed in `depth.md`: "None for now" writes nothing.
 
-## Owed before done
+## Depth-question check (2026-11-16)
 
-- The owner sees the "How deep?" question in an interactive `/peep:ducks` on a clean tree; headless runs cannot show it.
+- Headless (`claude -p /peep:ducks`, clean throwaway worktree, nothing loose): 3 runs before the fix and only 1 reached the depth step; runs 2 and 3 skipped it silently. Cause: `-p` has no AskUserQuestion tool, and step 3 gave no fallback. Fix in `ducks/SKILL.md`: with no tool or no answer it takes level 1 `(unconfirmed)`, and the nothing-loose output always carries a `depth: <level>` line. After the fix, 5 of 5 runs passed the checker: `depth: 1 (unconfirmed)`, 0 loose ends, no edits beyond `.peep/runs`.
+- Interactive (a child `claude "/peep:ducks"` in its own window, worktree under the trusted repo folder, screenshot): the AskUserQuestion dialog shows header "Depth", "How deep should Ducks look?", options 1 Today (recommended), 2 Hot spots, 3 Candidates, 4 Sweep, each with its cost, and level 4 says "Or reply 5 for the report page".
+
+## Done 2026-11-16
+
+- On a clean tree Ducks asks the depth (interactive dialog above). Levels 2 to 4 each produced their output on this repo, and a rejection landed in the area note and was skipped on the next run (runs A and B).
+- `plugin/skills/ducks/SKILL.md` step 3 and Output; `references/depth.md`. `npm test` passes.

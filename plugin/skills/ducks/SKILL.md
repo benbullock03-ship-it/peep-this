@@ -26,7 +26,7 @@ Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run,
 
 ## 3. Nothing loose
 
-No loose ends and no Pack Up note: one AskUserQuestion, header `Depth`, "How deep?", levels 1 to 5 each with its rough cost, level 1 recommended. Levels and what each adds: `references/depth.md`. Level 1: skip to the output with `clear to proceed`. No read-back. Ducks never edits code at any level; acting on a candidate means drafting a ticket on a yes.
+No loose ends and no Pack Up note: one AskUserQuestion, header `Depth`, "How deep?", levels 1 to 5 each with its rough cost, level 1 recommended. Levels and what each adds: `references/depth.md`. No AskUserQuestion tool or no answer (e.g. a headless run): level 1, `(unconfirmed)`. Level 1: skip to the output with `clear to proceed`. No read-back. Ducks never edits code at any level; acting on a candidate means drafting a ticket on a yes.
 
 ## 4. Questions, once
 
@@ -63,7 +63,7 @@ loose: <short list of what stays open, done left out first, then stale doing> | 
 next: /peep:ticket <id> | clear to proceed
 ```
 
-`next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose: `peep ducks: 0 loose ends, 0 acted on` then `next: clear to proceed`. Level 2 and up: their lines from `references/depth.md` (hot spots, cards, top pick) go between the first line and `next`.
+`next` is the handoff's "Then:" if still valid, else the lowest-numbered `open` ticket whose `depends` are all `closed`. Nothing loose: `peep ducks: 0 loose ends, 0 acted on`, then `depth: <level>` (adding ` (unconfirmed)` when nobody answered), then `next: clear to proceed`. Level 2 and up: their lines from `references/depth.md` (hot spots, cards, top pick) go between the first line and `next`.
 
 ## Last step: run count
 
