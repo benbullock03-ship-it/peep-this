@@ -1,7 +1,9 @@
 ---
 id: AV-109
 title: Signal tips with a Pack Up Jump at the context line
-status: open
+status: blocked
+reason: needs src-tauri/src/state.rs and src/bubble.ts, which hold another session's uncommitted AV-89 work
+wake: AV-89 commits state.rs and bubble.ts
 depends: []
 ---
 
