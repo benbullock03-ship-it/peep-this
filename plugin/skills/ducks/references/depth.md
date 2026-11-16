@@ -25,6 +25,7 @@ Read the hot areas' most-touched files (top 10 at most) and the area note for ea
 
 ```
 <n>. [Strong|Worth exploring|Speculative] <name>
+   pattern: <id>
    files: <path>, <path>
    problem: <one line>
    fix: <one line>
@@ -40,3 +41,9 @@ Before the cards, two runs in parallel:
 
 - One fresh-context subagent (Agent tool, general-purpose) given only the repo root, the setup's areas and this brief: "Find shallow modules (interface as complex as the body), a concept spread across many files, leaks across module seams, and untested code. Report each as files plus one line; no fixes, no edits." Its findings go through the same deletion test and skip list, then join the cards.
 - The goose basic map: `node "${CLAUDE_PLUGIN_ROOT}/skills/goose/scripts/map.mjs" .`. Use its `graph.json` callers to back each card's files (a card's module with many callers across areas is stronger).
+
+Each card names a `pattern:` from `${CLAUDE_PLUGIN_ROOT}/references/patterns.md` at levels 3 to 5.
+
+## 5: report
+
+Everything in level 4, then the page: `report.md`.
