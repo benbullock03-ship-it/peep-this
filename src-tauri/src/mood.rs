@@ -39,7 +39,8 @@ pub enum Mood {
 }
 
 /// The one mood `s` shows now; the order of the checks is the priority.
-pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64, now: u64) -> Option<Mood> {
+/// `limit_pct` is the higher account rate limit; from 80% every session sweats (AV-81).
+pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64, limit_pct: f64, now: u64) -> Option<Mood> {
     if !s.alive {
         return None;
     }
@@ -60,6 +61,7 @@ pub fn derive(s: &Session, sessions: &[&Session], repos: &[Repo], nudge_pct: f64
         (clash(s, sessions, now).is_some(), Mood::Startled),
         (cheer, Mood::Cheer),
         (greet, Mood::Greet),
+        (limit_pct >= crate::limit::WARN_PCT, Mood::Sweat),
         (worry, Mood::Worry),
         (pct >= nudge_pct, Mood::Yawn),
         (pct >= SWEAT_FROM_PCT, Mood::Sweat),
@@ -153,7 +155,7 @@ mod tests {
     }
 
     fn mood(s: &Session, now: u64) -> Option<Mood> {
-        derive(s, &[s], &[], NUDGE_PCT_DEFAULT, now)
+        derive(s, &[s], &[], NUDGE_PCT_DEFAULT, 0.0, now)
     }
 
     fn with_pct(pct: f64) -> Session {
@@ -171,7 +173,7 @@ mod tests {
         assert_eq!(mood(&with_pct(79.0), T0), Some(Mood::Sweat));
         assert_eq!(mood(&with_pct(80.0), T0), Some(Mood::Yawn));
         assert_eq!(mood(&with_pct(96.0), T0), Some(Mood::Yawn));
-        assert_eq!(derive(&with_pct(55.0), &[], &[], 50.0, T0), Some(Mood::Yawn), "a nudge under 70 yawns without sweat");
+        assert_eq!(derive(&with_pct(55.0), &[], &[], 50.0, 0.0, T0), Some(Mood::Yawn), "a nudge under 70 yawns without sweat");
     }
 
     #[test]
@@ -198,10 +200,10 @@ mod tests {
         };
         let repos = [repo];
         let all = [&a, &closer, &elsewhere];
-        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), Some(Mood::Cheer));
-        assert_eq!(derive(&closer, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), None, "the closer doesn't cheer itself");
-        assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 11), None);
-        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + 10 + CHEER_MS), None);
+        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + 11), Some(Mood::Cheer));
+        assert_eq!(derive(&closer, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + 11), None, "the closer doesn't cheer itself");
+        assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + 11), None);
+        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + 10 + CHEER_MS), None);
     }
 
     #[test]
@@ -211,8 +213,8 @@ mod tests {
         let repo = Repo { root: "F:/p".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: None, stale: vec!["AV-7".into()] };
         let repos = [repo];
         let all = [&a, &elsewhere];
-        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, T0 + NAP_AFTER_MS), Some(Mood::Worry), "worry beats nap");
-        assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, T0), None);
+        assert_eq!(derive(&a, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0 + NAP_AFTER_MS), Some(Mood::Worry), "worry beats nap");
+        assert_eq!(derive(&elsewhere, &all, &repos, NUDGE_PCT_DEFAULT, 0.0, T0), None);
     }
 
     #[test]
@@ -220,12 +222,12 @@ mod tests {
         let old = session("a", T0);
         let new = session("b", T0 + MIN);
         let all = [&old, &new];
-        let at = |s: &Session, now| derive(s, &all, &[], NUDGE_PCT_DEFAULT, now);
+        let at = |s: &Session, now| derive(s, &all, &[], NUDGE_PCT_DEFAULT, 0.0, now);
         assert_eq!(at(&old, T0 + MIN + 1), Some(Mood::Greet));
         assert_eq!(at(&new, T0 + MIN + 1), None, "the newcomer doesn't greet itself");
         assert_eq!(at(&old, T0 + MIN + GREET_MS), None);
         let twin = session("c", T0 + 1);
-        assert_eq!(derive(&old, &[&old, &twin], &[], NUDGE_PCT_DEFAULT, T0 + 2), None, "same startup scan");
+        assert_eq!(derive(&old, &[&old, &twin], &[], NUDGE_PCT_DEFAULT, 0.0, T0 + 2), None, "same startup scan");
     }
 
     #[test]
@@ -244,11 +246,24 @@ mod tests {
         let tired = test_run(with_pct(90.0), false, T0);
         assert_eq!(mood(&tired, T0 + 1), Some(Mood::Worry), "worry beats yawn");
         let new = session("b", T0 + MIN);
-        assert_eq!(derive(&tired, &[&tired, &new], &[], NUDGE_PCT_DEFAULT, T0 + MIN), Some(Mood::Greet));
+        assert_eq!(derive(&tired, &[&tired, &new], &[], NUDGE_PCT_DEFAULT, 0.0, T0 + MIN), Some(Mood::Greet));
         assert_eq!(mood(&with_pct(75.0), T0 + NAP_AFTER_MS), Some(Mood::Sweat), "sweat beats nap");
         let a = edit(tired, "F:/p/a.ts", T0 + MIN + 1);
         let b = edit(new, "F:/p/a.ts", T0 + MIN + 2);
-        assert_eq!(derive(&a, &[&a, &b], &[], NUDGE_PCT_DEFAULT, T0 + MIN + 3), Some(Mood::Startled), "startled beats greet");
+        assert_eq!(derive(&a, &[&a, &b], &[], NUDGE_PCT_DEFAULT, 0.0, T0 + MIN + 3), Some(Mood::Startled), "startled beats greet");
+    }
+
+    #[test]
+    fn a_rate_limit_at_80_sweats_over_worry_yawn_and_nap_but_not_brief_moods() {
+        let at = |s: &Session, all: &[&Session], limit: f64, now| derive(s, all, &[], NUDGE_PCT_DEFAULT, limit, now);
+        let s = session("a", T0);
+        assert_eq!(at(&s, &[&s], 79.9, T0), None);
+        assert_eq!(at(&s, &[&s], 80.0, T0), Some(Mood::Sweat));
+        let tired = test_run(with_pct(90.0), false, T0);
+        assert_eq!(at(&tired, &[&tired], 85.0, T0 + 1), Some(Mood::Sweat), "beats worry and yawn");
+        assert_eq!(at(&s, &[&s], 85.0, T0 + NAP_AFTER_MS), Some(Mood::Sweat), "beats nap");
+        let new = session("b", T0 + MIN);
+        assert_eq!(at(&s, &[&s, &new], 85.0, T0 + MIN), Some(Mood::Greet), "greet is brief and goes first");
     }
 
     fn edit(s: Session, path: &str, now: u64) -> Session {
@@ -265,7 +280,7 @@ mod tests {
         let b = edit(session("b", T0), "f:/p/src/shell.css", T0 + 4 * MIN);
         let both = Some("F:\\p\\src\\shell.css".to_string());
         assert_eq!(clashes(&[&a, &b], T0 + 4 * MIN), vec![both.clone(), both.clone()], "one file, either spelling");
-        assert_eq!(derive(&a, &[&a, &b], &[], NUDGE_PCT_DEFAULT, T0 + 4 * MIN), Some(Mood::Startled));
+        assert_eq!(derive(&a, &[&a, &b], &[], NUDGE_PCT_DEFAULT, 0.0, T0 + 4 * MIN), Some(Mood::Startled));
         assert_eq!(clashes(&[&a, &b], T0 + 4 * MIN + CLASH_HOLD_MS - 1), vec![both.clone(), both]);
         assert_eq!(clashes(&[&a, &b], T0 + 4 * MIN + CLASH_HOLD_MS), vec![None, None], "the hold expired");
         let elsewhere = edit(session("c", T0), "F:/p/src/other.css", T0 + 4 * MIN);

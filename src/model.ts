@@ -129,7 +129,8 @@ export type DigestEntry = {
 };
 export type Digest = { since: number; until: number; entries: DigestEntry[] };
 
-export type RateLimits ={ fiveHourPct: number; sevenDayPct: number; at: number };
+/** Reset times are epoch ms, only when the statusline payload carries them. */
+export type RateLimits = { fiveHourPct: number; sevenDayPct: number; fiveHourResetsAt?: number; sevenDayResetsAt?: number; at: number };
 
 /** Ticket file status (formats.md §2); `closed` never reaches a shelf. */
 export type TicketStatus = "open" | "doing" | "blocked" | "deferred" | "done";

@@ -307,6 +307,16 @@ export function demoDecide(snap: Snapshot, requestId: string, decision: "allow" 
   return { ...snap, sessions };
 }
 
+const BRIEF: readonly (Mood | undefined)[] = ["startled", "cheer", "greet"];
+
+/** `?demo&limits=82,30`: those limits, resetting in 1h 12m and 3 days, with the sweat `mood.rs` would give from 80%. */
+export function demoLimits(snap: Snapshot, fiveHourPct: number, sevenDayPct: number, now: number): Snapshot {
+  const rateLimits = { fiveHourPct, sevenDayPct, fiveHourResetsAt: now + 72 * 60_000, sevenDayResetsAt: now + 3 * 86_400_000, at: now };
+  if (Math.max(fiveHourPct, sevenDayPct) < 80) return { ...snap, rateLimits };
+  const sessions = snap.sessions.map((s) => (s.alive && !BRIEF.includes(s.mood) ? { ...s, mood: "sweat" as const } : s));
+  return { ...snap, sessions, rateLimits };
+}
+
 // Mirrors the design's simulation: one agent changes state per step.
 export function demoStep(snap: Snapshot, now: number, rand: () => number = Math.random): Snapshot {
   // Held requests re-arm instead of releasing, so the cards stay up for a look.

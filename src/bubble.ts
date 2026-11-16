@@ -1,3 +1,4 @@
+import type { LimitWarning } from "./limits";
 import type { Session } from "./model";
 
 /** Peep skill -> floppy art column in the sprite sheet and its verb (FLOPPY-SPEC §01, §05). Pack Up keeps the `handoff` art. */
@@ -20,12 +21,21 @@ export type Bubble = { id?: string; text: string; verb?: string; tab?: boolean; 
 /** A 4 x 6 pixel bolt drawn at 2px per cell. */
 const BOLT_PATH = "M2 0h2v1h-2zM1 1h2v1h-2zM0 2h4v1h-4zM1 3h2v1h-2zM0 4h2v1h-2zM0 5h1v1h-1z";
 
-/** FLOPPY-SPEC §05: `ID: title · verb`; an attention state's ask replaces the title and drops the verb. */
-export function bubbleFor(s: Pick<Session, "alive" | "skill" | "ticket">, say: string, attention: boolean): Bubble {
+/**
+ * FLOPPY-SPEC §05: `ID: title · verb`; an attention state's ask replaces the title and drops the verb.
+ * AV-79 §04: a rate-limit `limit` takes the verb slot, or the whole line when there is no ticket.
+ */
+export function bubbleFor(
+  s: Pick<Session, "alive" | "skill" | "ticket">,
+  say: string,
+  attention: boolean,
+  limit?: LimitWarning | null,
+): Bubble {
   if (!s.alive) return { text: say };
   const id = s.ticket?.id;
   if (attention) return id ? { id, text: say, tab: true } : { text: say };
-  const verb = s.skill ? (FLOPPIES[s.skill]?.verb ?? s.skill) : undefined;
+  if (limit && !id) return { text: `${limit.key} limit ${limit.pct}%` };
+  const verb = limit ? `${limit.key} ${limit.pct}%` : s.skill ? (FLOPPIES[s.skill]?.verb ?? s.skill) : undefined;
   return { id, text: (id && s.ticket?.title?.trim()) || say, verb };
 }
 

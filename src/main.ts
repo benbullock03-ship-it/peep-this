@@ -1,7 +1,7 @@
 import "./vendor/peep.js";
 import { renderAccessoryCheck } from "./accessories";
 import { createBanner, type TrayResult } from "./banner";
-import { demoDecide, demoDigest, demoIdentity, demoSnapshot, demoStep } from "./demo";
+import { demoDecide, demoDigest, demoIdentity, demoLimits, demoSnapshot, demoStep } from "./demo";
 import { NUDGE_RANGE } from "./emote";
 import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
@@ -228,7 +228,9 @@ function createHotkeyNotice(openSettings: () => void, name: string) {
 }
 
 function runDemo() {
-  let snap = demoSnapshot(Date.now());
+  const lim = params.get("limits")?.split(",").map(Number);
+  const withLimits = (s: Snapshot, now: number) => (lim?.length === 2 ? demoLimits(s, lim[0], lim[1], now) : s);
+  let snap = withLimits(demoSnapshot(Date.now()), Date.now());
   let inbox: ReturnType<typeof mountInbox> | null = null;
   const render = createList(root, demoIdentity, undefined, async (id, decision) => {
     snap = demoDecide(snap, id, decision, Date.now());
@@ -267,13 +269,13 @@ function runDemo() {
     );
     renderDigest(demoDigest(snap, Date.now()));
   }
-  render(snap.sessions, snap.repos);
+  render(snap.sessions, snap.repos, snap.rateLimits ?? null);
   renderStrip(snap.sessions);
   inbox.sync(snap.sessions);
   renderLimits(snap.rateLimits);
   setInterval(() => {
-    snap = demoStep(snap, Date.now());
-    render(snap.sessions, snap.repos);
+    snap = withLimits(demoStep(snap, Date.now()), Date.now());
+    render(snap.sessions, snap.repos, snap.rateLimits ?? null);
     renderStrip(snap.sessions);
     inbox?.sync(snap.sessions);
     renderLimits(snap.rateLimits);
@@ -424,7 +426,7 @@ async function runLive() {
   await listen<boolean>("widget-hidden", (e) => setPeepsAttached(!e.payload));
   const render = (snap: Snapshot) => {
     sessions = snap.sessions;
-    renderList(snap.sessions, snap.repos ?? []);
+    renderList(snap.sessions, snap.repos ?? [], snap.rateLimits ?? null);
     renderStrip(snap.sessions);
     flySessions = snap.sessions;
     syncFlyouts();

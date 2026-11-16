@@ -29,6 +29,11 @@
   --ps-dim: #7d7889;
   --amber: 255, 178, 62;
   --red: var(--st-error);
+  /* design/skill-pack-2/tokens.css; they follow the state colours, so light needs no override. */
+  --lim-warn: var(--st-waiting);
+  --lim-out: var(--st-error);
+  --bar-amber: var(--st-waiting);
+  --bar-red: var(--st-error);
   --scroll: rgba(255, 255, 255, 0.16);
   --risk-text: #ffb3b3;
   --diff-add-bg: rgba(94, 214, 140, 0.12);
@@ -472,7 +477,22 @@ body[data-fold] > .ps-strip {
   }
 }
 
+/* Meters with numbers don't fit beside the title and two buttons in 354px, so they take a second line (AV-81). */
+.ps-head {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+
+.ps-head::after {
+  content: "";
+  order: 1;
+  flex-basis: 100%;
+  height: 0;
+}
+
 .ps-usage {
+  order: 2;
+  margin: 6px 0 0 -4px;
   min-width: 0;
   display: flex;
   gap: 8px;
@@ -491,7 +511,89 @@ body[data-fold] > .ps-strip {
 .ps-meter {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 4px;
+}
+
+/* AV-79 §03: 10 blocks of 3px + 1px gap, then the number. */
+.bar.bar--meter {
+  gap: 1px;
+}
+
+.bar--meter .bar-block {
+  width: 3px;
+  height: 7px;
+}
+
+.bar--meter .bar-block.on {
+  background: var(--ps-accent);
+}
+
+.bar--meter[data-level="amber"] .bar-block.on {
+  background: var(--bar-amber);
+}
+
+.bar--meter[data-level="red"] .bar-block.on {
+  background: var(--bar-red);
+}
+
+.ps-meter-v {
+  min-width: 3ch;
+  color: var(--ps-text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ps-meter[data-level="amber"] .ps-meter-v {
+  color: var(--bar-amber);
+}
+
+.ps-meter[data-level="red"] .ps-meter-v {
+  color: var(--bar-red);
+}
+
+/* AV-79 §02: title pressure from the higher limit. */
+.ps-head.p80 {
+  background: repeating-linear-gradient(0deg, transparent 0 3px, color-mix(in srgb, var(--lim-warn) 40%, transparent) 3px 4px);
+}
+
+.ps-head.p80 .ps-title {
+  box-shadow: inset 0 0 0 2px var(--lim-warn);
+}
+
+.ps-head.p95 {
+  background: repeating-linear-gradient(0deg, transparent 0 2px, color-mix(in srgb, var(--lim-warn) 70%, transparent) 2px 4px);
+}
+
+.ps-head.p95 .ps-title {
+  background: var(--lim-warn);
+  color: var(--ps-on-st);
+}
+
+/* The pending badge shares the 95% plate's colour. */
+.ps-head.p95 .ps-pending {
+  box-shadow: inset 0 0 0 1px var(--ps-on-st);
+}
+
+.ps-head.p100 {
+  background: repeating-linear-gradient(45deg, transparent 0 3px, color-mix(in srgb, var(--lim-out) 75%, transparent) 3px 6px);
+}
+
+.ps-head.p100 .ps-title {
+  background: var(--lim-out);
+  color: var(--ps-on-st);
+}
+
+.ps-title-tag {
+  margin-left: 4px;
+}
+
+.ps-title.sx1 {
+  transform: translateX(-2px);
+}
+
+.ps-title.sx2 {
+  transform: translateX(2px);
 }
 
 .ps-icon {

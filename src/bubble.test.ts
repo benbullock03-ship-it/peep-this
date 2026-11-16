@@ -31,6 +31,13 @@ describe("bubbleFor", () => {
     expect(bubbleFor({ ...live, skill: "shoot" }, "Can I run npm test?", true)).toEqual({ text: "Can I run npm test?" });
   });
 
+  it("puts a rate-limit warning in the verb slot, or the whole line with no ticket, never over an ask", () => {
+    const limit = { key: "5h" as const, pct: 82 };
+    expect(bubbleLine(bubbleFor({ ...live, skill: "ticket", ticket: { id: "AV-81", title: "rate-limit warning" } }, "", false, limit))).toBe("AV-81: rate-limit warning · 5h 82%");
+    expect(bubbleFor({ ...live, skill: "shoot" }, "Running npm test…", false, limit)).toEqual({ text: "5h limit 82%" });
+    expect(bubbleFor({ ...live, ticket }, "Can I run npm test?", true, limit)).toEqual({ id: "AV-34", text: "Can I run npm test?", tab: true });
+  });
+
   it("says goodbye plainly once the session has closed", () => {
     expect(bubbleFor({ alive: false, skill: "shoot", ticket }, "Session closed. Bye!", false)).toEqual({ text: "Session closed. Bye!" });
   });
@@ -44,5 +51,12 @@ describe("toRowView floppy", () => {
     expect(toRowView({ ...base, skill: "mystery" }).floppy).toBe(6);
     expect(toRowView(base).floppy).toBeNull();
     expect(toRowView({ ...base, state: "waiting", skill: "shoot", ticket, task: "Needs a look" })).toMatchObject({ floppy: 3, say: "AV-34: Needs a look" });
+  });
+
+  it("shows the limit text only while the row sweats", () => {
+    const limit = { key: "7d" as const, pct: 91 };
+    expect(toRowView({ ...base, mood: "sweat" }, undefined, 0, false, undefined, limit).say).toBe("7d limit 91%");
+    expect(toRowView({ ...base, mood: "greet" }, undefined, 0, false, undefined, limit).say).not.toContain("limit");
+    expect(toRowView({ ...base, mood: "sweat", state: "waiting", task: "Needs a look" }, undefined, 0, false, undefined, limit).say).toBe("Needs a look");
   });
 });

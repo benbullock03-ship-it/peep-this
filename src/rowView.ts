@@ -1,6 +1,7 @@
 import { BLANK_COL, bubbleFor, bubbleLine, FLOPPIES, type Bubble } from "./bubble";
 import { clashText, emoteFor, nudgeFor, nudgeText, type ClashTag, type Emote, type Nudge } from "./emote";
 import { identityFor, type Identity } from "./identity";
+import type { LimitWarning } from "./limits";
 import { STATES, type Session, type State } from "./model";
 import { sayFor } from "./say";
 import { failNote } from "./shells";
@@ -53,6 +54,7 @@ export function toRowView(
   now = Date.now(),
   snoozed = false,
   clash?: ClashTag,
+  limit?: LimitWarning | null,
 ): RowView {
   const state: State = STATES.includes(s.state) ? s.state : "idle";
   const { color, accessory } = identityOf(s);
@@ -63,7 +65,7 @@ export function toRowView(
     ? { text: nudgeText(nudge, s.contextPct) }
     : clash && emote === "startled"
       ? { text: clashText(clash), bolt: clash.tag }
-      : bubbleFor(s, sayFor({ ...s, state }, now), attention);
+      : bubbleFor(s, sayFor({ ...s, state }, now), attention, emote === "sweat" ? limit : null);
   return {
     id: s.id,
     name: s.name || s.id.slice(0, 8),

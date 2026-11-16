@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::away;
 use crate::closed;
+use crate::limit;
 use crate::mood::{self, Mood};
 use crate::notify;
 use crate::source::{SessionInfo, ShellQuery, SourceEvent};
@@ -20,6 +21,11 @@ pub const EMIT_INTERVAL: Duration = Duration::from_millis(100);
 pub struct RateLimits {
     pub five_hour_pct: f64,
     pub seven_day_pct: f64,
+    /// Epoch ms, when the statusline payload carries it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub five_hour_resets_at: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seven_day_resets_at: Option<u64>,
     pub at: u64,
 }
 
@@ -84,6 +90,7 @@ impl Inner {
 pub type Emit = Box<dyn Fn(&Snapshot) + Send + Sync>;
 pub type Alert = Box<dyn Fn(&Session) + Send + Sync>;
 pub type OnEnd = Box<dyn Fn(closed::Ended) + Send + Sync>;
+pub type OnLimits = Box<dyn Fn(&RateLimits) + Send + Sync>;
 
 /// All session truth. Every mutation runs through `state::apply`; changes are pushed to `emit` at most once per `EMIT_INTERVAL`.
 pub struct Store {
@@ -91,6 +98,7 @@ pub struct Store {
     changed: Condvar,
     alert: Mutex<Option<Alert>>,
     on_end: Mutex<Option<OnEnd>>,
+    on_limits: Mutex<Option<OnLimits>>,
 }
 
 impl Store {
@@ -112,6 +120,7 @@ impl Store {
             changed: Condvar::new(),
             alert: Mutex::new(None),
             on_end: Mutex::new(None),
+            on_limits: Mutex::new(None),
         });
         let worker = Arc::clone(&store);
         std::thread::Builder::new()
@@ -144,6 +153,11 @@ impl Store {
     /// Called with each session that ends, outside the session lock.
     pub fn set_on_end(&self, on_end: OnEnd) {
         *self.on_end.lock().unwrap() = Some(on_end);
+    }
+
+    /// Called with every rate-limit payload, outside the session lock.
+    pub fn set_on_limits(&self, on_limits: OnLimits) {
+        *self.on_limits.lock().unwrap() = Some(on_limits);
     }
 
     pub fn set_closed(&self, closed: Vec<closed::Entry>) {
@@ -291,14 +305,23 @@ impl Store {
         out
     }
 
-    pub fn set_rate_limits(&self, five_hour_pct: f64, seven_day_pct: f64, now: u64) {
+    /// `resets` is (5h, 7d) in epoch ms.
+    pub fn set_rate_limits(&self, five_hour_pct: f64, seven_day_pct: f64, resets: (Option<u64>, Option<u64>), now: u64) {
+        let rl = RateLimits {
+            five_hour_pct,
+            seven_day_pct,
+            five_hour_resets_at: resets.0,
+            seven_day_resets_at: resets.1,
+            at: now,
+        };
         self.mutate(|inner| {
-            let changed = inner
-                .rate_limits
-                .is_none_or(|r| r.five_hour_pct != five_hour_pct || r.seven_day_pct != seven_day_pct);
-            inner.rate_limits = Some(RateLimits { five_hour_pct, seven_day_pct, at: now });
-            changed
+            let changed = inner.rate_limits.is_none_or(|r| RateLimits { at: now, ..r } != rl);
+            inner.rate_limits = Some(rl);
+            refresh_moods(inner, now) || changed
         });
+        if let Some(on_limits) = self.on_limits.lock().unwrap().as_ref() {
+            on_limits(&rl);
+        }
     }
 
     /// The approval broker's held requests for one session; not routed through `state::apply`.
@@ -381,7 +404,7 @@ fn refresh_moods(inner: &mut Inner, now: u64) -> bool {
     let moods: Vec<(String, Option<Mood>, Option<String>)> = all
         .iter()
         .map(|s| {
-            let m = mood::derive(s, &all, &inner.repos, inner.nudge_pct, now);
+            let m = mood::derive(s, &all, &inner.repos, inner.nudge_pct, limit::highest(inner.rate_limits.as_ref()), now);
             let clash = (m == Some(Mood::Startled)).then(|| mood::clash(s, &all, now)).flatten();
             (s.id.clone(), m, clash)
         })
@@ -611,18 +634,39 @@ mod tests {
     #[test]
     fn rate_limits_set_and_emit_only_on_change() {
         let (store, log) = recording_store();
-        store.set_rate_limits(42.0, 18.0, 1_000);
+        store.set_rate_limits(42.0, 18.0, (Some(9_000), None), 1_000);
         settle();
-        store.set_rate_limits(42.0, 18.0, 2_000);
+        store.set_rate_limits(42.0, 18.0, (Some(9_000), None), 2_000);
         settle();
         assert_eq!(log.lock().unwrap().len(), 1);
         assert_eq!(
             store.snapshot().rate_limits,
-            Some(RateLimits { five_hour_pct: 42.0, seven_day_pct: 18.0, at: 2_000 })
+            Some(RateLimits {
+                five_hour_pct: 42.0,
+                seven_day_pct: 18.0,
+                five_hour_resets_at: Some(9_000),
+                seven_day_resets_at: None,
+                at: 2_000
+            })
         );
-        store.set_rate_limits(43.0, 18.0, 3_000);
+        store.set_rate_limits(43.0, 18.0, (Some(9_000), None), 3_000);
         settle();
         assert_eq!(log.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_limit_at_80_sweats_every_live_session_and_reports_each_payload() {
+        let (store, _) = recording_store();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&seen);
+        store.set_on_limits(Box::new(move |rl| sink.lock().unwrap().push(rl.seven_day_pct)));
+        store.ingest(upsert("a", None), 1_000);
+        store.ingest(upsert("b", None), 1_000);
+        store.set_rate_limits(10.0, 79.0, (None, None), 1_000);
+        assert!(store.snapshot().sessions.iter().all(|s| s.mood.is_none()));
+        store.set_rate_limits(10.0, 80.0, (None, None), 1_001);
+        assert!(store.snapshot().sessions.iter().all(|s| s.mood == Some(Mood::Sweat)));
+        assert_eq!(*seen.lock().unwrap(), vec![79.0, 80.0]);
     }
 
     #[test]
@@ -717,7 +761,13 @@ mod tests {
 
         let snap = Snapshot {
             sessions: vec![],
-            rate_limits: Some(RateLimits { five_hour_pct: 42.0, seven_day_pct: 18.0, at: 5 }),
+            rate_limits: Some(RateLimits {
+                five_hour_pct: 42.0,
+                seven_day_pct: 18.0,
+                five_hour_resets_at: Some(7),
+                seven_day_resets_at: None,
+                at: 5,
+            }),
             integration: Integration::Installed,
             repos: vec![],
             closed: vec![],
@@ -725,6 +775,8 @@ mod tests {
         let v = serde_json::to_value(snap).unwrap();
         assert_eq!(v["rateLimits"]["fiveHourPct"], 42.0);
         assert_eq!(v["rateLimits"]["sevenDayPct"], 18.0);
+        assert_eq!(v["rateLimits"]["fiveHourResetsAt"], 7);
+        assert!(v["rateLimits"].get("sevenDayResetsAt").is_none());
         assert_eq!(v["integration"], "installed");
     }
 }

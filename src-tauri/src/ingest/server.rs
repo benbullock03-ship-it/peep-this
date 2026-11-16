@@ -40,7 +40,8 @@ pub struct Routed {
     pub session_id: String,
     pub cwd: Option<String>,
     pub event: Option<Event>,
-    pub rate_limits: Option<(f64, f64)>,
+    /// (5h %, 7d %) and their reset times in epoch ms.
+    pub rate_limits: Option<((f64, f64), (Option<u64>, Option<u64>))>,
 }
 
 pub struct Request<'a> {
@@ -183,8 +184,8 @@ pub fn handle_full(store: &Store, expected: &str, req: &Request, body: impl Read
 fn dispatch(store: &Store, r: Routed, now: u64) {
     let note = if r.event.is_none() && r.rate_limits.is_none() { " (ignored)" } else { "" };
     println!("peepthis: {} session {}{note}", r.label, r.session_id);
-    if let Some((five, seven)) = r.rate_limits {
-        store.set_rate_limits(five, seven, now);
+    if let Some(((five, seven), resets)) = r.rate_limits {
+        store.set_rate_limits(five, seven, resets, now);
     }
     if let Some(ev) = r.event {
         store.apply_or_placeholder(&r.session_id, r.cwd.as_deref(), ev, now);
@@ -274,7 +275,11 @@ pub fn parse_value(route: &Route, v: &Value) -> Result<Routed, &'static str> {
                 .map(|r| (100.0 - r).clamp(0.0, 100.0))
                 .or_else(|| num_at(&v, "/context_window/used_percentage"));
             let rate_limits = num_at(&v, "/rate_limits/five_hour/used_percentage")
-                .zip(num_at(&v, "/rate_limits/seven_day/used_percentage"));
+                .zip(num_at(&v, "/rate_limits/seven_day/used_percentage"))
+                .map(|pcts| {
+                    let reset = |p: &str| v.pointer(p).and_then(crate::limit::reset_ms);
+                    (pcts, (reset("/rate_limits/five_hour/resets_at"), reset("/rate_limits/seven_day/resets_at")))
+                });
             Routed {
                 label: "statusline".into(),
                 event: Some(Event::Statusline { model, context_pct }),
@@ -1086,7 +1091,7 @@ mod tests {
         let r = parse(&Route::Statusline, fixture("statusline.json").as_bytes()).unwrap();
         assert_eq!(r.session_id, SID);
         assert_eq!(r.event, Some(Event::Statusline { model: Some("Opus".into()), context_pct: Some(37.5) }));
-        assert_eq!(r.rate_limits, Some((42.0, 18.0)));
+        assert_eq!(r.rate_limits, Some(((42.0, 18.0), (Some(1_794_592_800_000), Some(1_794_960_000_000)))));
 
         let bare = format!(r#"{{"session_id":"{SID}"}}"#);
         let r = parse(&Route::Statusline, bare.as_bytes()).unwrap();

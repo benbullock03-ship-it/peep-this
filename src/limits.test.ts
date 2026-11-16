@@ -1,10 +1,38 @@
 import { describe, expect, it } from "vitest";
 import { demoSnapshot, demoStep } from "./demo";
-import { ageText, limitsTitle, pct, toLimitsView } from "./limits";
+import { ageText, limitsTitle, limitWarning, pct, pressure, toLimitsView } from "./limits";
 
 describe("limitsTitle", () => {
-  it("carries both percentages and the age, since the header shows blocks only", () => {
+  it("carries both percentages and the age", () => {
     expect(limitsTitle({ fiveHour: 42, sevenDay: 7, at: 0 }, 60_000, 180_000)).toBe("5h 42% · 7d 7% · updated 2m ago");
+  });
+  it("adds a reset time only when it is known and still ahead", () => {
+    const resetsAt = new Date(2026, 10, 13, 14, 20).getTime();
+    const t = limitsTitle({ fiveHour: 82, sevenDay: 7, at: 0, fiveHourResetsAt: resetsAt, sevenDayResetsAt: 1 }, 0, resetsAt - 1);
+    expect(t.startsWith("5h 82% (resets 14:20) · 7d 7% · ")).toBe(true);
+  });
+});
+
+describe("pressure", () => {
+  const v = (fiveHour: number, sevenDay: number) => ({ fiveHour, sevenDay, at: 0 });
+  it("steps at 80, 95 and 100 on the higher limit", () => {
+    expect(pressure(null)).toBe(0);
+    expect(pressure(v(79, 10))).toBe(0);
+    expect(pressure(v(10, 80))).toBe(80);
+    expect(pressure(v(94, 10))).toBe(80);
+    expect(pressure(v(95, 10))).toBe(95);
+    expect(pressure(v(99, 100))).toBe(100);
+  });
+});
+
+describe("limitWarning", () => {
+  const rl = (fiveHourPct: number, sevenDayPct: number) => ({ fiveHourPct, sevenDayPct, at: 0 });
+  it("names the higher limit from 80%, 5h on a tie", () => {
+    expect(limitWarning(undefined)).toBeNull();
+    expect(limitWarning(rl(79.4, 20))).toBeNull();
+    expect(limitWarning(rl(81.6, 20))).toEqual({ key: "5h", pct: 82 });
+    expect(limitWarning(rl(81, 90))).toEqual({ key: "7d", pct: 90 });
+    expect(limitWarning(rl(85, 85))).toEqual({ key: "5h", pct: 85 });
   });
 });
 

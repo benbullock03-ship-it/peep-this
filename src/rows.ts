@@ -5,7 +5,8 @@ import { openFacts } from "./details";
 import { clashLinks, clashTags, EMOTES, type Emote } from "./emote";
 import { createHousePeep, HOUSE_SIZE_PANEL, HOUSE_TEXT, houseShown } from "./house";
 import { createKids, type KidsRender } from "./kidRows";
-import type { Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
+import { limitWarning, type LimitWarning } from "./limits";
+import type { RateLimits, Repo, RepoTicket, RuleOffer, Session, TrailEntry } from "./model";
 import { MOTION_MS, motionMs, reducedMotion } from "./motion";
 import { requestFocus, toRowView, type IdentityOf, type OnFocus, type RowView } from "./rowView";
 import { createOffers, type AnswerOffer } from "./ruleOffer";
@@ -481,9 +482,11 @@ export function createList(
   });
 
   let repos: readonly Repo[] = [];
-  /** `nextRepos` omitted keeps the last ones, for re-renders that only carry sessions. */
-  function render(sessions: readonly Session[], nextRepos?: readonly Repo[]) {
+  let limit: LimitWarning | null = null;
+  /** `nextRepos` and `nextLimits` omitted keep the last ones, for re-renders that only carry sessions; null limits clear. */
+  function render(sessions: readonly Session[], nextRepos?: readonly Repo[], nextLimits?: RateLimits | null) {
     if (nextRepos) repos = nextRepos;
+    if (nextLimits !== undefined) limit = limitWarning(nextLimits ?? undefined);
     const sorted = sortSessions(sessions);
     const tags = clashTags(sorted);
     const seen = new Set<string>();
@@ -505,7 +508,7 @@ export function createList(
         r.el.classList.remove("leaving");
       }
       if (s.mood !== "yawn") snoozed.delete(s.id);
-      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id));
+      const view = toRowView(s, identityOf, now, snoozed.has(s.id), tags.get(s.id), limit);
       updateRow(r, view);
       const kids = r.kids(s, view.color, now);
       const shellFold = r.shells(s, now).foldAt;

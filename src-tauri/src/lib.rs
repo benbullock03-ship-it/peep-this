@@ -7,6 +7,7 @@ mod focus;
 mod hotkey;
 mod ingest;
 mod install;
+mod limit;
 mod mood;
 mod motion;
 mod notify;
@@ -52,6 +53,9 @@ fn log_snapshot(snap: &Snapshot) {
                 .collect();
             let shells: Vec<String> = s.shells.iter().map(shell_log).collect();
             let mut line = format!("{}={:?}", s.name, s.state);
+            if let Some(m) = s.mood {
+                line.push_str(&format!(" mood={m:?}"));
+            }
             if !agents.is_empty() {
                 line.push_str(&format!(" [{}]", agents.join("; ")));
             }
@@ -139,6 +143,28 @@ fn wire_alerts(app: &tauri::App, store: &Arc<Store>) {
     );
     store.set_alert(Box::new(move |s| {
         notifier.alert(s, store::now_ms());
+    }));
+}
+
+/// AV-81: the 95% and 100% toasts; shown whatever the widget's view, and a click opens the panel.
+fn wire_limits(app: &tauri::App, store: &Arc<Store>) {
+    let bundle_id = app.config().identifier.clone();
+    let handle = app.handle().clone();
+    let alerts = limit::Alerts::default();
+    store.set_on_limits(Box::new(move |rl| {
+        for t in alerts.check(rl) {
+            let (title, body) = limit::toast_text(&t, store::now_ms(), limit::local_offset_ms());
+            println!("peepthis: limit toast {title}: {body}");
+            let content = notify::ToastContent { title, body, hint: None, buttons: Vec::new(), request: None };
+            let (handle, bundle_id) = (handle.clone(), bundle_id.clone());
+            let spawned = std::thread::Builder::new().name("limit-toast".into()).spawn(move || {
+                let opener = handle.clone();
+                notify::toast(&bundle_id, &content, move |_| window::summon(&opener));
+            });
+            if let Err(e) = spawned {
+                eprintln!("peepthis: limit toast thread failed: {e}");
+            }
+        }
     }));
 }
 
@@ -294,6 +320,7 @@ pub fn run() {
             app.manage(Arc::clone(&store));
             mood::load_nudge(&store, store::now_ms());
             wire_alerts(app, &store);
+            wire_limits(app, &store);
             wire_closed(&store);
             ticker::spawn(Arc::clone(&store), Box::new(source::claude::shells::probe));
             let broker = approve::Broker::new(Arc::clone(&store), Box::new(WidgetEnv), approve::HOLD_MS);
