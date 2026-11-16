@@ -29,13 +29,13 @@ Exactly per F§4, groups and rules in `references/setup.md`. "yes": step 4. A co
 
 ## 5. Tour
 
-Print the Core and Extras blocks in `references/tour.md`, then the next step. Do not run any skill.
+Read `.peep/runs` and the tickets and archive folders, then print the Core and Extras blocks in `references/tour.md` with locked Extras staged per its Unlocks, then the next step. Do not run any skill.
 
 ## Output
 
 ```
 peep walk: setup written (.peep/setup.md new, uncommitted)
-<the Core and Extras blocks>
+<the Core and Extras blocks, then any locked Extras>
 next: <command>
 ```
 

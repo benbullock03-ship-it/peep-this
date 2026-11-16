@@ -1,4 +1,5 @@
 import { FLOPPIES } from "./bubble";
+import { lockHint, type UnlockSource } from "./unlocks";
 
 /** FLOPPY-SPEC §01 explainers and the tray order; the first five are the flow the disk box numbers. */
 export const TRAY: readonly { skill: string; name: string; what: string; when: string }[] = [
@@ -189,6 +190,7 @@ export function createTray(jump: Jump) {
       el("strong", "", text).textContent = f.name;
       el("span", "", text).textContent = f.what;
       el("span", "tray-card-when", text).textContent = f.when;
+      if (b.dataset.lock) el("span", "tray-card-lock", text).textContent = `Locked: ${b.dataset.lock}. Jump still copies it.`;
       card.hidden = false;
       b.setAttribute("aria-describedby", card.id);
     }, HOVER_MS);
@@ -219,6 +221,7 @@ export function createTray(jump: Jump) {
     hintTimer = window.setTimeout(clear, HINT_MS);
   };
 
+  const all: HTMLButtonElement[] = [];
   /** One roving tab stop per group: arrows move, Home/End jump. */
   const diskGroup = (list: typeof TRAY, parent: HTMLElement) => {
     const disks = list.map((f, i) => {
@@ -232,6 +235,7 @@ export function createTray(jump: Jump) {
       b.addEventListener("focus", () => showCard(b, f));
       b.addEventListener("blur", () => hideCard(b));
       b.addEventListener("click", () => void fire(b, jumpCommand(f.skill)));
+      all.push(b);
       return b;
     });
     parent.addEventListener("keydown", (e) => {
@@ -274,5 +278,17 @@ export function createTray(jump: Jump) {
   pack.setAttribute("aria-label", `Pack up: copy ${jumpCommand("packup")}`);
   pack.addEventListener("click", () => void fire(pack, jumpCommand("packup")));
 
-  return { el: sec, clear, fire };
+  /** Dims locked floppies (AV-108); they still Jump. */
+  const lock = (repo: UnlockSource | undefined) => {
+    for (const b of all) {
+      const f = TRAY.find((t) => t.skill === b.dataset.skill)!;
+      const hint = lockHint(f.skill, repo);
+      b.classList.toggle("is-locked", hint !== null);
+      if (hint) b.dataset.lock = hint;
+      else delete b.dataset.lock;
+      b.setAttribute("aria-label", `${f.name}${hint ? ` (${hint})` : ""}: copy ${jumpCommand(f.skill)}`);
+    }
+  };
+
+  return { el: sec, clear, fire, lock };
 }

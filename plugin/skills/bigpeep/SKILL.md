@@ -62,4 +62,4 @@ Report table exactly per `references/output.md`. Then write the Pack Up note: `$
 
 ## Last step: run count
 
-Bump `bigpeep` in `.peep/runs` (F§1). If it was below 3, end the reply with `Why: a batch is still one ticket at a time, each finished and committed before the next.`
+Bump `bigpeep` in `.peep/runs` (F§1). If it was below 3, end the reply with `Why: watch the diffs, not the reports; a report is a claim, the diff is the evidence.`
