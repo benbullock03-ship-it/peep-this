@@ -28,12 +28,12 @@ When the idea or an answer contradicts the code, a ticket or `CONTEXT.md`, say s
 ## 3. Rounds
 
 Work the idea as a tree of decisions. Each round asks the frontier: decisions whose prerequisites are settled.
-Ask with the AskUserQuestion tool, `qt.round` questions per round, default 4 (fewer only if the frontier is smaller). Shape and wording rules: `references/rounds.md`.
+Mode by `qt` in `.peep/runs` (formats §1): below 3, rounds by the AskUserQuestion tool, 4 questions per round (fewer only if the frontier is smaller); from 3, the whole frontier as one numbered text list. A `qt.round` in the setup wins over both: AskUserQuestion rounds of that size. Shape and wording rules for both modes: `references/rounds.md`.
 
 - Recommended option first, its label ending ` (recommended)`.
 - Each question stands on its own: no "as above", no answer that depends on another question in the same round.
 - After each round, tug loose ends first: a partial answer, an "Other" answer, or an answer that opens a contradiction gets a follow-up round before new ground.
-- Every round ends with a "Keep going" question (options "More questions (recommended)" / "That's enough") while the frontier is not empty. When it is empty, say so in one line and go to the read-back.
+- Ask mode: every round ends with a "Keep going" question (options "More questions (recommended)" / "That's enough") while the frontier is not empty. When it is empty, say so in one line and go to the read-back.
 
 ## 4. Glossary as it lands
 

@@ -1,5 +1,21 @@
 # Rounds
 
+## Two modes
+
+- **Ask** (`qt` run count below 3, or any `qt.round` in the setup): AskUserQuestion rounds per the shape below, `qt.round` questions each, default 4.
+- **List** (`qt` run count 3 or more, no `qt.round`): the whole frontier as one numbered text list, see "List shape". The reply is "agree all" or named overrides (`2: SQLite, 5: drop it`); unnamed items take their recommendation. Loose ends and the next frontier come back as a fresh list.
+
+## List shape
+
+```
+1. <Header>: <question>? Recommend: <option>, <why in a few words>. Else: <alt>; <alt>.
+2. ...
+Reply "agree all", or name overrides (e.g. "2: <alt>").
+```
+
+- Same rules as the ask shape: one sentence per question, recommendation first with its reason, real alternatives only, each item readable alone.
+- No "Keep going" item: the list is the whole frontier. When the next frontier is empty, go to the read-back.
+
 ## AskUserQuestion shape
 
 - One call per round, up to 4 questions. The tool allows 2 to 4 options per question and adds "Other" itself; do not add your own "Other".
