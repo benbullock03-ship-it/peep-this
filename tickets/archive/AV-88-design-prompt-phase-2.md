@@ -1,7 +1,7 @@
 ---
 id: AV-88
 title: Claude Design prompt for phase 2 floppies
-status: doing
+status: closed
 depends: []
 attended: true
 ---
@@ -10,8 +10,8 @@ attended: true
 
 **What to deliver:** The owner runs the prompt below in Claude Design and adds the result to `design/skill-pack-2/`.
 
-- [ ] Run the prompt; sprites, hover copy and colours added to `design/skill-pack-2/`
-- [ ] Owner says they are final
+- [x] Run the prompt; sprites, hover copy and colours added to `design/skill-pack-2/`
+- [x] Owner says they are final
 
 **Done when:** the Sneak Peep and Scrubadubdub floppies are in `design/skill-pack-2/` and the owner says they're final.
 
@@ -29,4 +29,5 @@ Attach: `design/skill-pack/` (FLOPPY-SPEC.md, tokens.css, sprites/), `design/ski
 ## Owed before done
 
 - Prompt checked 2026-11-16: attach list now names the delivered `design/skill-pack-2/` (phase 1) and the colour rule covers all nine floppies. Ready to paste.
-- Owner runs it in Claude Design, adds the result to `design/skill-pack-2/`, and says it is final.
+- Covered by the merged run under AV-93 on 2026-11-16: Sneak Peep and Scrubadubdub are in `design/skill-pack-2/` (SPEC.md §07, sprites/, tokens.css), committed under AV-93.
+- Owner said final 2026-11-16.
