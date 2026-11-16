@@ -1,6 +1,6 @@
 ---
 name: shoot
-description: "Shoot: check a web UI change in a real browser. Asserts the touched elements in the DOM, screenshots them across the repo setup's themes and widths with the Playwright MCP, and judges each shot against pass/fail questions written first. Web UIs only. Use when the user runs /peep:shoot, after a UI change before calling it done, or asks to 'check it in the browser' or 'screenshot it'."
+description: "Shoot: check a web UI change in a real browser. Asserts the touched elements in the DOM, screenshots them across the repo setup's themes and widths with the Playwright MCP, and judges each shot against pass/fail questions written first. Web UIs only, including a desktop app's webview (Tauri, Electron) over CDP. Use when the user runs /peep:shoot, after a UI change before calling it done, or asks to 'check it in the browser' or 'screenshot it'."
 argument-hint: "[change in one line] [selectors...]"
 label: Shoot
 ---
@@ -14,7 +14,8 @@ Verdicts and facts, not impressions. No praise anywhere in the report.
 Read `.peep/setup.md` (`${CLAUDE_PLUGIN_ROOT}/references/formats.md` §1): `url`, `dev`, `themes` (default `light, dark`), widths from `shoot.widths`, else `widths` (default `375, 1280`). `skills.off` lists `shoot`: F§1 applies.
 
 - **No `url`:** reply with exactly `Shoot doesn't apply: no url in .peep/setup.md (Shoot is for web UIs only).`, nothing else, and stop. Do not guess a URL or open a browser.
-- **No Playwright MCP tools** (`browser_navigate` etc.): reply `Shoot needs the Playwright MCP; it isn't connected.` and stop.
+- **Desktop webview** (the change is in a Tauri, WebView2 or Electron app's page, not a browser tab): follow `references/webview.md` instead of the Playwright MCP for DOM facts and shots; every other step is unchanged.
+- **No Playwright MCP tools** (`browser_navigate` etc.) and not a desktop webview: reply `Shoot needs the Playwright MCP; it isn't connected.` and stop.
 - Check the URL is serving (`curl -s -o /dev/null -w "%{http_code}" <url>`). If not and `dev` is set, start `dev` in the background and poll until it serves (max about 60s). If not and no `dev`, say so and stop.
 
 ## 2. Change and selectors
@@ -32,10 +33,11 @@ Gate: the message that makes the first `browser_*` call must begin with a visibl
 
 - DOM facts per width with `browser_evaluate`: `references/dom-asserts.md`. A screenshot cannot overrule a DOM fact.
 - The theme x width matrix and shot order: `references/matrix.md`.
+- Before every fact and shot: `references/stable.md`. A verdict that changes on a rerun is `flaky`, not `pass`.
 
 ## 5. Review
 
-Read every shot. Answer each question `pass`, `fail` or `can't tell`, one line pointing at what is visible. A DOM fact answers first where one exists. Any `fail` is fixed and re-shot, or named as open, before the work is called done. Each `can't tell` names the DOM assertion to add next run.
+Read every shot. Answer each question `pass`, `fail`, `flaky` or `can't tell`, one line pointing at what is visible. A DOM fact answers first where one exists. Any `fail` is fixed and re-shot, or named as open, before the work is called done. Each `can't tell` names the DOM assertion to add next run.
 
 ## 6. Report
 
@@ -53,10 +55,10 @@ Never claim what is owed.
 
 ## 7. Housekeeping
 
-`browser_close`. Stop a dev server this run started. Delete `.playwright-mcp/` unless the user asked to keep the shots; never stage it. If `.gitignore` lacks it, say so rather than editing it. `git status --short` shows nothing new from this run.
+`browser_close`. Stop a dev server and every process this run started; restart any copy of the app it stopped (`references/webview.md`). Delete `.playwright-mcp/` unless the user asked to keep the shots; never stage it. If `.gitignore` lacks it, say so rather than editing it. `git status --short` shows nothing new from this run.
 
 ## 8. Last step: run count
 
 Bump `shoot` in `.peep/runs` (formats §1). If it was below 3, add a final line after the report: `Why: a shot you checked proves it works; reading the code does not.`
 
-Not here: pixel-diff baselines, cross-browser runs, multi-page E2E flows, native apps.
+Not here: pixel-diff baselines, cross-browser runs, multi-page E2E flows, native UI with no web page behind it.
