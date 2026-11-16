@@ -1,7 +1,7 @@
 ---
 id: AV-118
 title: Fold Reel into Walk and write the Peep This north star
-status: done
+status: closed
 depends: [AV-117]
 ---
 
