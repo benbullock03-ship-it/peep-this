@@ -1,7 +1,7 @@
 ---
 id: AV-90
 title: Big Peep skill - run a ticket batch, ask stale little peeps
-status: done
+status: closed
 depends: [AV-74]
 ---
 
