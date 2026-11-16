@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildImportMap, callersOf, parseAreas, run } from "./map.mjs";
+import { buildImportMap, callersOf, liveSessions, parseAreas, run } from "./map.mjs";
 
 test("import map links ts and rust files and finds callers", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "goose-"));
@@ -21,6 +21,38 @@ test("import map links ts and rust files and finds callers", () => {
   expect(callersOf(map, "src/b.ts")).toEqual(["src/a.ts"]);
   expect(callersOf(map, "rs/src/state.rs").sort()).toEqual(["rs/src/lib.rs", "rs/src/mood.rs"]);
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("a session's peep sits on the areas its recent edits fall in", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "goose-"));
+  const root = path.join(tmp, "repo w");
+  const sessions = path.join(tmp, "sessions");
+  const projects = path.join(tmp, "projects");
+  fs.mkdirSync(root);
+  fs.mkdirSync(sessions);
+  const now = Date.parse("2026-11-16T10:00:00Z");
+  const edit = (min, name, file_path) => JSON.stringify({
+    type: "assistant", timestamp: new Date(now - min * 60000).toISOString(),
+    message: { content: [{ type: "tool_use", name, input: { file_path } }] },
+  });
+  const session = (pid, sessionId, lines) => {
+    fs.writeFileSync(path.join(sessions, pid + ".json"), JSON.stringify({ pid, sessionId, cwd: root, name: "s" + pid, status: "busy" }));
+    const dir = path.join(projects, root.replace(/[^A-Za-z0-9]/g, "-"));
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, sessionId + ".jsonl"), lines.join("\n") + "\n");
+  };
+  session(1, "a", [
+    edit(90, "Edit", path.join(root, "plugin", "old.mjs")),
+    edit(5, "Edit", path.join(root, "src-tauri", "src", "state.rs")),
+    edit(2, "Write", "src/new.ts"),
+    edit(1, "Read", path.join(root, "docs", "spec.md")),
+    edit(1, "Edit", path.join(tmp, "elsewhere.ts")),
+  ]);
+  session(2, "b", [edit(90, "Edit", path.join(root, "src", "a.ts"))]);
+  const areas = parseAreas("---\narea.backend: src-tauri/\narea.frontend: src/\narea.plugin: plugin/\n---\n");
+  const got = Object.fromEntries(liveSessions(root, areas, sessions, projects, now).map((s) => [s.name, s.areas]));
+  expect(got).toEqual({ s1: ["backend", "frontend"], s2: [] });
+  fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 test("--graphify folds a graphify graph.json to file edges and writes the page", () => {

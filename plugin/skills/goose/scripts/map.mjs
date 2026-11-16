@@ -130,7 +130,45 @@ export function callersOf(map, target) {
   return map.edges.filter(([, t]) => t === target).map(([f]) => f);
 }
 
-export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude", "sessions")) {
+const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const TAIL_BYTES = 2 << 20;
+const EDIT_WINDOW_MS = 30 * 60 * 1000;
+
+function readTail(file) {
+  const fd = fs.openSync(file, "r");
+  try {
+    const size = fs.fstatSync(fd).size;
+    const len = Math.min(size, TAIL_BYTES);
+    const buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, size - len);
+    return buf.toString("utf8");
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+// Repo-relative files a transcript's Edit/Write calls touched at or after `since`.
+export function editedFiles(transcript, root, since) {
+  let text;
+  try { text = readTail(transcript); } catch { return []; }
+  const r = norm(path.resolve(root)).toLowerCase().replace(/\/$/, "");
+  const out = new Set();
+  for (const line of text.split("\n")) {
+    if (!line.includes('"tool_use"')) continue;
+    let d;
+    try { d = JSON.parse(line); } catch { continue; }
+    if (d.type !== "assistant" || !(Date.parse(d.timestamp) >= since)) continue;
+    for (const c of d.message?.content || []) {
+      const p = c.type === "tool_use" && EDIT_TOOLS.has(c.name) && (c.input?.file_path || c.input?.notebook_path);
+      if (!p) continue;
+      const abs = norm(path.resolve(root, p));
+      if (abs.toLowerCase().startsWith(r + "/")) out.add(abs.slice(r.length + 1));
+    }
+  }
+  return [...out];
+}
+
+export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude", "sessions"), projectsDir = path.join(os.homedir(), ".claude", "projects"), now = Date.now()) {
   const out = [];
   let names = [];
   try { names = fs.readdirSync(dir).filter((n) => n.endsWith(".json")); } catch { return out; }
@@ -144,9 +182,12 @@ export function liveSessions(root, areas, dir = path.join(os.homedir(), ".claude
     if (low !== r && !low.startsWith(r + "/")) continue;
     const rel = cwd.slice(r.length).replace(/^\//, "");
     const hash = [...cwd.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    // Claude Code names the transcript folder after the cwd with every non-alphanumeric as "-".
+    const transcript = s.sessionId ? path.join(projectsDir, s.cwd.replace(/[^A-Za-z0-9]/g, "-"), s.sessionId + ".jsonl") : "";
+    const edited = transcript ? editedFiles(transcript, root, now - EDIT_WINDOW_MS) : [];
     out.push({
       name: s.name || String(s.pid),
-      area: rel ? areaOf(rel + "/", areas) : null,
+      areas: edited.length ? [...new Set(edited.map((f) => areaOf(f, areas)))] : rel ? [areaOf(rel + "/", areas)] : [],
       state: s.status === "busy" ? "working" : s.status === "waiting" ? "waiting" : "idle",
       color: PALETTE[hash % PALETTE.length],
     });
@@ -209,14 +250,14 @@ for(const area of D.order){
   h.children[0].textContent=area;
   const mine=D.nodes.filter(n=>n.area===area);h.children[1].textContent=mine.length;
   box.append(h);
-  const sess=D.sessions.filter(s=>s.area===area);
+  const sess=D.sessions.filter(s=>s.areas.includes(area));
   if(sess.length){const p=document.createElement('div');p.className='peeps';
     for(const s of sess){const e=document.createElement('peep-bot');e.setAttribute('state',s.state);e.setAttribute('color',s.color);e.setAttribute('size','32');e.title=s.name;p.append(e)}
     box.append(p)}
   const fs=document.createElement('div');fs.className='files';
   for(const n of mine){const b=document.createElement('button');b.className='f';b.title=n.id;b.setAttribute('aria-label',n.id);b.onclick=()=>pick(n.id);btn.set(n.id,b);fs.append(b)}
   box.append(fs);board.append(box)}
-const loose=D.sessions.filter(s=>!s.area);
+const loose=D.sessions.filter(s=>!s.areas.some(a=>D.order.includes(a)));
 if(loose.length){const p=document.createElement('div');p.className='area';p.innerHTML='<h2><span>repo root</span><span></span></h2>';const row=document.createElement('div');row.className='peeps';
   for(const s of loose){const e=document.createElement('peep-bot');e.setAttribute('state',s.state);e.setAttribute('color',s.color);e.setAttribute('size','32');e.title=s.name;row.append(e)}
   p.append(row);board.prepend(p)}
@@ -240,7 +281,7 @@ export function run(root, opts = {}) {
     : buildImportMap(root, areas);
   const here = path.dirname(fileURLToPath(import.meta.url));
   const peepJs = fs.readFileSync(path.join(here, "..", "assets", "peep.js"), "utf8").replace(/<\/script/gi, "<\\/script");
-  const sessions = liveSessions(root, areas, opts.sessionsDir);
+  const sessions = liveSessions(root, areas, opts.sessionsDir, opts.projectsDir);
   const outDir = path.join(root, ".peep", "graph");
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "graph.json"), JSON.stringify(map, null, 1));

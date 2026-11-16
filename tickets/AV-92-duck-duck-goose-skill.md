@@ -1,7 +1,7 @@
 ---
 id: AV-92
 title: Duck Duck Goose skill - dependency map and peep graph page
-status: doing
+status: done
 depends: [AV-74]
 ---
 
@@ -9,11 +9,11 @@ depends: [AV-74]
 
 **What to build:** `/peep:goose` maps the codebase's dependencies so agents query it instead of searching aimlessly, and writes an interactive graph page for the owner.
 
-- [ ] Uses graphify when installed (build and query its graph)
-- [ ] Not installed: offers the install command, and meanwhile builds a basic import map plus the repo setup's areas
-- [ ] Writes `.peep/graph/index.html`: standalone, offline, areas as clusters, live sessions' peeps standing on the areas they are editing; opens it in the browser
-- [ ] Tells agents how to query the map (a short section in each area note or `kb/INDEX.md`)
-- [ ] Why line per AV-74
+- [x] Uses graphify when installed (build and query its graph)
+- [x] Not installed: offers the install command, and meanwhile builds a basic import map plus the repo setup's areas
+- [x] Writes `.peep/graph/index.html`: standalone, offline, areas as clusters, live sessions' peeps standing on the areas they are editing; opens it in the browser
+- [x] Tells agents how to query the map (a short section in each area note or `kb/INDEX.md`)
+- [x] Why line per AV-74
 
 **Done when:** `/peep:goose` on this repo, with and without graphify, produces a graph page that opens offline and an agent answers "what calls state.rs" from the map.
 
@@ -22,12 +22,12 @@ depends: [AV-74]
 - Query instructions live in `kb/INDEX.md` (one short section), not in each area note.
 - Importer covers ts/js and Rust (`crate::`, `mod x;`) only; other languages need graphify.
 - `design/peep.js` is copied byte-identical to `plugin/skills/goose/assets/peep.js` so the shipped plugin can inline it.
-- A session shows on an area only when its cwd is inside that area's folder; a repo-root cwd gets a `repo root` card.
 - Styling is token-based and plain until AV-93 art lands; `.peep/graph/` left to the owner to gitignore.
+- Edited files come from the tail (last 2 MB) of each live session's transcript, not from the backend's hooks, so the skill needs no widget change. Window: Edit, Write, MultiEdit and NotebookEdit calls in the last 30 minutes. A session with several edited areas shows a peep on each.
 
-## Owed before done
+## Rulings
 
-- Peeps are placed by session cwd, not by the files being edited; most sessions sit at the repo root and land on the `repo root` card. Placing by edited files needs hook file paths from the backend: owner to rule whether that is in scope here or a follow-up.
+- 2026-11-16, owner: peeps sit on the areas a session is editing. With no recent edits a peep falls back to the area its cwd is in, or the `repo root` card.
 
 ## Notes
 
@@ -35,3 +35,5 @@ depends: [AV-74]
 - Basic path verified on this repo (117 files, 300 imports); the "what calls state.rs" answer matched `grep crate::state` plus `lib.rs` (`mod state;`).
 - Graphify path verified 2026-11-16 on an AST-only graphify 0.9.66 build of `src/`, `src-tauri/src/`, `plugin/` (no model calls): 174 files, 308 edges; callers of `state.rs` match the import map's except `lib.rs` (`mod state;`), `approve.rs` and `mood.rs`, which graphify misses, and `sessions.rs` and `focus.rs`, which it adds. Directed and undirected builds give the same direction. `map.test.mjs` covers `run(..., { graphify })` with a fixture in the real shape.
 - Page walkthrough 2026-11-16 (Playwright, light, dark, 390px): 126 files, 327 imports, 4 areas plus `repo root` with 3 drawn peeps; clicking `state.rs` lights its 14 callers and lists 2 callees; no console errors; the only request is the page itself, so it works offline; no horizontal scroll at 390px. Rough edges for AV-93: the area grid leaves a tall gap under `repo root`; a file that both calls and is called by the picked file shows only blue; at phone width the detail panel sits below the board, out of view on click; fonts fall back to system ones (none bundled in the page).
+- Edit placement verified on live sessions 2026-11-16: this session's peep moved from `repo root` to `plugin` and `other`.
+- `tickets/INDEX.md` not regenerated: a parallel session is editing it. Run `npm run tickets` after that session commits.

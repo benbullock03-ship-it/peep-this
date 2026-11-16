@@ -26,7 +26,7 @@ Run from the repo root:
 - Basic import map: `node "${CLAUDE_PLUGIN_ROOT}/skills/goose/scripts/map.mjs" .`
 - From graphify: `node "${CLAUDE_PLUGIN_ROOT}/skills/goose/scripts/map.mjs" . --graphify graphify-out/graph.json`
 
-It reads `.ts .tsx .js .mjs .rs` imports (relative imports; Rust `crate::` paths and `mod x;`), assigns each file to the first area whose prefix matches (formats §1), reads `~/.claude/sessions/*.json` for sessions whose `cwd` is inside the repo, and writes `.peep/graph/graph.json` and `.peep/graph/index.html`. A session standing in an area's folder shows its peep on that area; one at the repo root shows on a `repo root` card. The page is one file with the art inlined: no network.
+It reads `.ts .tsx .js .mjs .rs` imports (relative imports; Rust `crate::` paths and `mod x;`), assigns each file to the first area whose prefix matches (formats §1), reads `~/.claude/sessions/*.json` for sessions whose `cwd` is inside the repo, and writes `.peep/graph/graph.json` and `.peep/graph/index.html`. A session's peep stands on every area its Edit and Write calls touched in the last 30 minutes (read from the tail of its transcript in `~/.claude/projects/`). With no recent edits it stands on the area its `cwd` is in, or on a `repo root` card. The page is one file with the art inlined: no network.
 
 Print the JSON line it returns. Then open the page: `start "" ".peep/graph/index.html"` (Windows), `open` (macOS) or `xdg-open`. `.peep/graph/` is generated; if `.gitignore` lacks it, say so rather than editing it.
 
