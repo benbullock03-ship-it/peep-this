@@ -262,6 +262,10 @@ body[data-fold] > .ps-strip {
   box-shadow: inset 0 0 0 2px var(--st);
 }
 
+.ps-strip-btn.is-att:hover {
+  background: color-mix(in srgb, var(--st) 35%, transparent);
+}
+
 .ps-strip-btn[data-alive="false"] {
   opacity: 0.55;
 }
@@ -304,6 +308,14 @@ body[data-fold] > .ps-strip {
   color: var(--ps-muted);
   font: 500 12px var(--mono);
   letter-spacing: 0.04em;
+}
+
+.ps-strip-more:hover {
+  color: var(--ps-text);
+}
+
+.ps-strip-house:hover {
+  background: var(--ps-panel-2);
 }
 
 /* AV-43: the house peep keeps a session cell's footprint, so the plate does not change size. */
@@ -686,6 +698,11 @@ body[data-fold] > .ps-strip {
   container-type: inline-size;
 }
 
+.ps-row:hover,
+.ps-openhead:hover {
+  background: var(--ps-panel-2);
+}
+
 .ps-row:hover .ps-name {
   color: var(--ps-text);
 }
@@ -695,6 +712,12 @@ body[data-fold] > .ps-strip {
   display: flex;
   justify-content: center;
   align-items: flex-end;
+  cursor: pointer;
+}
+
+/* A click on the peep focuses the terminal, not the row, so it gets its own 2px hop. */
+.ps-peep:hover > peep-bot {
+  translate: 0 -2px;
 }
 
 .ps-bubble {
@@ -1600,6 +1623,10 @@ body[data-fold] > .ps-strip {
   cursor: pointer;
 }
 
+.diskbox-ok:hover {
+  box-shadow: var(--shadow-lift);
+}
+
 .diskbox-ok:focus-visible {
   outline: 2px solid var(--ps-text);
   outline-offset: 2px;
@@ -2405,6 +2432,14 @@ body[data-fold] > .ps-strip {
   background: var(--ps-panel);
 }
 
+.cl-head:hover {
+  border-top-color: var(--ps-text);
+}
+
+.cl-head:hover > span {
+  background: var(--ps-panel-2);
+}
+
 .cl-sub,
 .cl-check {
   letter-spacing: 0;
@@ -2461,8 +2496,8 @@ body[data-fold] > .ps-strip {
   border-top: 1px solid var(--ps-line);
 }
 
-.cl-row:hover .cl-name {
-  color: var(--ps-text);
+.cl-row:hover {
+  background: var(--ps-panel-2);
 }
 
 .cl-pcol {
@@ -2597,6 +2632,11 @@ body[data-fold] > .ps-strip {
   font: inherit;
   box-shadow: inset 0 -1px 0 var(--ps-text);
   cursor: pointer;
+}
+
+.cl-all:hover {
+  background: var(--ps-panel-2);
+  box-shadow: inset 0 -2px 0 var(--ps-text);
 }
 
 .cl-hint {
@@ -2782,7 +2822,7 @@ button.digest-entry:focus-visible {
 }
 
 .banner-action:hover:not(:disabled) {
-  filter: brightness(1.08);
+  box-shadow: var(--shadow-lift);
 }
 
 .banner-action:disabled {
@@ -3108,8 +3148,8 @@ button.digest-entry:focus-visible {
 }
 
 .card-allow:hover {
-  filter: brightness(1.08);
   border-color: var(--ps-accent);
+  box-shadow: var(--shadow-lift);
 }
 
 .card[data-tier="destructive"] .card-allow {
@@ -3360,6 +3400,10 @@ button.digest-entry:focus-visible {
   cursor: pointer;
 }
 
+.settings-toggle:hover {
+  color: var(--ps-accent);
+}
+
 .settings-toggle input {
   margin: 0;
   accent-color: var(--ps-accent);
@@ -3419,6 +3463,10 @@ button.digest-entry:focus-visible {
   font: inherit;
   outline: none;
   cursor: pointer;
+}
+
+.hotkey-input:hover {
+  border-color: var(--ps-muted);
 }
 
 .hotkey-input:focus {
