@@ -1,7 +1,7 @@
 ---
 id: AV-105
 title: Ducks level 5 - architecture report on the goose page
-status: doing
+status: done
 depends: [AV-104]
 ---
 
@@ -31,8 +31,12 @@ depends: [AV-104]
 - Candidates JSON is `.peep/graph/candidates.json` (generated); `map.mjs --report <file>` renders it. Its schema is in `ducks/references/report.md`.
 - The graphify install offer is recorded once as `ducks.graphify: offered` in `.peep/runs`.
 
-## Owed before done
+## Done 2026-11-16
+
+All owed items above are met (struck through). Proof: `map.test.mjs`, the Shoot checks, the owner's look, and AV-104 run B.
+
+## Owed items (all met)
 
 - ~~Owner looks at `.peep/graph/index.html` and confirms what they saw~~: confirmed 2026-11-16 ("looks good I like it").
-- `/peep:ducks` level 5 run end to end in a fresh session (this needs AV-104's ladder live run).
+- ~~`/peep:ducks` level 5 run end to end in a fresh session~~: done 2026-11-16 (AV-104 run B). A child session in a clean throwaway worktree wrote `candidates.json` and rendered `.peep/graph/index.html` with the import map and 4 cards. The page has no http(s) URLs, and `ducks.graphify: offered` was set once. Opening it was skipped on purpose (headless).
 - Checked so far: map.test.mjs report test; Shoot dark at 1280 and light at 375. The report renders above the map, top pick first, 13 peeps upgraded, the ELI5 fold opens, copy shows its status, no horizontal scroll. The only request is the local server's favicon.ico.
