@@ -1,7 +1,7 @@
 ---
 id: AV-110
 title: Learned list page in the tray
-status: doing
+status: closed
 depends: [AV-109]
 ---
 
