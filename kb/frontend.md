@@ -5,14 +5,15 @@
 - The open row hosts the floppy tray and a Pack up button (`src/tray.ts`, wired in `src/rows.ts`); each is a Jump.
 - Jump writes the command with `navigator.clipboard.writeText`, then calls `focus_session`; a failed write still focuses and the hint says to type it.
 - `jumpCommand(skill, arg?)` builds the command; the hint bar sits in the tray section under the disks.
-- The tray shows six disks, then a `+N` cell (`TRAY_SHOWN` in `src/tray.ts`) that opens the rest in a grid under the row, its own roving tab stop. Sprite sheets in `src/assets/floppy/` are 16px columns; `FLOPPIES` in `src/bubble.ts` maps skill to column and bubble verb.
+- The tray shows six disks, then a `+N` cell (`TRAY_SHOWN` in `src/tray.ts`) that opens the rest in a grid under the row, its own roving tab stop. Sprite sheets in `src/assets/floppy/` are the 18-column sheets from `design/skill-pack-2/sprites/` (16px columns, CSS width 288 units); `FLOPPIES` in `src/bubble.ts` maps skill to column and bubble verb. The tray lists 11: the six, then walk, reel, bigpeep, tweet, goose behind `+5`.
 - The first-run disk box shows once; dismissal lives in `localStorage` `peepthis.diskBox.dismissed`.
 - The ticket shelf (`src/shelf.ts`) sits after the tray and lists the repo's tickets from `Snapshot.repos`, passed as `render(sessions, repos?)` in `src/main.ts`; a click Jumps `/peep:ticket <id>` through the tray's hint bar (`createTray().fire`).
 - The arc line (`src/arc.ts`) sits between tray and shelf: north star from `.peep/reel.md`, closed/open/parked counts and the last closed id, all from `Repo.northStar` and `Repo.arc` (`src-tauri/src/tickets.rs`). Counts that do not fit drop whole from the end; closed always stays. No north star shows a Jump to `/peep:reel`.
 - Shelf sort: blocked, doing, done (shown as review), open, deferred (parked); file order within a status. `closed` never reaches the shelf.
 - The closed shelf (`src/closedShelf.ts`, mounted in `src/main.ts` after the list) renders `Snapshot.closed` newest first; a click copies `claude --resume <id>` with no terminal focus. An entry hides while its id is live again. Demo states: `?demo&closed=none|one|many|long`.
 - End session: a "Hold to end session" button on the open row only, wired by `bindHold` (`src/hold.ts`, shared with the destructive Allow) to `end_session`; a failure shows in the bubble for 6s.
-- A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/`.
+- A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/` (8 rows; row 7 is `tweet`, which plays twice then holds frame 1).
+- Tweet mood (`mood.rs` `tweeting`): an open tweet on the repo's `.peep/tweets.md` whose `from` is the session's ticket, or a recent edit of the board or of a file the tweet names. It holds while the tweet is open; clash outranks it, it outranks sweat, worry, yawn and nap.
 - Rate limits: header meters with % on a second header line and title pressure at 80/95/100 (`src/limits.ts`); from 80% every non-attention peep sweats and the limit takes the bubble's verb slot. Toasts at 95 and 100 come from the backend (`src-tauri/src/limit.rs`), once per window keyed by `resets_at`. `?demo&limits=82,30` fakes them.
 - The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`).
 - Clash: sessions with `mood: startled` and the same `Session.clash` path get a lettered bolt tag (`Bubble.bolt` in `src/bubble.ts`), "Both in <file>" bubble text (`clashTags`, `clashText` in `src/emote.ts`) and, when adjacent, a dotted plank-to-plank bracket in `--st-waiting` (`clash-down`/`clash-up`, `--plank-y` in `src/rows.ts`).
@@ -28,6 +29,7 @@
 - Emotes loop at 8 fps per `emotes.json`, not the 160ms transition rule; sparkle and wave play twice then hide while the mood holds.
 - The shelf header click sets a sticky open/closed choice for the session; a stray click on it collapses a full shelf until reload.
 - Busy sessions post real statusline payloads every second or so, overwriting a faked one; a live limit check reposts in a loop while it samples.
+- A floppy sprite must be a single `span` in its parent: CSS that targets the text span in a disk row (e.g. `.diskbox-rot > span:last-child`) must not match the disks, or the whole sheet shows.
 - Not yet snoozes in memory per session until 95% or the yawn clears; it does not survive a restart.
 
 - Every clickable has a `:hover` (hard offset, colour step or 2px hop, never blur, glow or brightness filter) and `cursor: pointer`; things that do nothing on click have neither. Chips, bars and tags react through their row. New clickables need both.
@@ -41,4 +43,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-98, 2026-11-16
+last touched: AV-94, 2026-11-16
