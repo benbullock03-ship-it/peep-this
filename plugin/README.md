@@ -13,7 +13,7 @@ Remove: `claude plugin uninstall peep@peep-this`, then `claude plugin marketplac
 
 ## Skills and floppy labels
 
-Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). Each skill's ticket copies its label into its `SKILL.md` frontmatter.
+Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15) and `design/skill-pack-2/SPEC.md`. Each skill's ticket copies its label into its `SKILL.md` frontmatter. Tweet has a floppy that seats on the plank but no tray cell.
 
 | Skill | Command | Floppy label | Art id | Ticket |
 |---|---|---|---|---|
@@ -23,11 +23,11 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). 
 | `packup` | `/peep:packup` | Pack Up | `handoff` | AV-60 |
 | `shoot` | `/peep:shoot` | Shoot | `shoot` | AV-60 |
 | `coderot` | `/peep:coderot` | Coderot | `coderot` | AV-61 |
-| `walk` | `/peep:walk` | none yet (AV-84) | none yet | AV-77 |
-| `sneak` | `/peep:sneak` | none yet (AV-89) | none yet | AV-85 |
-| `goose` | `/peep:goose` | none yet (AV-94) | none yet | AV-92 |
-| `bigpeep` | `/peep:bigpeep` | none yet (AV-94) | none yet | AV-90 |
-| `tweet` | `/peep:tweet` | none yet (AV-94) | none yet | AV-91 |
+| `walk` | `/peep:walk` | Walk Through | `walk` | AV-77 |
+| `sneak` | `/peep:sneak` | Sneak Peep | `sneak` | AV-85 |
+| `goose` | `/peep:goose` | Duck Duck Goose | `goose` | AV-92 |
+| `bigpeep` | `/peep:bigpeep` | Big Peep | `bigpeep` | AV-90 |
+| `tweet` | `/peep:tweet` | Tweet Tweet | `tweet` | AV-91 |
 
 ## Preamble (AV-117)
 

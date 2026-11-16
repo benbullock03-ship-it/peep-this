@@ -1999,8 +1999,8 @@ mod tests {
     }
 
     #[test]
-    fn phase_1_and_2_skills_seat_their_floppy() {
-        for name in ["walk", "sneak"] {
+    fn every_peep_skill_seats_its_floppy() {
+        for name in PEEP_SKILLS {
             let s = run(vec![(skill(name, None, Event::UserPromptSubmit), T0 + 1)]);
             assert_eq!(s.skill.as_deref(), Some(name));
         }

@@ -1,36 +1,57 @@
 import { FLOPPIES } from "./bubble";
 
-/** FLOPPY-SPEC §01 explainers and the tray order; the first five are the flow the disk box numbers. */
+/**
+ * Tray order is the tour's: Core, then Extras. `when` is the tour's "use when" line (walk has none there).
+ * Tweet is inserted-only: it seats on the plank but has no tray cell.
+ */
 export const TRAY: readonly { skill: string; name: string; what: string; when: string }[] = [
   {
-    skill: "ducks",
-    name: "Ducks",
-    what: "Checks where the repo stands: loose tickets, failing tests, stray changes, the last Pack Up note.",
-    when: "Use when you sit down, before picking the next ticket.",
+    skill: "walk",
+    name: "Walk Through",
+    what: "Tours the disks in order, asks a few batched questions about your repo and how you work, then sets the pack up to match.",
+    when: "Use the first time, or when the pack feels off.",
   },
   {
     skill: "qt",
     name: "Question Time",
     what: "Asks you batched questions about a new idea, reads it back, then writes the tickets.",
-    when: "Use when the idea is there but the details are fuzzy.",
+    when: "Use when an idea or problem is still fuzzy; ends in tickets.",
   },
   {
     skill: "ticket",
     name: "Ticket",
     what: "Works one ticket end to end: build, check, commit, mark done.",
-    when: "Use when a ticket is ready to go.",
+    when: "Use when a ticket is ready to work, close or park.",
   },
   {
     skill: "shoot",
     name: "Shoot",
     what: "Checks a web UI change in a real browser with DOM asserts and screenshots.",
-    when: "Use after a UI change, before calling it done.",
+    when: "Use after a web UI change, before calling it done.",
   },
   {
     skill: "packup",
     name: "Pack Up",
     what: "Writes a short note so a fresh session can carry on from here.",
-    when: "Use when context is filling up, or you're stopping for the day.",
+    when: "Use when stopping, or context is filling up.",
+  },
+  {
+    skill: "ducks",
+    name: "Ducks",
+    what: "Checks where the repo stands: loose tickets, failing tests, stray changes, the last Pack Up note.",
+    when: "Use when sitting down to work, after a Pack Up, or unsure what to pick up next.",
+  },
+  {
+    skill: "sneak",
+    name: "Sneak Peep",
+    what: "Mocks up two or three versions of a screen on a local server, side by side, before anything is built. You pick one.",
+    when: "Use when you want to compare 2 or 3 UI directions before building.",
+  },
+  {
+    skill: "goose",
+    name: "Duck Duck Goose",
+    what: "Maps what depends on what across the codebase and draws it as a graph.",
+    when: "Use when you need to know what calls what before changing it.",
   },
   {
     skill: "coderot",
@@ -39,34 +60,10 @@ export const TRAY: readonly { skill: string; name: string; what: string; when: s
     when: "Use between tickets, to check the tests can actually fail.",
   },
   {
-    skill: "walk",
-    name: "Walk Through",
-    what: "Tours the disks in order, asks a few batched questions about your repo and how you work, then sets the pack up to match.",
-    when: "Use the first time, or when the pack feels off.",
-  },
-  {
-    skill: "sneak",
-    name: "Sneak Peep",
-    what: "Mocks up two or three versions of a screen on a local server, side by side, before anything is built. You pick one.",
-    when: "Use when you can only say what it should look like once you see it.",
-  },
-  {
     skill: "bigpeep",
     name: "Big Peep",
     what: "Runs a batch of tickets, one little peep per ticket, and checks on any that go quiet.",
-    when: "Use when several tickets are ready and none needs you in between.",
-  },
-  {
-    skill: "tweet",
-    name: "Tweet Tweet",
-    what: "Tells the other sessions on this repo that this one is stuck, or is about to touch their files.",
-    when: "Use when another session may know the answer, or before changing a file one of them is in.",
-  },
-  {
-    skill: "goose",
-    name: "Duck Duck Goose",
-    what: "Maps what depends on what across the codebase and draws it as a graph.",
-    when: "Use when you need to know what a change will touch.",
+    when: "Use when several tickets are ready and you want them worked in order, one commit each.",
   },
 ];
 
@@ -125,15 +122,17 @@ function diskBox(onDone: () => void): HTMLElement {
   el("p", "diskbox-text", box).textContent =
     "Each floppy is a skill. Pop one in and the command is copied, ready to paste in that session's terminal.";
   const shelf = el("ol", "diskbox-shelf", box);
-  for (const f of TRAY.slice(0, 5)) {
+  // The tour numbers the five after Walk; Walk sets the pack up first.
+  const flow = TRAY.slice(1, TRAY_SHOWN);
+  for (const f of flow) {
     const li = el("li", "diskbox-disk", shelf);
     disk(f.skill, 48, li);
     el("span", "diskbox-n", li).textContent = String(shelf.children.length);
   }
-  el("p", "diskbox-text", box).textContent = `A good order: ${TRAY.slice(0, 5).map((f) => f.name).join(", ")}.`;
-  const rot = el("p", "diskbox-rot", box);
-  disk("coderot", 32, rot);
-  el("span", "", rot).textContent = "Coderot is for any time between tickets.";
+  el("p", "diskbox-text", box).textContent = `A good order: ${flow.map((f) => f.name).join(", ")}.`;
+  const walk = el("p", "diskbox-rot", box);
+  disk("walk", 32, walk);
+  el("span", "", walk).textContent = "Walk Through is for the first time, or when the pack feels off.";
   const extra = TRAY.slice(TRAY_SHOWN);
   const more = el("p", "diskbox-rot", box);
   for (const f of extra) disk(f.skill, 32, more);

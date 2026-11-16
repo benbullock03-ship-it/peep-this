@@ -1,3 +1,5 @@
+// @ts-expect-error type error without @types/node package
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FLOPPIES } from "./bubble";
 import { hintText, jumpCommand, TRAY, TRAY_SHOWN } from "./tray";
@@ -23,18 +25,29 @@ describe("hintText", () => {
   });
 });
 
-it("every tray floppy has sprite art", () => {
-  for (const f of TRAY) expect(FLOPPIES[f.skill]).toBeDefined();
+it("every name in PEEP_SKILLS maps to its own floppy sprite", () => {
+  const rs: string = readFileSync(new URL("../src-tauri/src/state.rs", import.meta.url), "utf8");
+  const list = rs.match(/PEEP_SKILLS: \[&str; \d+\] =\s*\[([^\]]*)\]/)![1];
+  const skills = [...list.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+  expect(skills).toHaveLength(11);
+  expect(Object.keys(FLOPPIES).sort()).toEqual([...skills].sort());
+  expect(new Set(Object.values(FLOPPIES).map((f) => f.col)).size).toBe(skills.length);
 });
 
-it("shows the six spec floppies and puts the rest behind +N", () => {
-  expect(TRAY.map((f) => f.skill)).toEqual(["ducks", "qt", "ticket", "shoot", "packup", "coderot", "walk", "sneak", "bigpeep", "tweet", "goose"]);
-  expect(TRAY.slice(TRAY_SHOWN).map((f) => jumpCommand(f.skill))).toEqual([
-    "/peep:walk",
-    "/peep:sneak",
-    "/peep:bigpeep",
-    "/peep:tweet",
-    "/peep:goose",
-  ]);
-  expect(new Set(TRAY.map((f) => FLOPPIES[f.skill].col)).size).toBe(TRAY.length);
+it("orders the tray Core then Extras, six shown and the rest behind +N", () => {
+  expect(TRAY.slice(0, TRAY_SHOWN).map((f) => f.skill)).toEqual(["walk", "qt", "ticket", "shoot", "packup", "ducks"]);
+  expect(TRAY.slice(TRAY_SHOWN).map((f) => f.skill)).toEqual(["sneak", "goose", "coderot", "bigpeep"]);
+});
+
+it("tweet seats on the plank but has no tray cell", () => {
+  expect(FLOPPIES.tweet).toBeDefined();
+  expect(TRAY.some((f) => f.skill === "tweet")).toBe(false);
+});
+
+it("each hover card's use-when line is the tour's", () => {
+  const tour: string = readFileSync(new URL("../plugin/skills/walk/references/tour.md", import.meta.url), "utf8");
+  for (const f of TRAY.filter((f) => f.skill !== "walk")) {
+    const line = tour.match(new RegExp(`/peep:${f.skill}\\s+(use .+)$`, "m"))![1];
+    expect(f.when, f.skill).toBe(`U${line.slice(1)}.`);
+  }
 });
