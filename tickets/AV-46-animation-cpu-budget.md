@@ -1,7 +1,9 @@
 ---
 id: AV-46
 title: Peep animation CPU against the §8 budget
-status: doing
+status: deferred
+reason: the idle measurement needs every Claude session idle, so a Claude session cannot take it
+wake: owner measures peep-this.exe 2x30s with 0, 3 and 10 idle sessions from a plain terminal
 depends: []
 attended: true
 ---
