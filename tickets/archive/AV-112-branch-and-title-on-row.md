@@ -1,7 +1,7 @@
 ---
 id: AV-112
 title: Git branch and session title on the row and toast
-status: doing
+status: closed
 depends: []
 ---
 
