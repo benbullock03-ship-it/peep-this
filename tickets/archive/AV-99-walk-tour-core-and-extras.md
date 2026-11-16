@@ -1,7 +1,7 @@
 ---
 id: AV-99
 title: Walk tour splits core workflow from extras
-status: done
+status: closed
 depends: []
 ---
 
