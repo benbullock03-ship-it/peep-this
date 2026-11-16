@@ -9,6 +9,8 @@
 - `/peep:scrub` (Scrubadubdub) runs `skills/scrub/scripts/scan.mjs`: catalogue grep rules over changed lines since `main` (falls back to `master`, then `HEAD`) plus untracked files, or `--full`; exceptions applied; one finding per ID per file, scored by severity plus the other IDs in that file. Then an eye pass (`references/eye.md`) that always covers spacing and text, on Shoot shots or `inferred` without a `url`. The numbered report phrases alternatives in the repo's own tokens. On the reply (`references/fix.md`) it fixes only the approved numbers, sends design choices to `/peep:sneak`, writes debt on `debt <n>`, and on `wrong <n>` offers an earned line or names a rule bug.
 - Every skill's last step bumps its line in `.peep/runs` and, while the old count is below 3, ends with one `Why:` line tied to a habit: think before code, finish before starting, prove it works.
 - `/peep:reel` asks batched rounds on who it is for, the problem, the hook and non-goals, reads back, then writes `.peep/reel.md` (F§5). Research of comparables runs only if asked, at most 5.
+- Question Time asks AskUserQuestion rounds while its run count is below 3 (or whenever `qt.round` is set); from the third run it gives the whole frontier as one numbered list answered with "agree all" or named overrides (`qt/references/rounds.md`).
+- `/peep:coderot` with no area argument targets the hot spot, the setup area most touched by the last 20 commits' files, and says which; the cap stays 20 mutants.
 - Question Time (under Scope) and Ducks (under Watch) read `.peep/reel.md` only to add a `drift: <id> <why>` line for a ticket off the north star or on a non-goal.
 - Ducks lists `done` tickets first as one item with a count, and the read-back's **Do** line `close <n> done: <ids>` closes them all on one yes, one `<id>: close` commit each (`leave <ids>` drops some). Stale `doing` comes second: ticket file unchanged for the setup's `stale.days` (default 3, file mtime), asked as finish, park with a reason, or close. The widget's backend worries the repo's peeps on the same rule (`tickets.rs` `Repo.stale`).
 - `/peep:sneak` asks Question Time-style design rounds, reads back, builds 2 or 3 self-contained variants in `.peep/sneak/<slug>/{a,b,c}/`, serves them side by side with `skills/sneak/scripts/serve.mjs` (127.0.0.1, random port), and moves the pick to `design/<slug>/`, deleting the rest. It adds `.peep/sneak/` to `.gitignore` itself and never touches the app.
@@ -43,4 +45,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-103, 2026-11-16
+last touched: AV-107, 2026-11-16

@@ -1,7 +1,7 @@
 ---
 id: AV-107
 title: Coderot hot-spot default and adaptive Question Time rounds
-status: done
+status: closed
 depends: []
 ---
 
