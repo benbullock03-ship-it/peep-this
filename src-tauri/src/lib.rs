@@ -8,6 +8,7 @@ mod git;
 mod hotkey;
 mod ingest;
 mod install;
+mod learned;
 mod limit;
 mod look;
 mod mood;
@@ -311,6 +312,8 @@ pub fn run() {
             mood::nudge_pct,
             mood::set_nudge_pct,
             tip::dismiss_tip,
+            learned::learned,
+            learned::open_source,
             notify::alert_sound,
             notify::set_alert_sound,
             look::peep_looks,
@@ -335,6 +338,7 @@ pub fn run() {
             app.manage(Arc::clone(&store));
             mood::load_nudge(&store, store::now_ms());
             tip::load(&store);
+            learned::load(&store);
             wire_alerts(app, &store);
             wire_limits(app, &store);
             wire_closed(&store);

@@ -55,7 +55,7 @@ fn toggle<R: Runtime>(app: &AppHandle<R>) {
 }
 
 #[cfg(windows)]
-fn open_url(url: &str) {
+pub(crate) fn open_url(url: &str) {
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
     let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
@@ -68,7 +68,7 @@ fn open_url(url: &str) {
 }
 
 #[cfg(not(windows))]
-fn open_url(url: &str) {
+pub(crate) fn open_url(url: &str) {
     eprintln!("peepthis: opening links is Windows-only; visit {url}");
 }
 
@@ -118,6 +118,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let show_hide = MenuItem::with_id(app, "toggle", "Show/Hide", true, None::<&str>)?;
     let strip = MenuItem::with_id(app, "strip", "Collapse to strip", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Decision log and settings", true, None::<&str>)?;
+    let learned = MenuItem::with_id(app, "learned", "What Peep taught you", true, None::<&str>)?;
     let install = MenuItem::with_id(app, "install", "Install integration", true, None::<&str>)?;
     let uninstall = MenuItem::with_id(app, "uninstall", "Uninstall integration", true, None::<&str>)?;
     let autostart_on = handle.autolaunch().is_enabled().unwrap_or(false);
@@ -127,7 +128,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let about = Submenu::with_items(app, "About", true, &[&version, &sponsor])?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
-    let menu = Menu::with_items(app, &[&show_hide, &strip, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &about, &sep()?, &quit])?;
+    let menu = Menu::with_items(app, &[&show_hide, &strip, &settings, &learned, &sep()?, &install, &uninstall, &sep()?, &autostart, &about, &sep()?, &quit])?;
     app.manage(HotkeyNotice {
         menu: menu.clone(),
         item: MenuItem::with_id(app, "hotkey-clash", "", true, None::<&str>)?,
@@ -147,6 +148,10 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
             "settings" | "hotkey-clash" => {
                 window::set_mode(app, window::Mode::Panel);
                 let _ = app.emit("open-settings", ());
+            }
+            "learned" => {
+                window::set_mode(app, window::Mode::Panel);
+                let _ = app.emit("open-learned", ());
             }
             "install" => run_integration(app, "install"),
             "uninstall" => run_integration(app, "uninstall"),

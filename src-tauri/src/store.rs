@@ -7,6 +7,7 @@ use serde::Serialize;
 
 use crate::away;
 use crate::closed;
+use crate::learned;
 use crate::limit;
 use crate::mood::{self, Mood};
 use crate::notify;
@@ -70,6 +71,9 @@ struct Inner {
     tips_seen: HashSet<Tip>,
     /// Where `tips_seen` persists; None in tests.
     tips_path: Option<PathBuf>,
+    learned: learned::Learned,
+    /// Where `learned` persists; None in tests.
+    learned_path: Option<PathBuf>,
 }
 
 impl Inner {
@@ -123,6 +127,8 @@ impl Store {
                 nudge_pct: mood::NUDGE_PCT_DEFAULT,
                 tips_seen: HashSet::new(),
                 tips_path: None,
+                learned: learned::Learned::default(),
+                learned_path: None,
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
@@ -182,6 +188,7 @@ impl Store {
                 inner.dirty = true;
                 self.changed.notify_one();
             }
+            refresh_learned(&mut inner);
             (std::mem::take(&mut inner.entered), std::mem::take(&mut inner.ended))
         };
         if !entered.is_empty() {
@@ -369,6 +376,27 @@ impl Store {
         });
     }
 
+    pub fn set_learned(&self, l: learned::Learned, path: Option<PathBuf>) {
+        self.mutate(|inner| {
+            inner.learned = l;
+            inner.learned_path = path;
+            false
+        });
+    }
+
+    /// The learned list after adding the patterns `cited` finds under the known repo roots (read outside the lock).
+    pub fn learned_with(&self, cited: impl FnOnce(&[String]) -> Vec<String>) -> learned::Learned {
+        let roots: Vec<String> = self.inner.lock().unwrap().repos.iter().map(|r| r.root.clone()).collect();
+        let found = cited(&roots);
+        let mut inner = self.inner.lock().unwrap();
+        if learned::add(&mut inner.learned.patterns, found) {
+            if let Some(path) = &inner.learned_path {
+                learned::save(path, &inner.learned);
+            }
+        }
+        inner.learned.clone()
+    }
+
     pub fn dismiss_tip(&self, id: &str) {
         self.mutate(|inner| inner.sessions.get_mut(id).and_then(|s| s.tip.take()).is_some());
     }
@@ -440,6 +468,17 @@ fn refresh_tips(inner: &mut Inner) -> bool {
         }
     }
     shown
+}
+
+/// Records every tip on show and Peep skill running into the learned list, saving when one is new.
+fn refresh_learned(inner: &mut Inner) {
+    let tips: Vec<String> = inner.sessions.values().filter_map(|s| s.tip).map(learned::tip_id).collect();
+    let skills: Vec<String> = inner.sessions.values().filter_map(|s| s.skill.clone()).collect();
+    if learned::add(&mut inner.learned.tips, tips) | learned::add(&mut inner.learned.skills, skills) {
+        if let Some(path) = &inner.learned_path {
+            learned::save(path, &inner.learned);
+        }
+    }
 }
 
 /// Rederives every session's mood; true if any changed.
@@ -554,6 +593,19 @@ mod tests {
         store.dismiss_tip("b");
         assert_eq!(tip_of("b"), None);
         assert!(store.inner.lock().unwrap().sessions.values().all(|s| s.signal.is_none()), "every signal is taken");
+    }
+
+    #[test]
+    fn learned_list_records_tips_shown_and_skills_run_and_cited_patterns() {
+        let store = Store::new(Box::new(|_| {}));
+        store.ingest(upsert("a", None), 1_000);
+        store.apply("a", Event::SubagentStart { agent_id: "x".into(), agent_type: "Explore".into() }, 2_000);
+        let skill = Event::Skill { skill: "ducks".into(), ticket: None, event: Box::new(Event::UserPromptSubmit) };
+        store.apply("a", skill, 3_000);
+        let l = store.learned_with(|_| vec!["god-file".into()]);
+        assert_eq!(l.tips, ["helper".to_string()].into_iter().collect());
+        assert_eq!(l.skills, ["ducks".to_string()].into_iter().collect());
+        assert_eq!(l.patterns, ["god-file".to_string()].into_iter().collect());
     }
 
     #[test]

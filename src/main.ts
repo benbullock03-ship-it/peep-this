@@ -8,6 +8,7 @@ import { flyWants, pruneDismissed, type Dismissed } from "./flyout";
 import { boxOf, clearFold, painted, playFold, showBeacon, viewportIs, type Box, type FoldGeometry } from "./fold";
 import { createDigestCard } from "./digestCard";
 import { createInbox, type InboxDeps } from "./inboxView";
+import { createLearned, type Learned, type LearnedApi } from "./learned";
 import { createLimits } from "./limits";
 import type { Digest, RulesView, Session, Snapshot, Tip, TrailEntry } from "./model";
 import { EMPTY_RULES, offersFor, ruleLive } from "./rules";
@@ -206,6 +207,20 @@ function mountSettings(api: SettingsApi) {
   };
 }
 
+const learnedEl = document.querySelector<HTMLElement>("#learned")!;
+
+/** Shows the learned list in place of the rows; `settings` is hidden while it is open. */
+function mountLearned(api: LearnedApi, hideSettings: () => void) {
+  const learned = createLearned(learnedEl, api, () => show(false));
+  function show(open: boolean) {
+    if (open) hideSettings();
+    learnedEl.hidden = !open;
+    root.hidden = open;
+    if (open) void learned.refresh();
+  }
+  return { show };
+}
+
 function mountInbox(deps: Pick<InboxDeps, "reveal" | "focusTerminal" | "leave">) {
   return createInbox({
     header: document.querySelector<HTMLElement>("#header")!,
@@ -297,6 +312,12 @@ function runDemo() {
   });
   inbox = mountInbox({ reveal: () => settings.show(false), focusTerminal: () => {}, leave: () => {} });
   inbox.setHotkey(hotkey.hotkey);
+  // `?learned` opens the learned list as after two tips, one skill run and one cited pattern.
+  const learned = mountLearned(
+    { seen: async () => ({ tips: ["crowded", "helper"], skills: ["ducks"], patterns: ["god-file"] }), open: (url) => window.open(url, "_blank") },
+    () => settings.show(false),
+  );
+  if (params.has("learned")) learned.show(true);
   // No global hotkey in a browser: the same combination works while the page has focus.
   window.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.altKey && e.code === "KeyI") {
@@ -413,7 +434,15 @@ async function runLive() {
       set: (pct) => invoke<number>("set_nudge_pct", { pct }),
     },
   });
-  await listen("open-settings", () => settings.show(true));
+  const learned = mountLearned(
+    { seen: () => invoke<Learned>("learned"), open: (url) => void invoke("open_source", { url }) },
+    () => settings.show(false),
+  );
+  await listen("open-settings", () => {
+    learned.show(false);
+    settings.show(true);
+  });
+  await listen("open-learned", () => learned.show(true));
   const applyRules = (v: RulesView) => {
     rulesView = v;
     renderList(sessions);
