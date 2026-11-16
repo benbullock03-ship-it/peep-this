@@ -12,7 +12,7 @@ Core: the everyday rhythm. What, build, prove, carry on, check in.
 
 Extras: reach for these when the moment comes.
 /peep:sneak    use when you want to compare 2 or 3 UI directions before building
-/peep:goose    use when you need to know what calls what before changing it
+/peep:goose    use when you want to see how the code fits together, where it is hot, or what touches something
 /peep:coderot  use between tickets, to check the tests can actually fail
 /peep:bigpeep  use when several tickets are ready and you want them worked in order, one commit each
 /peep:tweet    use when stuck on something another session may know, or about to change a file another session is in

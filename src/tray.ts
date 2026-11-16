@@ -50,8 +50,8 @@ export const TRAY: readonly { skill: string; name: string; what: string; when: s
   {
     skill: "goose",
     name: "Duck Duck Goose",
-    what: "Maps what depends on what across the codebase and draws it as a graph.",
-    when: "Use when you need to know what calls what before changing it.",
+    what: "Makes a report page: the code map, repo health, or an answer to one question about the code.",
+    when: "Use when you want to see how the code fits together, where it is hot, or what touches something.",
   },
   {
     skill: "coderot",

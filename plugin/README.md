@@ -29,6 +29,8 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15) a
 | `bigpeep` | `/peep:bigpeep` | Big Peep | `bigpeep` | AV-90 |
 | `tweet` | `/peep:tweet` | Tweet Tweet | `tweet` | AV-91 |
 
+Goose makes report pages under `.peep/graph/`: `/peep:goose` (code map), `/peep:goose health` (hot spots, biggest files, untested areas, stale tickets, pattern cards; it also writes the `candidates.json` the Learned list reads) and `/peep:goose <topic>`. It took over the health and pattern report from Ducks (AV-120).
+
 ## Preamble (AV-117)
 
 Every skill cites `references/preamble.md` once and keeps only its own `Why:` line. The preamble reads `.peep/setup.md`, applies `skills.off`, and bumps the run count in `.peep/runs`, showing the Why line while the old count is below 3. With no setup, the skill guesses one from the repo, shows a 5-line read-back, writes it on yes and carries on; Walk is not needed first. Pack Up and Tweet run without a setup.
