@@ -1,9 +1,7 @@
 ---
 id: AV-85
 title: Sneak Peep skill - 2 or 3 UI variants, pick one
-status: deferred
-reason: scripted parts verified; the owed live run needs the owner to answer the rounds and pick a variant
-wake: owner runs a live /peep:sneak on a test repo and picks a variant
+status: closed
 depends: [AV-74]
 ---
 
@@ -11,12 +9,12 @@ depends: [AV-74]
 
 **What to build:** `/peep:sneak` puts a UI design in front of the owner before it touches the app.
 
-- [ ] Asks pointed design questions first (Question Time round rules), or takes them from a Question Time or Scrubadubdub run
-- [ ] Builds 2 or 3 throwaway variants in `.peep/sneak/<slug>/`, served side by side on a local server; prints the URL
-- [ ] The owner picks one: it moves to `design/<slug>/` as the reference; the rest are deleted
-- [ ] Nothing in the app changes until a later ticket builds from the reference
-- [ ] `.peep/sneak/` is gitignored by the skill
-- [ ] Why line per AV-74
+- [x] Asks pointed design questions first (Question Time round rules), or takes them from a Question Time or Scrubadubdub run
+- [x] Builds 2 or 3 throwaway variants in `.peep/sneak/<slug>/`, served side by side on a local server; prints the URL
+- [x] The owner picks one: it moves to `design/<slug>/` as the reference; the rest are deleted
+- [x] Nothing in the app changes until a later ticket builds from the reference
+- [x] `.peep/sneak/` is gitignored by the skill
+- [x] Why line per AV-74
 
 **Done when:** `/peep:sneak` on a test repo serves three variants, and picking one leaves only `design/<slug>/`.
 
@@ -29,11 +27,8 @@ depends: [AV-74]
 - "None of these" deletes the sneak folder and writes nothing; "Change something first" rebuilds and serves again.
 - Read-back (formats section 4) added before building, since the skill writes files.
 
-## Owed before done
-
-- A live `/peep:sneak` run on a test repo with the owner picking a variant. The scripted parts (serve, pick, gitignore) were verified by hand; the rounds and the AskUserQuestion pick were not run.
-
 ## Notes
 
 - Verified in a throwaway repo: three variants served (overview had 3 iframes, `/b/` returned its page), simulated pick left only `design/demo/index.html`, `.peep/sneak/` matched `.gitignore`. `npx vitest run plugin/skills/sneak` passes.
-- Owed: a live `/peep:sneak` run in a real session (the skill's question rounds and variant authoring are model behaviour, not scripted). The skill is not registered in `plugin/README.md` or `kb/plugin.md` (out of this worker's scope).
+- Live run 2026-11-16 in `F:\Projects\sneak-test`: owner ran `/peep:sneak habit list home screen`, answered the rounds, picked a variant and confirmed it works. Afterwards only `design/habit-list-home/index.html` remained, `.peep/sneak/` was gone and gitignored, `src/` untouched, `.peep/runs` had `sneak: 1`, no server left running. Owner closed it.
+- Still open: the skill is not registered in `plugin/README.md` or `kb/plugin.md`.
