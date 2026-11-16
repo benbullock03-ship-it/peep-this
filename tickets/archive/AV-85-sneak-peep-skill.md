@@ -31,4 +31,4 @@ depends: [AV-74]
 
 - Verified in a throwaway repo: three variants served (overview had 3 iframes, `/b/` returned its page), simulated pick left only `design/demo/index.html`, `.peep/sneak/` matched `.gitignore`. `npx vitest run plugin/skills/sneak` passes.
 - Live run 2026-11-16 in `F:\Projects\sneak-test`: owner ran `/peep:sneak habit list home screen`, answered the rounds, picked a variant and confirmed it works. Afterwards only `design/habit-list-home/index.html` remained, `.peep/sneak/` was gone and gitignored, `src/` untouched, `.peep/runs` had `sneak: 1`, no server left running. Owner closed it.
-- Still open: the skill is not registered in `plugin/README.md` or `kb/plugin.md`.
+- Registered in `plugin/README.md`, `kb/plugin.md` and Walk's tour (`walk/references/tour.md`).
