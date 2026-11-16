@@ -489,7 +489,7 @@ async function runLive() {
       openInbox: () => inbox.open(),
       dismiss: dismissDigest,
     },
-    () => inbox.active || settingsEl.hidden === false,
+    () => inbox.active || settingsEl.hidden === false || learnedEl.hidden === false,
   );
   await listen<Digest | null>("digest", (e) => renderDigest(e.payload));
   invoke<Digest | null>("get_digest").then(renderDigest, (err) => console.error("peepthis: get_digest failed", err));
@@ -595,7 +595,7 @@ async function startSurface() {
   const chrome = px(shellEl, ["borderTopWidth", "borderBottomWidth", "marginTop", "marginBottom"]);
   const shadow = px(stripEl, ["marginBottom"]);
   const lengthOf = (layout: ModeView["layout"]) => {
-    if (layout === "panel") return [header, root, settingsEl].reduce((sum, el) => sum + el.getBoundingClientRect().height, chrome);
+    if (layout === "panel") return [header, root, settingsEl, learnedEl].reduce((sum, el) => sum + el.getBoundingClientRect().height, chrome);
     const r = stripEl.getBoundingClientRect();
     return (layout === "row" ? r.width : r.height) + shadow;
   };
@@ -626,7 +626,7 @@ async function startSurface() {
       ),
   };
   remeasure = watchContent(
-    [header, root, settingsEl, stripEl],
+    [header, root, settingsEl, learnedEl, stripEl],
     () => (folding || view.mode === "hidden" ? null : { length: lengthOf(view.layout), tag: view.layout }),
     (height, layout) => {
       invoke("fit_window", { height, layout }).catch((err) => console.error("peepthis: fit_window failed", err));

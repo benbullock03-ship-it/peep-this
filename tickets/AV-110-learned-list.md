@@ -29,6 +29,8 @@ depends: [AV-109]
 - Links open in the default browser through a new `open_source` command that accepts only `https://` URLs (reuses the tray's `ShellExecuteW` path).
 - Browser check: `?demo&learned` opens the page as after two tips, one skill and one cited pattern. Shot dark/light at 375 and dark at 1280: 4 entries in 4 groups, fold opens, `20 more to find as you go.`, no horizontal overflow (`.playwright-mcp/av110-*.png`).
 
+- Live check 2026-11-16 in `tauri dev` (CDP): `open-learned` showed this machine's 4 entries (crowded; 3 patterns from this repo's Ducks report); Chroma link opened Firefox on the Context Rot page. Found and fixed: the window shrank to the header because window fit measured only rows and settings; `#learned` is now measured, and the digest card waits while it is open.
+
 ## Owed before done
 
-- Live check in `npm run tauri dev`: tray, What Peep taught you, shows the entries recorded on this machine; a source link opens the browser.
+- Owner close. Not seen by Claude: the native tray menu item itself (the click emits the same `open-learned` used above).
