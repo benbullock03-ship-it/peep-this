@@ -1,7 +1,7 @@
 ---
 id: AV-86
 title: AI hallmark catalogue, scrub exceptions and fixture tests
-status: done
+status: closed
 depends: []
 ---
 
