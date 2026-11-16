@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::image::Image;
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_autostart::ManagerExt;
@@ -17,6 +17,8 @@ use crate::window;
 const ICON: &[u8] = include_bytes!("../icons/tray.png");
 /// Written once start-at-login has been switched on by default, so a user's later "off" sticks.
 const AUTOSTART_MARKER: &str = "autostart-default-applied";
+/// PLACEHOLDER: the owner fills in the sponsor account (AV-116); README.md carries the same link.
+const SPONSOR_URL: &str = "https://github.com/sponsors/OWNER-FILL-ME";
 
 #[derive(Clone, Serialize)]
 struct TrayResult {
@@ -50,6 +52,24 @@ fn apply_autostart_default<R: Runtime>(app: &AppHandle<R>) {
 
 fn toggle<R: Runtime>(app: &AppHandle<R>) {
     window::set_hidden(app, !window::is_hidden());
+}
+
+#[cfg(windows)]
+fn open_url(url: &str) {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let (verb, file) = (wide("open"), wide(url));
+    let code = unsafe { ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), file.as_ptr(), std::ptr::null(), std::ptr::null(), SW_SHOWNORMAL) };
+    // ShellExecuteW reports success as a value above 32.
+    if code as usize <= 32 {
+        eprintln!("peepthis: opening {url} failed ({})", code as usize);
+    }
+}
+
+#[cfg(not(windows))]
+fn open_url(url: &str) {
+    eprintln!("peepthis: opening links is Windows-only; visit {url}");
 }
 
 fn run_integration<R: Runtime>(app: &AppHandle<R>, action: &'static str) {
@@ -102,9 +122,12 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let uninstall = MenuItem::with_id(app, "uninstall", "Uninstall integration", true, None::<&str>)?;
     let autostart_on = handle.autolaunch().is_enabled().unwrap_or(false);
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, autostart_on, None::<&str>)?;
+    let version = MenuItem::with_id(app, "version", format!("Peep This {}", env!("CARGO_PKG_VERSION")), false, None::<&str>)?;
+    let sponsor = MenuItem::with_id(app, "sponsor", "Sponsor Peep This", true, None::<&str>)?;
+    let about = Submenu::with_items(app, "About", true, &[&version, &sponsor])?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let sep = || PredefinedMenuItem::separator(app);
-    let menu = Menu::with_items(app, &[&show_hide, &strip, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &sep()?, &quit])?;
+    let menu = Menu::with_items(app, &[&show_hide, &strip, &settings, &sep()?, &install, &uninstall, &sep()?, &autostart, &about, &sep()?, &quit])?;
     app.manage(HotkeyNotice {
         menu: menu.clone(),
         item: MenuItem::with_id(app, "hotkey-clash", "", true, None::<&str>)?,
@@ -136,6 +159,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
                 }
                 let _ = autostart_item.set_checked(launcher.is_enabled().unwrap_or(false));
             }
+            "sponsor" => open_url(SPONSOR_URL),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -146,4 +170,15 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         })
         .build(app)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sponsor_url_is_https() {
+        // ShellExecute runs whatever it is given; only a web link may reach it.
+        assert!(SPONSOR_URL.starts_with("https://"));
+    }
 }
