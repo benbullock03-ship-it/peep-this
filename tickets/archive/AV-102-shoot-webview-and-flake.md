@@ -1,7 +1,7 @@
 ---
 id: AV-102
 title: Shoot - desktop webviews over CDP and rules against flaky shots
-status: done
+status: closed
 depends: []
 ---
 

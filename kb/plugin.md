@@ -14,6 +14,7 @@
 - `/peep:goose` runs `skills/goose/scripts/map.mjs`: ts/js and Rust imports (or `--graphify graphify-out/graph.json`), files grouped by setup areas, live sessions placed by cwd, written to `.peep/graph/graph.json` (`edges` `[from, to]`) and a standalone `index.html` with `peep.js` inlined from `skills/goose/assets/`. Query instructions sit in `kb/INDEX.md`.
 - `/peep:bigpeep` is the global `/batch` rebuilt on the repo setup: little peeps follow `work.md` but never stage, commit or set status; Big Peep sets `doing`, reviews the diff, commits one per ticket. A little peep quiet 10 minutes gets one SendMessage status ask (`references/watch.md`), never a stop.
 - `/peep:tweet` posts to `.peep/tweets.md` (F§7), never staged or committed; a live ping via SendMessage is only a nudge to read the board. `/peep:ticket` reads the board before building (work.md 1.5) and folds answered tweets into area notes on close (close.md 4).
+- `/peep:shoot` checks a desktop app's webview over CDP (`shoot/references/webview.md`: debug port, `Runtime.evaluate`, the app's own commands, OS screenshots for native chrome) and applies `references/stable.md` before every fact and shot; a verdict that changes on rerun is `flaky`.
 - A blocked `/peep:ticket <id>` still parks it on the first direct dep not `closed`, then walks the depends tree depth-first (`ticket/references/work.md`) and names the next step in `owed`: `next: /peep:ticket <dep>` for the first open dep whose own depends are closed, or `/peep:ticket close <dep>` for a `done` one. `doing` deps are skipped; with none unblocked it names the nearest wake.
 - `/peep:packup` writes `.peep/handoff.md` (template in `skills/packup/references/note.md`) with `First command: /peep:unpack` when the next step is clear. `/peep:unpack` checks branch, commit, uncommitted files and named ticket statuses against it, reads back the drift, and on yes runs the first command.
 
@@ -27,6 +28,8 @@
 - Drift never blocks and is never a question. No `.peep/reel.md`, no drift line.
 - A new skill adds itself to Walk's Extras block in `walk/references/tour.md` with a use-when line.
 - A grep rule's good snippet must hit no rule at all; a false positive is a bug. Anything declared in the repo's DESIGN.md is never flagged; this repo's seed earns only the AV-44 shell choices.
+- A live ping only lands when the peer runs in the same permission mode; otherwise its harness holds the message for approval and the board carries it alone.
+- Live checks run by Claude never send keystrokes to a window: prompts have defaults (a trust dialog's is "No, exit"). Child `claude` sessions need every `CLAUDE*` variable cleared.
 - Unpack runs the note's `Then:` line when the first command is `/peep:unpack` itself, to avoid a loop. Drift touching the command (ticket already `done`, branch changed) makes it wait rather than run on yes. No note: one line, not counted.
 
 ## Why it's like this
@@ -36,4 +39,4 @@
 - Unpack makes carrying on a real step that catches what changed between sessions, not "do the handoff".
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-101, 2026-11-16
+last touched: AV-102, 2026-11-16
