@@ -1,7 +1,7 @@
 ---
 id: AV-104
 title: Ducks depth ladder, levels 1 to 4
-status: done
+status: closed
 depends: [AV-103]
 ---
 

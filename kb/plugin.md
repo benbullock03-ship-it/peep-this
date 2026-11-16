@@ -21,6 +21,8 @@
 - `/peep:shoot` checks a desktop app's webview over CDP (`shoot/references/webview.md`: debug port, `Runtime.evaluate`, the app's own commands, OS screenshots for native chrome) and applies `references/stable.md` before every fact and shot; a verdict that changes on rerun is `flaky`.
 - A blocked `/peep:ticket <id>` still parks it on the first direct dep not `closed`, then walks the depends tree depth-first (`ticket/references/work.md`) and names the next step in `owed`: `next: /peep:ticket <dep>` for the first open dep whose own depends are closed, or `/peep:ticket close <dep>` for a `done` one. `doing` deps are skipped; with none unblocked it names the nearest wake.
 - `/peep:packup` writes `.peep/handoff.md` (template in `skills/packup/references/note.md`) with `First command: /peep:ducks` when the next step is clear. Ducks reads the note first, checks branch, commit, uncommitted files and named ticket statuses against it (`ducks/references/drift.md`), reads back the drift, and on yes runs the note's `Then` before its other Do lines.
+- With nothing loose and no Pack Up note, Ducks asks "How deep?" (`ducks/references/depth.md`). Each level stacks on the one before: 1 means `clear to proceed`; 2 adds hot spots (`git log -20` files per area); 3 adds candidate cards from the deletion test, each naming a pattern, with one top pick and a "which to explore?" question; 4 adds a fresh-context sweep subagent and the goose map; 5 adds the report page. AskUserQuestion takes 4 options, so level 5 is "reply 5". The output always carries `depth: <level>`. With no answer (headless) it is `depth: 1 (unconfirmed)`.
+- Ducks never edits code. A picked candidate becomes a drafted ticket on a yes. A rejected one becomes a `Considered, rejected: <what> - <why>` line in the area note's `## Why it's like this` (an ADR only when the reason is hard to reverse), and is skipped on later runs.
 
 ## Watch out
 
@@ -40,6 +42,7 @@
 - A graph link to any column but the next runs in the gap under the target's row; a straight run would pass behind the cards in between and read as a chain.
 - Goose's graphify input works from a directed or undirected build, but graphify's own `cache_root` sets how `source_file` is made relative: build from the repo root or the paths won't match the setup areas. Its callers differ a little from the import map's (it misses `mod x;` links).
 - Live checks run by Claude never send keystrokes to a window: prompts have defaults (a trust dialog's is "No, exit"). Child `claude` sessions need every `CLAUDE*` variable cleared.
+- "None for now" on a candidate writes nothing; only a rejection with a reason goes in the area note. `claude -p` has no AskUserQuestion, so any Ducks question must have a stated no-answer fallback and an output line that shows which one was taken.
 - Drift touching the note's `Then` (ticket already `done`, branch changed) makes Ducks wait rather than run it on yes. Drift never fixes, stages or stashes anything.
 - A live check of a skill that reads `.peep/handoff.md` runs in a throwaway worktree with a child `claude`, so the real note stays untouched; only one live check at a time holds the dev widget and its CDP port.
 
@@ -50,4 +53,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Ducks no longer writes the setup; one skill owning first run keeps the setup questions in one place.
 
-last touched: AV-94, 2026-11-16
+last touched: AV-104, 2026-11-16
