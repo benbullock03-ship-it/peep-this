@@ -1,7 +1,7 @@
 ---
 id: AV-95
 title: Record that the widget may end a session
-status: done
+status: closed
 depends: []
 ---
 
