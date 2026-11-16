@@ -1,7 +1,7 @@
 ---
 id: AV-98
 title: Hover state on every clickable thing in the widget
-status: doing
+status: closed
 depends: []
 ---
 
@@ -54,7 +54,7 @@ depends: []
 - Strip `+N` and house cells get a hover because a plate click opens the panel.
 - Range sliders and checkboxes keep the native hover; text inputs other than the hotkey recorder get none.
 
-## Owed before done
+## Done 2026-11-16
 
-- Owner confirms in `npm run tauri dev` that each hover reads as visible in both themes (DOM checks pass in `?demo`; the 2px peep hop and the strip attention-cell step from 20% to 35% are the faintest).
-- The flyout window's rows share the `.ps-row` rule but were not shot (flyout.html needs Tauri).
+- Live in `npm run tauri dev`, real CDP mouse hovers in dark and light: row, open head, peep (2px hop), tray disks, `+N`, Pack up, arc Reel Jump, end button, ticket shelf rows, closed shelf head/rows/show all, title-bar buttons and Got it each changed style with `cursor: pointer`; meters, title, arc text, tags, shelf head and stage did not change.
+- Light `.cl-head` hover is only the label plates stepping #FFFCF6 to #F1E9DB (its top border is already text colour). Strip and flyout rows were not hovered live; they share the checked rules. Owner closed it as built.

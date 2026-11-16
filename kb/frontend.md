@@ -30,6 +30,8 @@
 - Busy sessions post real statusline payloads every second or so, overwriting a faked one; a live limit check reposts in a loop while it samples.
 - Not yet snoozes in memory per session until 95% or the yawn clears; it does not survive a restart.
 
+- Every clickable has a `:hover` (hard offset, colour step or 2px hop, never blur, glow or brightness filter) and `cursor: pointer`; things that do nothing on click have neither. Chips, bars and tags react through their row. New clickables need both.
+
 ## Why it's like this
 
 - The widget never types into a session, so Jump copies and focuses for the user to paste.
@@ -39,4 +41,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-97, 2026-11-16
+last touched: AV-98, 2026-11-16
