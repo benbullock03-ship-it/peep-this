@@ -1,6 +1,6 @@
 ---
 name: shoot
-description: "Shoot: check a web UI change in a real browser. Asserts the touched elements in the DOM, screenshots them across the repo setup's themes and widths with the Playwright MCP, and judges each shot against pass/fail questions written first. Web UIs only, including a desktop app's webview (Tauri, Electron) over CDP. Use when the user runs /peep:shoot, after a UI change before calling it done, or asks to 'check it in the browser' or 'screenshot it'."
+description: "Shoot: check a web UI change (or a desktop app's webview) in a real browser with DOM asserts and screenshots judged against questions written first. Use when the user runs /peep:shoot, after a UI change before calling it done, or asks to 'check it in the browser'."
 argument-hint: "[change in one line] [selectors...]"
 label: Shoot
 ---

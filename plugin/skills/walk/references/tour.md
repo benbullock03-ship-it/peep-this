@@ -8,8 +8,7 @@ Core: the everyday rhythm. Why, what, build, carry on, check in.
 2 what      /peep:qt       use when an idea or problem is still fuzzy; ends in tickets
 3 build     /peep:ticket   use when a ticket is ready to work, close or park
 4 carry on  /peep:packup   use when stopping, or context is filling up
-4 carry on  /peep:unpack   use when starting a session after a Pack Up
-5 check in  /peep:ducks    use when sitting down to work, or unsure what to pick up next
+5 check in  /peep:ducks    use when sitting down to work, after a Pack Up, or unsure what to pick up next
 
 Extras: reach for these when the moment comes.
 /peep:sneak    use when you want to compare 2 or 3 UI directions before building
@@ -19,7 +18,6 @@ Extras: reach for these when the moment comes.
 /peep:coderot  use between tickets, to check the tests can actually fail
 /peep:bigpeep  use when several tickets are ready and you want them worked in order, one commit each
 /peep:tweet    use when stuck on something another session may know, or about to change a file another session is in
-When you need it: /peep:hello (install check)
 ```
 
 Shoot needs a `url` in the setup, so say so on its line when none was written. Coderot needs `test`; same.

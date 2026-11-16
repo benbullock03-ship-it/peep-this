@@ -1,6 +1,7 @@
 ---
 name: sneak
-description: "Sneak Peep: see a UI before it is built. Asks pointed design questions (or takes them from a Question Time or Scrubadubdub run), builds 2 or 3 throwaway variants in .peep/sneak/<slug>/, serves them side by side on a local URL, and on the owner's pick moves that one to design/<slug>/ as the reference and deletes the rest. Never touches the app. Use when the user runs /peep:sneak, or wants to compare UI directions before building."
+description: "Sneak Peep: build 2 or 3 throwaway UI variants side by side and keep the owner's pick as the design reference. Use when the user runs /peep:sneak."
+disable-model-invocation: true
 label: "Sneak Peep: UI variants"
 ---
 

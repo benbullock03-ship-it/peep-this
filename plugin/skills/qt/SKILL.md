@@ -1,6 +1,7 @@
 ---
 name: qt
-description: Question Time with Peep. Asks batched rounds of questions about a new idea or problem, reads it back, then drafts tickets. Use when the user runs /peep:qt, or asks for Question Time on an idea whose details are fuzzy.
+description: "Question Time: batched rounds of questions on a fuzzy idea, a read-back, then tickets. Use when the user runs /peep:qt."
+disable-model-invocation: true
 label: Question Time with Peep
 ---
 

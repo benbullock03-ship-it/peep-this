@@ -1,6 +1,7 @@
 ---
 name: ducks
-description: "Ducks: get your ducks in a row. Checks where the repo stands: loose tickets, parked tickets ready to wake, failing tests, stray changes, the last Pack Up note. Asks once, reads back, acts only on a yes. With no repo setup, points to /peep:walk. Use when the user runs /peep:ducks, sits down to work, or asks what to pick up next."
+description: "Ducks: check where the repo stands and carry on from the last Pack Up note, acting only on a yes. Use when the user runs /peep:ducks."
+disable-model-invocation: true
 label: "Ducks: get your ducks in a row"
 ---
 
@@ -17,7 +18,7 @@ No file, or no `prefix`: reply with exactly `peep: no repo setup here. Run /peep
 
 ## 1. Pack Up note
 
-If `<root>/.peep/handoff.md` exists, read it before anything else. Its "not mine" files are never touched; its "Owner rulings wanted" become questions in step 4; its "Then:" line is the default next step.
+If `<root>/.peep/handoff.md` exists, read it before anything else (format: `${CLAUDE_PLUGIN_ROOT}/skills/packup/references/note.md`). Its "not mine" files are never touched; its "Owner rulings wanted" become questions in step 4; its `Then:` line is the first **Do** line (step 5). Check the repo against it, without printing or fixing anything: `references/drift.md`. Each mismatch goes under **Loose** as `drift: <what>`.
 
 ## 2. Gather, cheaply
 
@@ -25,7 +26,7 @@ Follow `references/gather.md`: `git status`, ticket frontmatter, one `test` run,
 
 ## 3. Nothing loose
 
-No loose ends and no handoff rulings: skip to the output with `clear to proceed`. No questions, no read-back.
+No loose ends and no Pack Up note: skip to the output with `clear to proceed`. No questions, no read-back.
 
 ## 4. Questions, once
 
@@ -36,7 +37,7 @@ Facts are found, never asked. If no answers come back (e.g. a headless run), giv
 
 Exactly per F§4, groups **Do**, **Loose**, **Watch**:
 
-- **Do**: each action the answers chose, one per line: `close <n> done: <id>, <id>` first, then `wake <id> (<condition met>)`, `<id> -> <status>`. "nothing" when empty. The count is stated here, before anything moves; the owner can reply `leave <ids>` to take ids out of the batch.
+- **Do**: each action the answers chose, one per line: `run <the note's Then>` first when a Pack Up note has one (dropped when drift touches it, e.g. that ticket is already `done` or the branch changed; say why under **Loose**), then `close <n> done: <id>, <id>`, then `wake <id> (<condition met>)`, `<id> -> <status>`. "nothing" when empty. The count is stated here, before anything moves; the owner can reply `leave <ids>` to take ids out of the batch.
 - **Loose**: what stays as it is and why (failing test named, uncommitted files, free-text wakes kept, not-met wakes with their condition).
 - **Watch**: at most 3 `CLAUDE.md` rules that bite the next ticket, each with its file and a few words; the next ticket goes here too, as `next: <id>`.
 
@@ -48,7 +49,7 @@ A correction gets a fresh, complete read-back. "stop" or "no": reply `peep ducks
 
 ## 6. Act on yes
 
-Only the **Do** lines, each by Edit or Write, then commit per item. Detail: `references/act.md`. Closing follows the `/peep:ticket close` procedure in `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/close.md`; the yes to this read-back is the owner's yes for the ids it names. Never touch another session's uncommitted files.
+Only the **Do** lines. A `run` line goes first: run that command before the other Do lines; never a push, release or deploy unless the note says "approved". The rest each by Edit or Write, then commit per item. Detail: `references/act.md`. Closing follows the `/peep:ticket close` procedure in `${CLAUDE_PLUGIN_ROOT}/skills/ticket/references/close.md`; the yes to this read-back is the owner's yes for the ids it names. Never touch another session's uncommitted files.
 
 ## Output
 

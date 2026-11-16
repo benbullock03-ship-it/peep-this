@@ -1,6 +1,7 @@
 ---
 name: bigpeep
-description: "Big Peep: run a batch of tickets. Orders them by depends, gives each to one little peep (a subagent) that builds without committing, reviews the diff, commits one per ticket staging only its hunks, parks blocked tickets, and asks a little peep that has gone quiet for 10 minutes for a one-line status without stopping it. Ends with a report table and a Pack Up note. Use when the user runs /peep:bigpeep <ids>, says 'work these tickets' or 'run AV-73 to AV-77', or pastes a list of ticket ids."
+description: "Big Peep: run a batch of tickets in depends order, one little peep (subagent) per ticket and one commit each. Use when the user runs /peep:bigpeep <ids>."
+disable-model-invocation: true
 argument-hint: "<ids, e.g. AV-73 AV-75 or 73-77>"
 label: Big Peep
 ---

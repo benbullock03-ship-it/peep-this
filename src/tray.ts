@@ -39,12 +39,6 @@ export const TRAY: readonly { skill: string; name: string; what: string; when: s
     when: "Use between tickets, to check the tests can actually fail.",
   },
   {
-    skill: "unpack",
-    name: "Unpack",
-    what: "Opens a session from your Pack Up note: checks the repo still matches, reads back anything that moved, then starts the first step.",
-    when: "Use when you sit back down after packing up.",
-  },
-  {
     skill: "walk",
     name: "Walk Through",
     what: "Tours the disks in order, asks a few batched questions about your repo and how you work, then sets the pack up to match.",

@@ -1,6 +1,6 @@
 ---
 name: tweet
-description: "Tweet Tweet: tell the other sessions on this repo when stuck or when your work may clash with theirs. Posts to the tweet board .peep/tweets.md (who, ticket, the question or conflict, files involved), pings a live peer with SendMessage when one is reachable, takes replies, and lists open tweets on your files. Answered tweets are folded into the area note when their ticket closes. Use when the user runs /peep:tweet, a session is stuck on something another session may know, or it is about to change a file another session is working in."
+description: "Tweet Tweet: tell the other sessions on this repo, through the tweet board .peep/tweets.md, when stuck or when your work may clash with theirs. Use when the user runs /peep:tweet, a session is stuck on something another session may know, or it is about to change a file another session is working in."
 argument-hint: "<question or conflict> | reply <n> <answer> | (none: list)"
 label: Tweet Tweet
 ---

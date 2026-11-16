@@ -373,7 +373,7 @@ Terms are defined in `CONTEXT.md` and used here exactly; it wins over older word
 - Repo setup: the per-repo record of ticket prefix, tickets folder, build and test commands, and areas. Every Peep skill reads it; Ducks writes it on first run (AV-56).
 - Tickets: frontmatter `id`, `title`, `status`, `depends`, plus `reason` and `wake` on a parked ticket. Ticket statuses: `open`, `doing`, `blocked`, `deferred`, `done`, `closed`. `done` is Claude's claim, `closed` the owner's confirmation and the only status that archives. A parked ticket (`blocked` or `deferred`) always has a reason and a wake-up condition: another ticket closing, a date passing, or a free-text note. Ducks wakes tickets whose condition is met and lists free-text ones for the owner.
 - Area notes in `kb/<area>.md`: how it works now, watch out, why. Closing a ticket edits its area note rather than appending.
-- Question Time and Ducks end in a read-back; nothing is written until the owner confirms or corrects it. Pack Up saves its note to `.peep/handoff.md` and copies it to the clipboard; Ducks reads it next run. Coderot reports survivors from rot in a throwaway worktree.
+- Question Time and Ducks end in a read-back; nothing is written until the owner confirms or corrects it. Pack Up saves its note to `.peep/handoff.md` and copies it to the clipboard; Ducks reads it next run, reads back any drift (branch, commit, uncommitted files, ticket statuses) and on a yes runs the note's `Then` first. Unpack and `hello` were folded away (AV-103); only `ticket`, `packup`, `tweet` and `shoot` are model-invocable, the rest set `disable-model-invocation`. Coderot reports survivors from rot in a throwaway worktree.
 
 ### 13.2 Skill and ticket per session (AV-64, AV-65)
 

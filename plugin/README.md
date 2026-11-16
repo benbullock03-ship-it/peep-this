@@ -24,14 +24,12 @@ Labels come from `design/skill-pack/FLOPPY-SPEC.md` (owner rulings 2026-11-15). 
 | `shoot` | `/peep:shoot` | Shoot | `shoot` | AV-60 |
 | `coderot` | `/peep:coderot` | Coderot | `coderot` | AV-61 |
 | `reel` | `/peep:reel` | none yet (AV-84) | none yet | AV-75 |
-| `unpack` | `/peep:unpack` | none yet (AV-84) | none yet | AV-76 |
 | `walk` | `/peep:walk` | none yet (AV-84) | none yet | AV-77 |
 | `sneak` | `/peep:sneak` | none yet (AV-89) | none yet | AV-85 |
 | `scrub` | `/peep:scrub` | Scrubadubdub | `scrub` | AV-87 |
 | `goose` | `/peep:goose` | none yet (AV-94) | none yet | AV-92 |
 | `bigpeep` | `/peep:bigpeep` | none yet (AV-94) | none yet | AV-90 |
 | `tweet` | `/peep:tweet` | none yet (AV-94) | none yet | AV-91 |
-| `hello` | `/peep:hello` | none (install check, AV-55) | none | AV-55 |
 
 ## Why line (AV-74)
 

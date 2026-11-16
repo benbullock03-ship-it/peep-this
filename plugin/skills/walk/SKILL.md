@@ -1,6 +1,7 @@
 ---
 name: walk
-description: "Walk Through: first run and tour. Asks batched rounds about the repo (prefix, commands, areas, themes, widths) and how you work, reads it back, writes .peep/setup.md with your preferences, then walks the skills in rhythm order and suggests the first real step. Use when the user runs /peep:walk, or a Peep skill says there is no repo setup."
+description: "Walk Through: first run and tour that asks about the repo and how you work, then writes .peep/setup.md. Use when the user runs /peep:walk."
+disable-model-invocation: true
 label: "Walk Through"
 ---
 

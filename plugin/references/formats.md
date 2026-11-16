@@ -79,7 +79,7 @@ last touched: AV-26, 2026-11-15
 - `last touched`: the last ticket that edited the note and the date.
 - `kb/INDEX.md`: heading `# Areas`, then one line per area: `- [<area>](<area>.md): <one-line summary>`, in setup order.
 
-## 4. Read-back (Walk, Question Time, Ducks, Reel, Unpack)
+## 4. Read-back (Walk, Question Time, Ducks, Reel)
 
 What Claude now understands, given after the questions and before anything is written.
 

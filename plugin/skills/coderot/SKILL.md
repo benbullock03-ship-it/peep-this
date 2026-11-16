@@ -1,6 +1,7 @@
 ---
 name: coderot
-description: "Coderot: breaks code on purpose in a throwaway git worktree to find what the tests miss. Stubs whole units, then flips small logic where the tests caught the stub, and flags hollow, skipped, flaky and missing tests. Use when the user runs /peep:coderot, or between tickets to check the tests can actually fail."
+description: "Coderot: break code on purpose in a throwaway git worktree to find what the tests miss. Use when the user runs /peep:coderot."
+disable-model-invocation: true
 argument-hint: "<area or path prefix> [mutant cap]"
 label: Coderot
 ---

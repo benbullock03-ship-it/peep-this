@@ -1,6 +1,6 @@
 ---
 name: ticket
-description: "Work one ticket end to end in a repo with a Peep repo setup: read it and its depends, build, check, commit only its hunks, mark it done. Also closes a ticket on the owner's yes and parks one with a reason and wake-up condition. Use when the user runs /peep:ticket <id>, /peep:ticket close <id> or /peep:ticket park <id>, or says 'work AV-12'."
+description: "Ticket: work one ticket end to end (build, check, commit only its hunks, mark done), or close or park one. Use when the user runs /peep:ticket <id>, /peep:ticket close <id> or /peep:ticket park <id>, or says 'work AV-12'."
 argument-hint: "<id> | close <id> | park <id> [blocked|deferred] <reason> wake <condition>"
 label: Ticket
 ---

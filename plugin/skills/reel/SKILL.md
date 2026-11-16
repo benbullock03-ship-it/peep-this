@@ -1,6 +1,7 @@
 ---
 name: reel
-description: "Reel: pin down why this project exists. Asks batched rounds on who it is for, the problem, the hook over alternatives and the non-goals, reads it back, then writes .peep/reel.md with the north star. Researches comparable ideas only when asked. Use when the user runs /peep:reel, or starts a project with no clear reason to finish it."
+description: "Reel: pin down a project's north star, hook and non-goals in .peep/reel.md. Use when the user runs /peep:reel."
+disable-model-invocation: true
 label: "Reel: the north star"
 ---
 

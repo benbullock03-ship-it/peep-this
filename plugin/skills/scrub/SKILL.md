@@ -1,6 +1,7 @@
 ---
 name: scrub
-description: "Scrubadubdub: scrub a UI of AI hallmarks and messy spacing and text. Two passes (grep rules from the hallmark catalogue, then an eye pass on Shoot screenshots), a numbered report saying where each hallmark comes from with 1 or 2 alternatives in the repo's own tokens, and fixes only the numbers the owner approves. Honours .peep/scrub.md and DESIGN.md. Use when the user runs /peep:scrub, or asks to 'de-slop', 'scrub' or 'check for AI tells' in a UI."
+description: "Scrubadubdub: scrub a UI of AI hallmarks and messy spacing and text, fixing only what the owner approves. Use when the user runs /peep:scrub."
+disable-model-invocation: true
 argument-hint: "[--full]"
 label: Scrubadubdub
 ---

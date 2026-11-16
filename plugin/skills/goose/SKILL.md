@@ -1,6 +1,7 @@
 ---
 name: goose
-description: "Duck Duck Goose: map who calls whom. Builds a dependency map of the codebase with graphify when installed (or a basic import map plus the repo setup's areas when not), writes a standalone graph page at .peep/graph/index.html with live sessions' peeps on the areas they work in, opens it, and tells agents how to query the map instead of searching aimlessly. Use when the user runs /peep:goose, or asks what calls what."
+description: "Duck Duck Goose: map who calls whom on a graph page with live sessions' peeps on the areas they work in. Use when the user runs /peep:goose."
+disable-model-invocation: true
 label: Duck Duck Goose
 ---
 

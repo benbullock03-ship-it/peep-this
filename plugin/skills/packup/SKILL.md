@@ -1,6 +1,6 @@
 ---
 name: packup
-description: "Pack Up: carry this session forward into a new one. Writes a short directive note to .peep/handoff.md, copies it to the clipboard, then says it is safe to /clear or exit. Use when the user runs /peep:packup, says 'pack up', 'write a handoff', 'I'm stopping for the day', or context is filling up."
+description: "Pack Up: write a short directive note to .peep/handoff.md so a fresh session can carry on. Use when the user runs /peep:packup, says 'pack up' or 'write a handoff', is stopping, or context is filling up."
 label: Pack Up
 ---
 
@@ -21,7 +21,7 @@ If the next ticket or command is obvious from the tickets and this session, or `
 
 ## 3. Write the note
 
-Format and rules: `references/note.md`. Under 25 lines, directive, no background. Every path, id, hash and command copied from the tree, never recalled. When the next step is clear, the `First command` line reads exactly `First command: /peep:unpack` and the real next step goes in `Left to do` and `Then`; Unpack runs it after checking the repo. If the next step is unclear, keep the exact command there instead.
+Format and rules: `references/note.md`. Under 25 lines, directive, no background. Every path, id, hash and command copied from the tree, never recalled. When the next step is clear, the `First command` line reads exactly `First command: /peep:ducks` and the real next step goes in `Left to do` and `Then`; Ducks runs it after checking the repo. If the next step is unclear, keep the exact command there instead.
 
 ## 4. Save, copy, tell
 
