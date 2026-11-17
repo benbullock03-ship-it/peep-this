@@ -2,14 +2,16 @@
 
 The Peep This skill pack: one Claude Code plugin, skills invoked as `/peep:<name>`. This folder is both the plugin and its local marketplace (`peep-this`).
 
-## Local install
+## Install
 
 ```
-claude plugin marketplace add "<repo>/plugin"
+claude plugin marketplace add benbullock03-ship-it/peep-this
 claude plugin install peep@peep-this
 ```
 
-Remove: `claude plugin uninstall peep@peep-this`, then `claude plugin marketplace remove peep-this`. Check: `claude plugin validate plugin`.
+The repo root's `.claude-plugin/marketplace.json` lists this folder. Locally, use `marketplace add "<repo>"`, or `"<repo>/plugin"`: the widget's installer registers that bundled copy under the same name. The first Peep skill run on a machine without the widget offers its download once per repo (`references/preamble.md`, Start step 4). The release must carry the installer as `PeepThis-setup.exe` so the `latest/download` link resolves.
+
+Remove: `claude plugin uninstall peep@peep-this`, then `claude plugin marketplace remove peep-this`. Check: `claude plugin validate .` and `claude plugin validate plugin`.
 
 ## Skills and floppy labels
 

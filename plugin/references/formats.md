@@ -34,7 +34,7 @@ At the repo root. The first Peep skill to run writes it after a 5-line read-back
 
 ### Run counts: `.peep/runs`
 
-Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. A `<skill>.<key>: <value>` line holds that skill's own small state (`ducks.reel: 2026-11-16`) and is not a count. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it. Each skill's `Why:` line is tied to one of three habits (think before code, finish before starting, prove it works); the bump and when the line shows: `preamble.md`.
+Flat `skill: n` lines, one per skill (`ducks: 2`), per machine. A `<skill>.<key>: <value>` line holds that skill's own small state (`ducks.reel: 2026-11-16`) and is not a count; `widget.offer: <date>` records the preamble's one-time widget offer. Created by the first skill that runs. Not committed: if `.gitignore` lacks `.peep/runs`, say so rather than editing it. Each skill's `Why:` line is tied to one of three habits (think before code, finish before starting, prove it works); the bump and when the line shows: `preamble.md`.
 
 ## 2. Ticket: `<tickets>/<PREFIX>-<NN>-<slug>.md`
 

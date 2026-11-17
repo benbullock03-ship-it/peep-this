@@ -1,5 +1,6 @@
 {
   "name": "peep",
   "version": "0.1.0",
-  "description": "Peep This skill pack: a working rhythm for Claude Code sessions."
+  "description": "Peep This skill pack: it tells you what to do next. A working rhythm for Claude Code sessions, one floppy at a time.",
+  "author": { "name": "Peep This" }
 }

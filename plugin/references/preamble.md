@@ -7,6 +7,7 @@ Each `SKILL.md` cites this once at the top and keeps only its own Why line. "F§
 1. Repo root: `git rev-parse --show-toplevel`. Read `<root>/.peep/setup.md` (F§1), applying its defaults.
 2. `skills.off` names this skill: reply `peep <name>: switched off in .peep/setup.md.` and stop. Walk is never switched off.
 3. No setup, or no `prefix`: self-setup below, unless the skill says it runs without one. Then carry on with what was asked.
+4. Widget offer, once per repo: if `<root>/.peep/runs` has no `widget.offer` line and `$APPDATA/PeepThis/endpoint.json` does not exist (the widget writes it on every start), the offer is due. Add `widget.offer: <YYYY-MM-DD>` to `.peep/runs` now (Edit or Write, create the file if missing), and remember to put the offer line in this run's final reply (see Last step). Never offer again in that repo, even if the widget is never installed.
 
 ## Self-setup
 
@@ -32,4 +33,8 @@ Each `SKILL.md` cites this once at the top and keeps only its own Why line. "F§
 
 ## Last step: run count
 
-Bump `<name>` in `.peep/runs` (F§1): read it, a missing line is 0, write `n + 1` back by Edit or Write. If the old `n` was below 3, put the skill's `Why:` line just before the `next:` line; from the fourth run on, no Why line. A run that stopped early (switched off, nothing written by self-setup, bad argument) is not counted.
+Bump `<name>` in `.peep/runs` (F§1): read it, a missing line is 0, write `n + 1` back by Edit or Write. If the old `n` was below 3, put the skill's `Why:` line just before the `next:` line; from the fourth run on, no Why line. When Start step 4 made the widget offer due, this line goes in the final reply just before the Why line (or before `next:` when there is none), exactly:
+
+`peep: the Peep This widget shows which session needs you. Download: https://github.com/benbullock03-ship-it/peep-this/releases/latest/download/PeepThis-setup.exe`
+
+A run that stopped early (switched off, nothing written by self-setup, bad argument) is not counted.

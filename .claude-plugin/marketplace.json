@@ -1,0 +1,13 @@
+{
+  "name": "peep-this",
+  "description": "Peep This: a desk companion for people new to Claude Code. It tells you what to do next.",
+  "owner": { "name": "Peep This" },
+  "plugins": [
+    {
+      "name": "peep",
+      "source": "./plugin",
+      "description": "Peep This skill pack: it tells you what to do next. A working rhythm for Claude Code sessions, one floppy at a time.",
+      "category": "productivity"
+    }
+  ]
+}
