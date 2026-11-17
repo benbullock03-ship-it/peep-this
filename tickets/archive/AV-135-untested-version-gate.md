@@ -1,7 +1,7 @@
 ---
 id: AV-135
 title: Version gate tray line
-status: doing
+status: closed
 depends: [AV-134]
 ---
 

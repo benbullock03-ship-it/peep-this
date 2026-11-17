@@ -13,10 +13,12 @@
 - Signpost (AV-129): `transcript.rs` emits `Event::TranscriptNext` for a main-thread assistant text block whose last line is `next: <value>`; `state.rs` keeps it in `Session.next` only once a Peep skill has run in that session (`peep_ran`), clears it when a new Peep skill starts, and keeps it across plain turns. `Repo.setup` says whether `.peep/setup.md` exists.
 
 - Claude Code fixtures live per version in `tests/fixtures/<version>/{hooks,sessions,transcripts}`; the hand-made ones are `legacy/`, which the unit tests read. `settings/` and `tickets/` stay flat. `source/claude/mod.rs` `contract::every_version_folder_parses` runs the parsers over every version folder (`malformed*` skipped; hooks routed by `hook_event_name`, `statusline*` by name).
+- Version gate: `build.rs` bakes the `N.N.N` fixture folder names into `PEEP_FIXTURE_VERSIONS`; the source sink in `lib.rs` hands each `Upsert`'s `SessionInfo.version` to `tray::version_notice`, which adds one disabled "untested Claude Code version <major.minor>" line atop the tray menu for the first major.minor no folder covers. Rows, state and snapshot never see it.
 - `npm run capture` (`scripts/capture.mjs`) checks a new Claude Code release: it copies live session files, points `endpoint.json` at itself for 60s to record up to 3 POSTs per route while forwarding them to the widget, and writes them anonymised (`scripts/anonymise.mjs`) to the session's version folder.
 
 ## Watch out
 
+- A new `npm run capture` folder only clears the gate after a rebuild (`build.rs` reruns when `tests/fixtures` changes); the tray line stays until restart and names only the first untested version.
 - Capture redacts free text (`prompt`, `content`, `tool_response`, ...) to `<redacted>`, so captured fixtures prove shape, not semantics; a widget restart mid-capture keeps its own `endpoint.json` and capture leaves it alone.
 
 - A first transcript scan ignores `next:` lines, and `peep_ran` is not persisted, so a widget restart shows no signpost until the next Peep skill run.
@@ -36,4 +38,4 @@
 - Cheer and greet outrank the rest because they are brief and would otherwise never be seen.
 - Command hooks instead of http hooks: Claude Code reported every refused connection as a hook error while the widget was closed; the relay stays silent.
 
-last touched: AV-134, 2026-11-17
+last touched: AV-135, 2026-11-17
