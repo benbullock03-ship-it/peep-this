@@ -1,7 +1,7 @@
 ---
 id: AV-119
 title: Fold Scrub into Shoot
-status: done
+status: closed
 depends: []
 ---
 
