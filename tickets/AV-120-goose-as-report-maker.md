@@ -28,7 +28,10 @@ depends: [AV-117]
 7. pass: AV-126 final template. Built page has the `go-*` frame, title bar and tabs (screenshot of `map.html`).
 8. pass: `npm run build`, `cargo check`, `npm test` (367), `cargo test` (422).
 9. owed to the owner: the pages are useful.
-10. owed to the owner: a run of each command in this repo (not done here: the session could not write `.peep/graph/` in this repo).
+10. pass (Big Peep, 2026-11-17): all three run in this repo, `.peep/graph/map.html`, `health.html`, `topic.html` ("what touches session state"); each loads with no console errors and no external request; `candidates.json` keeps `cards[].pattern` (5 cards).
+   - map: 152 files, 389 imports, but "4 areas, 0 links": the areas split by language (src/, src-tauri/, plugin/) never import each other, so every card reads "used by nothing". Weak here without finer areas or graphify.
+   - health: hot spots `src/styles.css` (56 changes in 30 days), `lib.rs` 48, `main.ts` 42; top pick: hook payloads parsed in `ingest/server.rs` and `approve.rs`, outside `source/claude/`. Useful.
+   - topic: only `state::apply` decides state, fed through the Store by watchers, hook server, approval broker and ticker. Useful.
 
 ## Decisions taken without a ruling
 
@@ -42,5 +45,6 @@ depends: [AV-117]
 
 ## Owed before done
 
-- Owner: run `/peep:goose`, `/peep:goose health` and `/peep:goose <topic>` in this repo and confirm the pages are useful.
-- Big Peep: README, CONTEXT and tour wording (see report); `ducks/SKILL.md` depth 5 and `ducks/references/report.md` still point at the old page (AV-121).
+- Owner: open `.peep/graph/health.html`, `topic.html` and `map.html` and confirm they are useful (judgement; the map is weak on this repo, see check 10).
+- Wording: done under AV-121 (README, CONTEXT and tour name Goose's three pages; Ducks no longer has depth levels).
+- `references/health.md` does not say to leave generated files (e.g. `tickets/INDEX.md`) out of hot spots; the run left it out by hand.
