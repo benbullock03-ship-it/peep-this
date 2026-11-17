@@ -1,7 +1,7 @@
 ---
 id: AV-133
 title: Moods off by default except clash
-status: doing
+status: done
 depends: []
 ---
 
@@ -22,11 +22,11 @@ depends: []
 2. pass: off passes only startled; yawn (and so the context nudge) is suppressed (`mood.rs` `gate_passes_only_clash_when_moods_are_off`, `store.rs` `moods_off_by_default_leave_only_clash`).
 3. pass: on is unchanged: existing mood, store and server mood tests pass with moods switched on (`cargo test`: 429 passed).
 4. pass: Settings switch wired to the backend (`npm run build` type-checks `src/main.ts`, `src/settings.ts`).
-5. owed to the owner: fresh install shows only clash emotes, and switching on brings the others back, in `npm run tauri dev`.
+5. pass: live in `npm run tauri dev` (Big Peep, 2026-11-17): no `moods` key, `moods_on` false, no moods; faked 90% context gave no mood off, `yawn` + "Getting sleepy" bubble and Pack up nudge after `set_moods_on true`, gone again off; settings file restored.
 
-## Owed before done
+## Done 2026-11-17
 
-- Owner check in `npm run tauri dev`: with no `moods` key in `%APPDATA%` widget `settings.json` only clash emotes show; Settings > "Show moods" on brings sweat, yawn plus nudge, worry, cheer, wave and nap back.
+`mood.rs` `gate` + `saved_moods`, `store.rs` `refresh_moods` gate, Settings "Show moods" switch; tests `gate_passes_only_clash_when_moods_are_off`, `moods_off_by_default_leave_only_clash`; live check above.
 
 ## Decisions taken without a ruling
 
