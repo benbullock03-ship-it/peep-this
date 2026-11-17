@@ -75,6 +75,8 @@ struct Inner {
     learned: learned::Learned,
     /// Where `learned` persists; None in tests.
     learned_path: Option<PathBuf>,
+    /// Sessions already counted for a Pack Up.
+    packed_up: HashSet<String>,
 }
 
 impl Inner {
@@ -132,6 +134,7 @@ impl Store {
                 tips_path: None,
                 learned: learned::Learned::default(),
                 learned_path: None,
+                packed_up: HashSet::new(),
             }),
             changed: Condvar::new(),
             alert: Mutex::new(None),
@@ -366,6 +369,13 @@ impl Store {
     pub fn set_repos(&self, repos: Vec<Repo>, now: u64) {
         self.mutate(|inner| {
             let changed = inner.repos != repos;
+            let closes = linked_closings(&inner.repos, &repos, &inner.sessions);
+            for _ in 0..closes {
+                inner.learned.rhythm.bump(learned::Habit::TicketClosed, now);
+            }
+            if closes > 0 {
+                save_learned(inner);
+            }
             inner.repos = repos;
             refresh_moods(inner, now) || changed
         });
@@ -398,6 +408,13 @@ impl Store {
             }
         }
         inner.learned.clone()
+    }
+
+    /// A permission decision answered from the widget (never a rule's auto-allow).
+    pub fn count_approval(&self, now: u64) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.learned.rhythm.bump(learned::Habit::Approval, now);
+        save_learned(&inner);
     }
 
     pub fn dismiss_tip(&self, id: &str) {
@@ -485,15 +502,41 @@ fn refresh_tips(inner: &mut Inner) -> bool {
     shown
 }
 
-/// Records every tip on show and Peep skill running into the learned list, saving when one is new.
+/// Records every tip on show, Peep skill running and session's first Pack Up into the learned list, saving when one is new.
 fn refresh_learned(inner: &mut Inner) {
     let tips: Vec<String> = inner.sessions.values().filter_map(|s| s.tip).map(learned::tip_id).collect();
     let skills: Vec<String> = inner.sessions.values().filter_map(|s| s.skill.clone()).collect();
-    if learned::add(&mut inner.learned.tips, tips) | learned::add(&mut inner.learned.skills, skills) {
-        if let Some(path) = &inner.learned_path {
-            learned::save(path, &inner.learned);
+    let packing: Vec<String> =
+        inner.sessions.values().filter(|s| s.skill.as_deref() == Some("packup")).map(|s| s.id.clone()).collect();
+    let mut packed = false;
+    for id in packing {
+        if inner.packed_up.insert(id) {
+            inner.learned.rhythm.bump(learned::Habit::PackUp, now_ms());
+            packed = true;
         }
     }
+    if learned::add(&mut inner.learned.tips, tips) | learned::add(&mut inner.learned.skills, skills) | packed {
+        save_learned(inner);
+    }
+}
+
+fn save_learned(inner: &Inner) {
+    if let Some(path) = &inner.learned_path {
+        learned::save(path, &inner.learned);
+    }
+}
+
+/// New closings in `after` whose ticket a session in that repo was linked to, i.e. closed through `/peep:ticket`.
+fn linked_closings(before: &[Repo], after: &[Repo], sessions: &HashMap<String, Session>) -> usize {
+    after
+        .iter()
+        .filter(|r| {
+            let Some(c) = &r.last_closed else { return false };
+            let was = before.iter().find(|b| b.root == r.root).and_then(|b| b.last_closed.as_ref());
+            was != Some(c)
+                && r.sessions.iter().any(|id| sessions.get(id).and_then(|s| s.ticket.as_ref()).is_some_and(|t| t.id == c.id))
+        })
+        .count()
 }
 
 /// Rederives every session's mood; true if any changed.
@@ -646,6 +689,40 @@ mod tests {
         assert_eq!(l.tips, ["helper".to_string()].into_iter().collect());
         assert_eq!(l.skills, ["ducks".to_string()].into_iter().collect());
         assert_eq!(l.patterns, ["god-file".to_string()].into_iter().collect());
+    }
+
+    #[test]
+    fn rhythm_counts_pack_ups_per_session_and_tickets_closed_through_peep_ticket() {
+        let store = Store::new(Box::new(|_| {}));
+        let rhythm = || store.learned_with(|_| vec![]).rhythm;
+        let skill = |name: &str, ticket: Option<&str>| Event::Skill {
+            skill: name.into(),
+            ticket: ticket.map(|id| crate::state::TicketLink { id: id.into(), title: None }),
+            event: Box::new(Event::UserPromptSubmit),
+        };
+        store.ingest(upsert("a", None), 1_000);
+        store.ingest(upsert("b", None), 1_000);
+        store.apply("a", skill("packup", None), 2_000);
+        store.apply("a", Event::Stop, 3_000);
+        store.apply("a", skill("packup", None), 4_000);
+        assert_eq!(rhythm().packups.count, 1, "a session counts once");
+        store.apply("b", skill("packup", None), 5_000);
+        assert_eq!(rhythm().packups.count, 2);
+        assert!(rhythm().packups.first.is_some());
+
+        store.apply("a", skill("ticket", Some("AV-1")), 6_000);
+        let repo = |closed: Option<(&str, u64)>| Repo {
+            root: "C:/work/demo".into(),
+            sessions: vec!["a".into(), "b".into()],
+            last_closed: closed.map(|(id, at)| crate::tickets::Closed { id: id.into(), at }),
+            ..Default::default()
+        };
+        store.set_repos(vec![repo(None)], 7_000);
+        store.set_repos(vec![repo(Some(("AV-1", 8_000)))], 8_000);
+        store.set_repos(vec![repo(Some(("AV-1", 8_000)))], 9_000);
+        assert_eq!(rhythm().tickets, learned::Count { count: 1, first: Some(8_000) }, "one closing counts once");
+        store.set_repos(vec![repo(Some(("AV-2", 10_000)))], 10_000);
+        assert_eq!(rhythm().tickets.count, 1, "no session linked to AV-2");
     }
 
     #[test]

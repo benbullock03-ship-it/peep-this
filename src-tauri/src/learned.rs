@@ -21,6 +21,43 @@ pub struct Learned {
     pub tips: BTreeSet<String>,
     pub skills: BTreeSet<String>,
     pub patterns: BTreeSet<String>,
+    pub rhythm: Rhythm,
+}
+
+/// The rhythm counter (AV-137): local only, never sent anywhere.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Rhythm {
+    pub packups: Count,
+    pub tickets: Count,
+    pub approvals: Count,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Count {
+    pub count: u32,
+    /// Epoch ms of the first one.
+    pub first: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Habit {
+    PackUp,
+    TicketClosed,
+    Approval,
+}
+
+impl Rhythm {
+    pub fn bump(&mut self, h: Habit, now: u64) {
+        let c = match h {
+            Habit::PackUp => &mut self.packups,
+            Habit::TicketClosed => &mut self.tickets,
+            Habit::Approval => &mut self.approvals,
+        };
+        c.count += 1;
+        c.first.get_or_insert(now);
+    }
 }
 
 pub fn tip_id(t: Tip) -> String {
@@ -111,6 +148,22 @@ mod tests {
         assert_eq!(back.tips, BTreeSet::from(["crowded".to_string(), "helper".to_string()]));
         assert_eq!(back.skills, BTreeSet::from(["ducks".to_string()]));
         assert_eq!(read_settings(&path)[TIPS_SEEN_KEY], serde_json::json!(["helper"]));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn rhythm_round_trips_with_first_use_dates() {
+        let dir = tmp("rhythm");
+        let path = dir.join("settings.json");
+        let mut l = read(&path);
+        l.rhythm.bump(Habit::Approval, 5);
+        l.rhythm.bump(Habit::Approval, 9);
+        l.rhythm.bump(Habit::PackUp, 7);
+        save(&path, &l);
+        let r = read(&path).rhythm;
+        assert_eq!(r.approvals, Count { count: 2, first: Some(5) });
+        assert_eq!(r.packups, Count { count: 1, first: Some(7) });
+        assert_eq!(r.tickets, Count::default());
         let _ = std::fs::remove_dir_all(dir);
     }
 

@@ -323,6 +323,7 @@ impl Broker {
         if delivered {
             let outcome = if allow { Outcome::Allowed } else { Outcome::Denied };
             self.record(&session_id, &meta, outcome, reason.as_deref(), None, now);
+            self.store.count_approval(now);
             if let Some(r) = self.rules.get() {
                 if allow {
                     r.note_allow(&session_id, &meta.tool, &meta.input, &meta.cwd, now);
@@ -711,6 +712,20 @@ mod tests {
         r.broker.release_all(Release::Quit);
         assert_eq!((replies(&a), replies(&b)), (vec![Reply::Release], vec![Reply::Release]));
         assert!(r.session().pending.is_empty());
+    }
+
+    #[test]
+    fn widget_decisions_count_in_the_rhythm() {
+        let r = rig();
+        let approvals = || r.store.learned_with(|_| vec![]).rhythm.approvals;
+        let (id, _) = r.request("permission_request.json", T0);
+        r.broker.decide(&id, true, None, T0 + 10).unwrap();
+        let (id, _) = r.request("permission_request.json", T0 + 20);
+        r.broker.decide(&id, false, None, T0 + 30).unwrap();
+        let (id, probe) = r.request("permission_request.json", T0 + 40);
+        probe.closed.store(true, Ordering::SeqCst);
+        assert_eq!(r.broker.decide(&id, true, None, T0 + 50), Ok(false));
+        assert_eq!(approvals(), crate::learned::Count { count: 2, first: Some(T0 + 10) });
     }
 
     #[test]

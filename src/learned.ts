@@ -1,8 +1,35 @@
 import { TIP_TEXT } from "./tip";
 import type { Tip } from "./model";
 
-/** learned.rs `Learned`: ids of tips shown, Peep skills run and patterns a Goose health report cited. */
-export type Learned = { tips: string[]; skills: string[]; patterns: string[] };
+/** learned.rs `Count`; `first` is epoch ms. */
+export type RhythmCount = { count: number; first: number | null };
+export type Rhythm = { packups: RhythmCount; tickets: RhythmCount; approvals: RhythmCount };
+
+/** learned.rs `Learned`: ids of tips shown, Peep skills run and patterns a Goose health report cited, plus the rhythm counter. */
+export type Learned = { tips: string[]; skills: string[]; patterns: string[]; rhythm: Rhythm };
+
+const RHYTHM_LABELS: [keyof Rhythm, string][] = [
+  ["packups", "Sessions with a Pack Up"],
+  ["tickets", "Tickets closed through /peep:ticket"],
+  ["approvals", "Approvals from the widget"],
+];
+
+function day(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function rhythmLines(r: Rhythm): string[] {
+  return RHYTHM_LABELS.map(([k, label]) => {
+    const c = r[k];
+    return `${label}: ${c.count}${c.first == null ? "" : `, first ${day(c.first)}`}`;
+  });
+}
+
+/** The plain text "copy my rhythm" puts on the clipboard for a beta issue. */
+export function rhythmSummary(r: Rhythm): string {
+  return ["Peep This rhythm", ...rhythmLines(r)].join("\n");
+}
 
 export const TOPICS = ["context", "rhythm", "testing", "working with sessions", "architecture"] as const;
 export type Topic = (typeof TOPICS)[number];
@@ -86,7 +113,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: 
 /** The "What Peep taught you" view; `refresh` rereads what has been seen. */
 export function createLearned(host: HTMLElement, api: LearnedApi, onClose: () => void) {
   async function refresh() {
-    const view = learnedView(await api.seen());
+    const seen = await api.seen();
+    const view = learnedView(seen);
     host.replaceChildren();
     const head = el("div", "settings-head", host);
     el("h2", "settings-title", head, "What Peep taught you");
@@ -95,6 +123,19 @@ export function createLearned(host: HTMLElement, api: LearnedApi, onClose: () =>
     close.title = "Back to sessions";
     close.setAttribute("aria-label", "Back to sessions");
     close.addEventListener("click", onClose);
+    el("h3", "settings-sub", host, "Your rhythm");
+    const rhythm = el("ul", "rhythm-list", host);
+    for (const line of rhythmLines(seen.rhythm)) el("li", "", rhythm, line);
+    const copyRow = el("div", "rhythm-copy", host);
+    const copy = el("button", "card-btn", copyRow, "Copy my rhythm");
+    copy.type = "button";
+    const copied = el("span", "settings-note", copyRow);
+    copy.addEventListener("click", () => {
+      navigator.clipboard.writeText(rhythmSummary(seen.rhythm)).then(
+        () => (copied.textContent = "Copied. Stays on this machine until you paste it."),
+        () => (copied.textContent = "Couldn't copy."),
+      );
+    });
     if (!view.groups.length) el("p", "settings-note", host, "Nothing yet. Tips and skills add a line here the first time you meet them.");
     for (const g of view.groups) {
       el("h3", "settings-sub", host, g.topic[0].toUpperCase() + g.topic.slice(1));

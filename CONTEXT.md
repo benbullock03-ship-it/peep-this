@@ -177,3 +177,7 @@ _Avoid_: collision, conflict, collision radar
 **Survivor**:
 A piece of rot that no test caught.
 _Avoid_: escaped mutant, miss
+
+**Rhythm counter**:
+Local counts on the Learned page of the habits the pack teaches: sessions with a Pack Up, tickets closed through `/peep:ticket`, approvals from the widget. Never sent anywhere; the owner may copy it by hand.
+_Avoid_: telemetry, analytics, stats

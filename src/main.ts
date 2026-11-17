@@ -316,7 +316,19 @@ function runDemo() {
   inbox.setHotkey(hotkey.hotkey);
   // `?learned` opens the learned list as after two tips, one skill run and one cited pattern.
   const learned = mountLearned(
-    { seen: async () => ({ tips: ["crowded", "helper"], skills: ["ducks"], patterns: ["god-file"] }), open: (url) => window.open(url, "_blank") },
+    {
+      seen: async () => ({
+        tips: ["crowded", "helper"],
+        skills: ["ducks"],
+        patterns: ["god-file"],
+        rhythm: {
+          packups: { count: 3, first: Date.now() - 4 * 86_400_000 },
+          tickets: { count: 5, first: Date.now() - 6 * 86_400_000 },
+          approvals: { count: 0, first: null },
+        },
+      }),
+      open: (url) => window.open(url, "_blank"),
+    },
     () => settings.show(false),
   );
   if (params.has("learned")) learned.show(true);

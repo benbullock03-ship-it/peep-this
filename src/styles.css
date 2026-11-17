@@ -3550,6 +3550,22 @@ button.digest-entry:focus-visible {
   color: var(--ps-dim);
 }
 
+/* ---------- rhythm counter (AV-137) ---------- */
+.rhythm-list {
+  margin: 0;
+  padding: 8px 10px;
+  border: 2px solid var(--ps-line);
+  background: var(--ps-panel);
+  color: var(--ps-text);
+  list-style: none;
+}
+
+.rhythm-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ---------- learned list (AV-110) ---------- */
 .learned-list {
   display: flex;
