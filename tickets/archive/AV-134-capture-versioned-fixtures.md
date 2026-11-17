@@ -1,7 +1,7 @@
 ---
 id: AV-134
 title: npm run capture for versioned fixtures
-status: done
+status: closed
 depends: []
 ---
 
