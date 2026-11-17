@@ -311,6 +311,8 @@ pub fn run() {
             away::set_digest_summary,
             mood::nudge_pct,
             mood::set_nudge_pct,
+            mood::moods_on,
+            mood::set_moods_on,
             tip::dismiss_tip,
             learned::learned,
             learned::open_source,
@@ -337,6 +339,7 @@ pub fn run() {
             }));
             app.manage(Arc::clone(&store));
             mood::load_nudge(&store, store::now_ms());
+            mood::load_moods(&store, store::now_ms());
             tip::load(&store);
             learned::load(&store);
             wire_alerts(app, &store);

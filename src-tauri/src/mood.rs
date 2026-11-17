@@ -15,6 +15,7 @@ pub const SWEAT_FROM_PCT: f64 = 70.0;
 /// The context nudge setting (AV-70): 50 to 95 in steps of 5.
 pub const NUDGE_PCT_DEFAULT: f64 = 80.0;
 const NUDGE_KEY: &str = "nudgePct";
+const MOODS_KEY: &str = "moods";
 pub const WORRY_MS: u64 = 5 * 60 * 1000;
 pub const CHEER_MS: u64 = 8 * 1000;
 pub const GREET_MS: u64 = 5 * 1000;
@@ -114,6 +115,31 @@ pub fn clash(s: &Session, sessions: &[&Session], now: u64) -> Option<String> {
         .max_by_key(|(when, _)| *when)?;
     let name = others().flat_map(|o| o.edits.iter()).map(|(q, _)| q).filter(|q| same_path(path, q)).chain([path]).min()?;
     Some(name.clone())
+}
+
+/// AV-133: with the moods setting off only clash shows; clash outranks every other mood, so gating the winner is enough.
+pub fn gate(m: Option<Mood>, moods_on: bool) -> Option<Mood> {
+    m.filter(|m| moods_on || *m == Mood::Startled)
+}
+
+fn saved_moods(path: &Path) -> bool {
+    read_settings(path).get(MOODS_KEY).and_then(Value::as_bool).unwrap_or(false)
+}
+
+pub fn load_moods(store: &Store, now: u64) {
+    store.set_moods_on(saved_moods(&settings_path()), now);
+}
+
+#[tauri::command]
+pub fn moods_on(store: tauri::State<'_, Arc<Store>>) -> bool {
+    store.moods_on()
+}
+
+#[tauri::command]
+pub fn set_moods_on(on: bool, store: tauri::State<'_, Arc<Store>>) -> Result<bool, String> {
+    save_setting(&settings_path(), MOODS_KEY, Value::from(on)).map_err(|e| e.to_string())?;
+    store.set_moods_on(on, crate::store::now_ms());
+    Ok(on)
 }
 
 pub fn valid_nudge(pct: u64) -> bool {
@@ -385,6 +411,28 @@ mod tests {
         save_setting(&path, NUDGE_KEY, Value::from(60)).unwrap();
         assert_eq!(saved_nudge(&path), 60.0);
         assert_eq!(read_settings(&path)["awayAfterMin"], Value::from(5));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn gate_passes_only_clash_when_moods_are_off() {
+        let all = [Mood::Startled, Mood::Cheer, Mood::Greet, Mood::Tweet, Mood::Worry, Mood::Yawn, Mood::Sweat, Mood::Nap];
+        for m in all {
+            assert_eq!(gate(Some(m), true), Some(m));
+            assert_eq!(gate(Some(m), false), (m == Mood::Startled).then_some(m), "{m:?}");
+        }
+        assert_eq!(gate(None, false), None);
+    }
+
+    #[test]
+    fn saved_moods_off_by_default_and_round_trips() {
+        let dir = std::env::temp_dir().join(format!("peepthis-moods-{}", std::process::id()));
+        let path = dir.join("settings.json");
+        assert!(!saved_moods(&path));
+        save_setting(&path, MOODS_KEY, Value::from(true)).unwrap();
+        assert!(saved_moods(&path));
+        save_setting(&path, MOODS_KEY, Value::from(false)).unwrap();
+        assert!(!saved_moods(&path));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

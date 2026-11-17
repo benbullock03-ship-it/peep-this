@@ -23,6 +23,7 @@ export type SettingsApi = {
   summary?: Switch;
   sound?: Switch;
   nudge?: { get: () => Promise<number>; set: (pct: number) => Promise<number> };
+  moods?: Switch;
 };
 
 type Switch = { get: () => Promise<boolean>; set: (on: boolean) => Promise<boolean> };
@@ -69,6 +70,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
   const away = api.away ? createAwayField(host, api.away) : null;
   const summary = api.summary ? createSwitchField(host, api.summary, SUMMARY_TEXT) : null;
   const sound = api.sound ? createSwitchField(host, api.sound, SOUND_TEXT, "sound-toggle") : null;
+  const moods = api.moods ? createSwitchField(host, api.moods, MOODS_TEXT, "moods-toggle") : null;
   const nudge = api.nudge ? createNudgeField(host, api.nudge) : null;
   const rules = api.rules ? createRulesField(host, api.rules) : null;
 
@@ -155,7 +157,7 @@ export function createSettings(host: HTMLElement, api: SettingsApi, onClose: () 
     renderSessions();
     renderList();
     if (themeSelect && api.theme) themeSelect.value = api.theme.get();
-    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh(), sound?.refresh(), nudge?.refresh()]);
+    await Promise.all([hotkey?.refresh(), toggleHotkey?.refresh(), rules?.refresh(), away?.refresh(), summary?.refresh(), sound?.refresh(), moods?.refresh(), nudge?.refresh()]);
   }
 
   return {
@@ -310,6 +312,11 @@ const SUMMARY_TEXT = {
 const SOUND_TEXT = {
   label: "Play a sound on waiting or error",
   note: "Off by default. The Windows Asterisk sound, when a session needs you or hits an error; never for finished turns or subagents.",
+};
+
+const MOODS_TEXT = {
+  label: "Show moods",
+  note: "Off by default. Peeps sweat, yawn and offer Pack Up near full context, worry, cheer, wave and nap. The clash bolt shows either way.",
 };
 
 function createSwitchField(host: HTMLElement, api: Switch, text: { label: string; note: string }, cls = "") {

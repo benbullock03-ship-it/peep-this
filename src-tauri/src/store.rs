@@ -68,6 +68,7 @@ struct Inner {
     /// The widget's own headless sessions (digest summaries): never a row, never a hook.
     ignored: HashSet<String>,
     nudge_pct: f64,
+    moods_on: bool,
     tips_seen: HashSet<Tip>,
     /// Where `tips_seen` persists; None in tests.
     tips_path: Option<PathBuf>,
@@ -125,6 +126,7 @@ impl Store {
                 activity: away::Activity::default(),
                 ignored: HashSet::new(),
                 nudge_pct: mood::NUDGE_PCT_DEFAULT,
+                moods_on: false,
                 tips_seen: HashSet::new(),
                 tips_path: None,
                 learned: learned::Learned::default(),
@@ -412,6 +414,17 @@ impl Store {
         });
     }
 
+    pub fn moods_on(&self) -> bool {
+        self.inner.lock().unwrap().moods_on
+    }
+
+    pub fn set_moods_on(&self, on: bool, now: u64) {
+        self.mutate(|inner| {
+            inner.moods_on = on;
+            refresh_moods(inner, now)
+        });
+    }
+
     /// (id, cwd) of live sessions, by id.
     pub fn live_cwds(&self) -> Vec<(String, String)> {
         let inner = self.inner.lock().unwrap();
@@ -488,6 +501,7 @@ fn refresh_moods(inner: &mut Inner, now: u64) -> bool {
         .iter()
         .map(|s| {
             let m = mood::derive(s, &all, &inner.repos, inner.nudge_pct, limit::highest(inner.rate_limits.as_ref()), now);
+            let m = mood::gate(m, inner.moods_on);
             let clash = (m == Some(Mood::Startled)).then(|| mood::clash(s, &all, now)).flatten();
             (s.id.clone(), m, clash)
         })
@@ -562,6 +576,7 @@ mod tests {
     fn moods_refresh_live_on_changes_and_expire_on_tick() {
         let (store, _) = recording_store();
         let mood_of = |id: &str| store.snapshot().sessions.into_iter().find(|s| s.id == id).unwrap().mood;
+        store.set_moods_on(true, 0);
         store.ingest(upsert("a", None), 1_000);
         store.ingest(upsert("b", None), 60_000);
         assert_eq!(mood_of("a"), Some(Mood::Greet));
@@ -572,6 +587,28 @@ mod tests {
         let repo = Repo { root: "C:/work/demo".into(), sessions: vec!["a".into()], tickets: vec![], last_closed: closed, ..Default::default() };
         store.set_repos(vec![repo], 70_000);
         assert_eq!(mood_of("a"), Some(Mood::Cheer));
+    }
+
+    #[test]
+    fn moods_off_by_default_leave_only_clash() {
+        let (store, _) = recording_store();
+        let mood_of = |id: &str| store.snapshot().sessions.into_iter().find(|s| s.id == id).unwrap().mood;
+        let full = Event::Statusline { model: None, context_pct: Some(85.0), tokens: None, cache_ttl_ms: None };
+        store.ingest(upsert("a", None), 1_000);
+        store.ingest(upsert("b", None), 60_000);
+        store.apply("b", full, 60_000);
+        assert_eq!(mood_of("a"), None, "no greet");
+        assert_eq!(mood_of("b"), None, "no yawn, so no context nudge either");
+        store.set_moods_on(true, 60_001);
+        assert_eq!(mood_of("a"), Some(Mood::Greet));
+        assert_eq!(mood_of("b"), Some(Mood::Yawn));
+        store.set_moods_on(false, 60_002);
+        let edit = |p: &str| Event::Edited { path: p.into(), event: Box::new(Event::PostToolUse) };
+        store.apply("a", edit("C:/work/demo/x.rs"), 61_000);
+        store.apply("b", edit("C:/work/demo/x.rs"), 62_000);
+        assert_eq!(mood_of("a"), Some(Mood::Startled));
+        assert_eq!(mood_of("b"), Some(Mood::Startled));
+        assert!(!store.moods_on());
     }
 
     #[test]
@@ -621,6 +658,7 @@ mod tests {
     fn nudge_setting_moves_the_yawn_live() {
         let (store, _) = recording_store();
         let mood_of = || store.snapshot().sessions[0].mood;
+        store.set_moods_on(true, 0);
         store.ingest(upsert("a", None), 1_000);
         store.apply("a", Event::Statusline { model: None, context_pct: Some(72.0), tokens: None, cache_ttl_ms: None }, 2_000);
         assert_eq!(mood_of(), Some(Mood::Sweat));
@@ -833,6 +871,7 @@ mod tests {
         let seen = Arc::new(Mutex::new(Vec::new()));
         let sink = Arc::clone(&seen);
         store.set_on_limits(Box::new(move |rl| sink.lock().unwrap().push(rl.seven_day_pct)));
+        store.set_moods_on(true, 0);
         store.ingest(upsert("a", None), 1_000);
         store.ingest(upsert("b", None), 1_000);
         store.set_rate_limits(10.0, 79.0, (None, None), 1_000);

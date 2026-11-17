@@ -1351,6 +1351,7 @@ mod tests {
         assert_eq!(other.event, bash_failed(Event::PostToolUse));
 
         let store = quiet_store();
+        store.set_moods_on(true, 0);
         store.apply_or_placeholder(SID, failed.cwd.as_deref(), Event::UserPromptSubmit, 1_000);
         dispatch(&store, failed, 2_000);
         assert_eq!(store.snapshot().sessions[0].mood, Some(Mood::Worry));
