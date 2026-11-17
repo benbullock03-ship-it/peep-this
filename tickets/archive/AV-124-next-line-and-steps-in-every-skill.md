@@ -1,7 +1,7 @@
 ---
 id: AV-124
 title: next line and steps frontmatter in every skill
-status: done
+status: closed
 depends: [AV-117, AV-118, AV-119, AV-120, AV-121, AV-122, AV-123]
 ---
 

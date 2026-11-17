@@ -2,7 +2,7 @@
 
 ## How it works now
 
-- `plugin/` is the `peep` Claude Code plugin; each skill is `plugin/skills/<name>/SKILL.md` with step detail in its `references/`. 12 skills; only ticket, packup, tweet and shoot are model-invocable, the rest set `disable-model-invocation` because every invocable description loads into every session.
+- `plugin/` is the `peep` Claude Code plugin; each skill is `plugin/skills/<name>/SKILL.md` with step detail in its `references/`. 11 skills; only ticket, packup, tweet and shoot are model-invocable, the rest set `disable-model-invocation` because every invocable description loads into every session.
 - Every skill cites `plugin/references/preamble.md` once at the top: read `.peep/setup.md`, apply `skills.off`, and with no setup self-set up (guess as `walk/references/setup.md` step 1, a 5-line read-back, write on yes with `Written by /peep:<name>`, then carry on; "no" or no reply writes nothing). Pack Up and Tweet run without a setup instead.
 - `/peep:walk` is optional tour and customising: two batched rounds (repo, then how the owner works), a read-back, then `.peep/setup.md` (F§1) with only non-default preference keys (`qt.round`, `packup.questions`, `shoot.widths`, `skills.off`), a tour (a numbered **Core** block in rhythm order: qt, ticket, shoot, packup, ducks; then an unnumbered **Extras** block, each skill with a "use when" line) and a suggested first step (`/peep:qt` with no open tickets, else `/peep:ducks`).
 - Shared formats live once in `plugin/references/formats.md` (F§1 to F§7); skills cite the section instead of restating it.
@@ -10,7 +10,8 @@
 - `/peep:shoot --scrub` (AV-119, was `/peep:scrub`) runs `skills/shoot/scripts/scan.mjs` after the Shoot report (`skills/shoot/references/scrub.md`): catalogue grep rules over changed lines since `main` (falls back to `master`, then `HEAD`) plus untracked files, or `--full`; exceptions applied; one finding per ID per file, scored by severity plus the other IDs in that file. Then an eye pass (`references/eye.md`) that always covers spacing and text, on Shoot shots or `inferred` without a `url`. The numbered report phrases alternatives in the repo's own tokens. On the reply (`references/fix.md`) it fixes only the approved numbers, sends design choices to `/peep:sneak`, writes debt on `debt <n>`, and on `wrong <n>` offers an earned line or names a rule bug.
 - Every skill's last step (preamble) bumps its line in `.peep/runs` and, while the old count is below 3, ends with its own `Why:` line tied to a habit: think before code, finish before starting, prove it works. The Why text is the only run-count wording left in each `SKILL.md`.
 - Walk's round C (`walk/references/northstar.md`) asks for, problem, hook and non-goals in one AskUserQuestion call, shares Walk's one read-back, then writes `.peep/reel.md` (F§5). Comparables (at most 5) are searched only when the owner picks "Look up comparables first" on the Hook question. There is no `/peep:reel`; Ducks' no-north-star line and the widget's arc line point at `/peep:walk`.
-- Question Time asks AskUserQuestion rounds while its run count is below 3 (or whenever `qt.round` is set); from the third run it gives the whole frontier as one numbered list answered with "agree all" or named overrides (`qt/references/rounds.md`).
+- Question Time always asks AskUserQuestion rounds of `qt.round` (default 4), whatever the run count; only without the tool (headless) does it fall back to one numbered list, and says so (`qt/references/rounds.md`).
+- Every `SKILL.md` has a flat `steps:` list (at most 6 names); the skill prints `peep step: <name>` as a text line at the start of each step and ends its fixed output with `next: <command>` or `next: clear to proceed` (F§8, preamble). The widget reads both from the transcript tail; the Why line goes just before `next:`.
 - `/peep:coderot` with no area argument targets the hot spot, the setup area most touched by the last 20 commits' files, and says which; the cap stays 20 mutants.
 - Question Time (under Scope) and Ducks (under Watch) read `.peep/reel.md` only to add a `drift: <id> <why>` line for a ticket off the north star or on a non-goal.
 - Ducks lists `done` tickets first as one item with a count, and the read-back's **Do** line `close <n> done: <ids>` closes them all on one yes, one `<id>: close` commit each (`leave <ids>` drops some). Stale `doing` comes second: ticket file unchanged for the setup's `stale.days` (default 3, file mtime), asked as finish, park with a reason, or close. The widget's backend worries the repo's peeps on the same rule (`tickets.rs` `Repo.stale`).
@@ -32,7 +33,7 @@
 - Runs that stop early (switched off, self-setup declined, bad argument) are not counted.
 - `skills.off`, self-setup and the run count are stated once in the preamble; never copy them back into a `SKILL.md`.
 - A headless live check of a pack skill needs `--add-dir <repo>/plugin` beside `--plugin-dir`, or the child cannot read the preamble and silently skips it. Walk can never be switched off.
-- The Why line is the only addition allowed after a skill's fixed output format.
+- The Why line is the only addition to a skill's fixed output, and `next:` stays the very last line. Stops and replies that wait for the owner carry no `next:`.
 - `.peep/runs` is per machine and not committed; skills mention a missing `.gitignore` entry rather than editing it.
 - Stale tickets and drift never block new work.
 - Drift never blocks and is never a question. No `.peep/reel.md`, no drift line.
@@ -56,4 +57,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Any skill sets the repo up inline so a new user's first command just works; the full setup questions stay in Walk alone.
 
-last touched: AV-118, 2026-11-16
+last touched: AV-124, 2026-11-17
