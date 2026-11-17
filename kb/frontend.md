@@ -29,6 +29,7 @@
 ## Watch out
 
 - The disk seats only when the snapshot reports the skill; there is no optimistic seating.
+- A signpost Jump's terminal focus needs real OS activation: a CDP click brings the terminal forward only when the widget already holds the foreground. The house Install runs `install_integration` on the UI thread, so the window reads "Not Responding" until it ends (AV-148). Live-check Install only against a scratch `CLAUDE_CONFIG_DIR` and `APPDATA`.
 - `?demo` (`npm run dev`) is where Shoot runs; real clipboard and terminal focus only work in `npm run tauri dev`. Demo repos live in `src/demo.ts`.
 - Parked tickets dim by colour (`--ps-muted`), not opacity: 62% opacity fell under AA. Ticket chip tokens are `--tk-*`.
 - A session with no repo hides the shelf; a repo with zero tickets shows the empty shelf.
@@ -53,4 +54,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-137, 2026-11-17
+last touched: AV-129, 2026-11-17
