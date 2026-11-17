@@ -1,7 +1,7 @@
 ---
 id: AV-137
 title: Rhythm counter and copy button on the Learned page
-status: doing
+status: done
 depends: []
 ---
 
@@ -26,13 +26,13 @@ depends: []
 6. Copy button puts the summary on the clipboard: owed to the owner (real clipboard only in `npm run tauri dev`).
 7. Build and tests: pass (`npm run build`, `cargo check`, `npm test` 513 passed, `cargo test` 436 + 17 passed).
 
-## Owed before done
+8. (added) Live in `npm run tauri dev` (Big Peep, 2026-11-17): pass. Throwaway `claude -p "/peep:packup"` moved packups 0 to 1; `claude -p "/peep:ticket close LC-01"` in a scratch repo moved tickets to 1 when `last_closed` changed; held `PermissionRequest` answered by a real click on Allow moved approvals to 1 (hook got `allow`); Learned page showed all three with first dates; "Copy my rhythm" click put the title plus three lines on the clipboard (`Get-Clipboard`).
 
-Live check in `npm run tauri dev`, Learned page reopened after each step (it reads the counts on open):
-- Pack Up: run `/peep:packup` in a session (UserPromptSubmit hook sets skill `packup`); "Sessions with a Pack Up" goes up by 1, once per session.
-- Ticket close: in a session run `/peep:ticket close <id>` (links the ticket), then let the ticket reach `status: closed` or `tickets/archive/`; the shelf's next read sets `last_closed` and "Tickets closed through /peep:ticket" goes up by 1. A close with no session linked to that id does not count.
-- Approval: answer a held permission request with Allow or Deny on the widget's approval card (the `decide_approval` command); "Approvals from the widget" goes up by 1. Rule auto-allows and terminal answers do not count.
-- Copy: click "Copy my rhythm" and paste; expect "Peep This rhythm" then the three lines.
+## Done 2026-11-17
+
+`learned.rs` `Rhythm`, `store.rs` `refresh_learned`/`linked_closings`/`count_approval`, `approve.rs` `Broker::decide`, `learned.ts` section and copy button; tests named above; live check 8.
+
+Follow-ups seen, not in scope: first-use dates wrap mid-date at 360px panel width; a ticket close counts only if its session is live across the shelf reads before and after the archive.
 
 ## Decisions taken without a ruling
 
