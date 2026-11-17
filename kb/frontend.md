@@ -15,7 +15,8 @@
 - A session's mood shows as a 16x16 emote in the bubble's trailing slot (`src/emote.ts` `MOOD_EMOTE`, `emoteFor`; `setEmote` in `src/rows.ts`). Sheet follows the bubble fill: dark theme takes `emotes-on-dark.png` from `src/assets/emotes/` (8 rows; row 7 is `tweet`, which plays twice then holds frame 1).
 - Tweet mood (`mood.rs` `tweeting`): an open tweet on the repo's `.peep/tweets.md` whose `from` is the session's ticket, or a recent edit of the board or of a file the tweet names. It holds while the tweet is open; clash outranks it, it outranks sweat, worry, yawn and nap.
 - Rate limits: header meters with % on a second header line and title pressure at 80/95/100 (`src/limits.ts`); from 80% every non-attention peep sweats and the limit takes the bubble's verb slot. Toasts at 95 and 100 come from the backend (`src-tauri/src/limit.rs`), once per window keyed by `resets_at`. `?demo&limits=82,30` fakes them.
-- The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`).
+- The context nudge (`nudgeFor`, `nudgeText`) shows a dashed bubble with Pack up and Not yet under the plank; the threshold is the Settings "Context nudge" slider (`nudge_pct`/`set_nudge_pct`). It rides the yawn, so it shows only with Settings "Show moods" on.
+- Learned page (`src/learned.ts`) opens with "Your rhythm": Pack Up sessions, tickets closed through `/peep:ticket` and widget approvals, each with its first-use day, from `learned().rhythm` (`learned.rs` `Rhythm`, stored as `learned.rhythm` in the widget `settings.json`). "Copy my rhythm" copies `rhythmSummary` for a beta issue; nothing is ever sent.
 - Clash: sessions with `mood: startled` and the same `Session.clash` path get a lettered bolt tag (`Bubble.bolt` in `src/bubble.ts`), "Both in <file>" bubble text (`clashTags`, `clashText` in `src/emote.ts`) and, when adjacent, a dotted plank-to-plank bracket in `--st-waiting` (`clash-down`/`clash-up`, `--plank-y` in `src/rows.ts`).
 
 - Identity (`src/identity.ts`): the cwd hashes over `COLORS` and the 14 `ACCESSORIES`; the six `EARNED_ACCESSORIES` (packed, clear, ten, spotless, architect, supporter) are never hashed and reach the picker only through `pickerAccessories(unlocked)`. `?accessories` (`src/accessories.ts`) renders every accessory for checks.
@@ -37,6 +38,8 @@
 - The shelf header click sets a sticky open/closed choice for the session; a stray click on it collapses a full shelf until reload.
 - Busy sessions post real statusline payloads every second or so, overwriting a faked one; a live limit check reposts in a loop while it samples.
 - A floppy sprite must be a single `span` in its parent: CSS that targets the text span in a disk row (e.g. `.diskbox-rot > span:last-child`) must not match the disks, or the whole sheet shows.
+- The Learned page reads the rhythm when it opens; reopen it to see a new count. A ticket close counts only if a session linked to that ticket is live across the shelf reads before and after the archive.
+- First-use dates wrap mid-date at the 360px panel width.
 - Not yet snoozes in memory per session until 95% or the yawn clears; it does not survive a restart.
 
 - Every clickable has a `:hover` (hard offset, colour step or 2px hop, never blur, glow or brightness filter) and `cursor: pointer`; things that do nothing on click have neither. Chips, bars and tags react through their row. New clickables need both.
@@ -50,4 +53,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-125, 2026-11-17
+last touched: AV-137, 2026-11-17

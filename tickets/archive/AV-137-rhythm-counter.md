@@ -1,7 +1,7 @@
 ---
 id: AV-137
 title: Rhythm counter and copy button on the Learned page
-status: done
+status: closed
 depends: []
 ---
 
