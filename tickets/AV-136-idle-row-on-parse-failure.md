@@ -1,7 +1,7 @@
 ---
 id: AV-136
 title: Idle row with a ? chip on parse failure
-status: doing
+status: done
 depends: []
 ---
 
@@ -10,7 +10,7 @@ depends: []
 **What to build:** when a live session's file, hook payload or transcript fails to parse, the session stays listed from its PID with state `idle` and a `?` chip. A live session never drops off the list (AV-131 answer 9).
 
 - [x] The backend keeps a session whose PID is alive even if its JSON fails to parse, and marks it `unparsed`
-- [ ] Its row shows `idle` with a `?` chip, and the tooltip says the format was not understood
+- [x] Its row shows `idle` with a `?` chip, and the tooltip says the format was not understood
 - [x] A later good parse clears the mark
 - [x] A test using the malformed fixtures: the session is still in the snapshot and marked
 
@@ -24,11 +24,11 @@ depends: []
 4. Snapshot holds the session `idle` with `unparsed: true`: pass, `store.rs` `unparsed_mark_reaches_snapshot_and_clears`.
 5. Row view carries the `?` note ("format not understood") only when unparsed: pass, `rowView.test.ts` "carries the ? chip note only for an unparsed session"; the drawn chip and tooltip are owed to the owner.
 6. Build and tests: pass, `npm run build && cargo check`; `npm test` 379 passed, `cargo test` 433 passed.
-7. Live corrupt-then-fix in `npm run tauri dev`: owed to the owner.
+7. Live corrupt-then-fix in `npm run tauri dev`: pass (Big Peep, 2026-11-17): truncated fake `<pid>.json` on a live PID listed `idle`, `unparsed: true` within ~5s; row drew `?` beside IDLE with the tooltip and "format not understood" in the aria-label; valid JSON cleared it; fake file deleted.
 
-## Owed before done
+## Done 2026-11-17
 
-- Live check (Big Peep): in `npm run tauri dev`, corrupt a live session's `~/.claude/sessions/<pid>.json`; within ~5s the row shows a `?` chip beside its state chip with the tooltip, a session first seen corrupt shows `idle`; fixing the file clears the `?`. This also settles checklist item 2 (chip drawn, tooltip shown).
+`sessions.rs` `scan_with` unparsed path + `salvage`, `Session.unparsed`, `rows.ts` `?` chip; tests in `sessions.rs`, `store.rs` `unparsed_mark_reaches_snapshot_and_clears`, `rowView.test.ts`; live check above.
 
 ## Decisions taken without a ruling
 
