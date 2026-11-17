@@ -1,9 +1,9 @@
 ---
 id: AV-130
 title: Make it yours page
-status: blocked
-reason: waiting on AV-131 (Q1 earned accessories, Q3 moods setting change the page)
-wake: ticket:AV-131
+status: deferred
+reason: outside the v1 cut line (AV-131 answer 6)
+wake: v1 released
 depends: [AV-126]
 ---
 
