@@ -1,7 +1,7 @@
 ---
 id: AV-108
 title: Progressive unlocks in the Walk tour and floppies
-status: doing
+status: closed
 depends: [AV-103]
 ---
 
