@@ -1,7 +1,7 @@
 ---
 id: AV-121
 title: Slim Ducks
-status: done
+status: closed
 depends: [AV-120]
 ---
 
