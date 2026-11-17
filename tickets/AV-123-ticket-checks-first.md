@@ -1,7 +1,7 @@
 ---
 id: AV-123
 title: Ticket checks first
-status: doing
+status: done
 depends: []
 ---
 
@@ -18,18 +18,19 @@ depends: []
 
 ## Checks
 
-1. work.md §3 tells the worker to post numbered checks (`Checks:` message) before any edit: pass, `plugin/skills/ticket/references/work.md` §3 first bullet.
-2. work.md §5.2 answers exactly those checks `pass`/`fail`/`owed to the owner` with evidence, `(added)` for late ones: pass, work.md §5.2.
+1. work.md §2 writes numbered `open:` checks into the ticket's `## Checks` in the status edit, then prints them as `Checks:`: pass, `plugin/skills/ticket/references/work.md` §2.
+2. work.md §5.2 answers those checks in place `pass`/`fail`/`owed to the owner` with evidence, `(added)` for late ones: pass, work.md §5.2.
 3. `done` only with no `fail`; owed under `## Owed before done`: pass, work.md §5.3.
 4. Four-line report unchanged, checks in the ticket: pass, `plugin/skills/ticket/SKILL.md` §3.
 5. Ticket file ends with answered checks citing evidence: pass, this section.
-6. Checks posted in a message before any edit during this run: owed to the owner (the rule did not exist while this ticket was built, so the list above was written after the fact; watch a later `/peep:ticket` run).
+6. Live run shows checks before any edit: pass (Big Peep, 2026-11-17, third run). Throwaway `claude -p "/peep:ticket LC-03"` in a scratch repo: the `## Checks` edit with three `open:` checks is stream line 23, the `Checks:` reply line 25, the first code edit line 26; final ticket answered each in place with `pass` and evidence. Stream: scratchpad `lc123-stream3.jsonl`.
+   - Runs one and two failed (lines 46 and 41 edited code with no `Checks:` anywhere): a reply-only rule was read and skipped, so §2 now puts the checks in the ticket edit.
 
-## Owed before done
+## Done 2026-11-17
 
-- Check 6 is a live behaviour: owner or a later run must watch `/peep:ticket` post `Checks:` before editing. Not provable from skill text.
+`plugin/skills/ticket/references/work.md` §2 and §5.2; `plugin/skills/bigpeep/references/brief.md` sends little peeps through §2's checks list; live run in check 6.
 
 ## Decisions taken without a ruling
 
-- Checks are posted at the start of §3 (Build), after the Start step, so they precede every edit but follow the status change.
+- The checks are written into the ticket in the same edit as `status: doing`, before any other file change, and printed after; a message-only rule was skipped in two live runs.
 - `formats.md` and `docs/spec.md` left untouched: neither documents the report sections beyond the "Done when" line.
