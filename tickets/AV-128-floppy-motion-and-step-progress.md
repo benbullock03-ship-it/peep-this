@@ -1,9 +1,9 @@
 ---
 id: AV-128
 title: Floppy motion and step progress
-status: blocked
-reason: waiting on AV-131 (Q6 decides whether floppy motion is v1)
-wake: ticket:AV-131
+status: deferred
+reason: outside the v1 cut line (AV-131 answer 6)
+wake: v1 released
 depends: [AV-124, AV-126, AV-127]
 ---
 
