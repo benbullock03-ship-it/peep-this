@@ -28,6 +28,7 @@ struct Raw {
     /// `user` after `/rename`; `derived` for the generated name.
     name_source: Option<String>,
     status: Option<String>,
+    version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,6 +69,7 @@ pub fn parse(bytes: &[u8], stem: &str) -> Result<Record, String> {
             cwd,
             kind: raw.kind.unwrap_or_default(),
             entrypoint: raw.entrypoint.unwrap_or_default(),
+            version: raw.version.unwrap_or_default(),
             unparsed: false,
         },
         busy,
@@ -89,6 +91,7 @@ fn salvage(bytes: &[u8], stem: &str) -> Option<SessionInfo> {
         cwd,
         kind: String::new(),
         entrypoint: String::new(),
+        version: String::new(),
         unparsed: true,
     })
 }
@@ -340,6 +343,13 @@ mod tests {
         let rec = parse(&fixture("renamed.json"), "x").unwrap();
         assert_eq!((rec.info.name.as_str(), rec.info.title.as_deref()), ("Fix the login flow", Some("Fix the login flow")));
         assert_eq!(parse(&fixture("busy.json"), "x").unwrap().info.title, None);
+    }
+
+    #[test]
+    fn reads_the_claude_code_version() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/2.1.325/sessions/23056.json");
+        assert_eq!(parse(&std::fs::read(path).unwrap(), "x").unwrap().info.version, "2.1.325");
+        assert_eq!(parse(&fixture("minimal.json"), "x").unwrap().info.version, "");
     }
 
     #[test]

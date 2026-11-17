@@ -36,7 +36,7 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
 use source::claude::ClaudeSource;
-use source::AgentSource;
+use source::{AgentSource, SourceEvent};
 use store::{Snapshot, Store};
 
 #[tauri::command]
@@ -363,8 +363,13 @@ pub fn run() {
 
             let sources: Vec<Box<dyn AgentSource>> = vec![Box::new(ClaudeSource::new())];
             source::spawn_all(sources, || {
-                let store = Arc::clone(&store);
-                Box::new(move |ev| store.ingest(ev, store::now_ms()))
+                let (store, handle) = (Arc::clone(&store), app.handle().clone());
+                Box::new(move |ev| {
+                    if let SourceEvent::Upsert { info, .. } = &ev {
+                        tray::version_notice(&handle, &info.version);
+                    }
+                    store.ingest(ev, store::now_ms())
+                })
             });
             tickets::spawn(Arc::clone(&store));
             // Last: creating a webview pumps messages, so the main page runs from here on, and

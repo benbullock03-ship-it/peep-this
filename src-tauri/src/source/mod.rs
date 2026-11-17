@@ -12,6 +12,8 @@ pub struct SessionInfo {
     pub cwd: String,
     pub kind: String,
     pub entrypoint: String,
+    /// Claude Code version, e.g. `2.1.325`; empty when unknown.
+    pub version: String,
     /// The session file did not parse; the session is kept from its live PID.
     pub unparsed: bool,
 }

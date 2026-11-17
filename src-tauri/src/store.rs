@@ -595,6 +595,7 @@ mod tests {
             cwd: "C:/work/demo".into(),
             kind: "interactive".into(),
             entrypoint: "cli".into(),
+            version: String::new(),
             unparsed: false,
         }
     }

@@ -111,6 +111,40 @@ pub fn hotkey_notice<R: Runtime>(app: &AppHandle<R>, text: Option<String>) {
     }
 }
 
+/// The major.minor of `version` when no fixture folder covers it (AV-135).
+fn untested(version: &str, fixtures: &str) -> Option<String> {
+    fn major_minor(v: &str) -> Option<String> {
+        let mut parts = v.trim().split('.');
+        let (major, minor) = (parts.next()?, parts.next()?);
+        let num = |p: &str| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit());
+        (num(major) && num(minor)).then(|| format!("{major}.{minor}"))
+    }
+    let mm = major_minor(version)?;
+    let known = fixtures.split(',').any(|f| major_minor(f).as_deref() == Some(mm.as_str()));
+    (!known).then_some(mm)
+}
+
+/// A quiet line at the top of the tray menu, added once for the first untested version seen.
+struct VersionNotice<R: Runtime> {
+    menu: Menu<R>,
+    shown: Mutex<bool>,
+}
+
+pub fn version_notice<R: Runtime>(app: &AppHandle<R>, version: &str) {
+    let Some(n) = app.try_state::<VersionNotice<R>>() else { return };
+    let mut shown = n.shown.lock().unwrap();
+    if *shown {
+        return;
+    }
+    let Some(mm) = untested(version, env!("PEEP_FIXTURE_VERSIONS")) else { return };
+    let result = MenuItem::with_id(app, "untested-version", format!("untested Claude Code version {mm}"), false, None::<&str>)
+        .and_then(|item| PredefinedMenuItem::separator(app).and_then(|sep| n.menu.insert_items(&[&item, &sep], 0)));
+    match result {
+        Ok(()) => *shown = true,
+        Err(e) => eprintln!("peepthis: tray version notice failed: {e}"),
+    }
+}
+
 pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
     let handle = app.handle();
     apply_autostart_default(handle);
@@ -135,6 +169,7 @@ pub fn setup<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
         sep: sep()?,
         shown: Mutex::new(false),
     });
+    app.manage(VersionNotice { menu: menu.clone(), shown: Mutex::new(false) });
 
     let autostart_item = autostart.clone();
     TrayIconBuilder::with_id("main")
@@ -185,5 +220,22 @@ mod tests {
     fn sponsor_url_is_https() {
         // ShellExecute runs whatever it is given; only a web link may reach it.
         assert!(SPONSOR_URL.starts_with("https://"));
+    }
+
+    #[test]
+    fn untested_compares_major_minor() {
+        let known = "2.1.325,2.1.326";
+        assert_eq!(untested("2.2.0", known).as_deref(), Some("2.2"));
+        assert_eq!(untested("3.1.1", known).as_deref(), Some("3.1"));
+        assert_eq!(untested("2.1.400", known), None);
+        assert_eq!(untested("", known), None);
+        assert_eq!(untested("dev", known), None);
+        assert_eq!(untested("2.2.0", "").as_deref(), Some("2.2"));
+    }
+
+    #[test]
+    fn fixture_versions_include_captured_folders() {
+        assert!(env!("PEEP_FIXTURE_VERSIONS").split(',').any(|v| v.starts_with("2.1.")));
+        assert!(!env!("PEEP_FIXTURE_VERSIONS").contains("legacy"));
     }
 }
