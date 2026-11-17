@@ -1082,6 +1082,11 @@ body[data-fold] > .ps-strip {
   white-space: nowrap;
 }
 
+.ps-unknown {
+  --st: var(--ps-muted);
+  margin-left: -4px;
+}
+
 .ps-dot {
   flex: none;
   width: 8px;

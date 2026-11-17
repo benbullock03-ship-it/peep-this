@@ -97,6 +97,9 @@ pub struct Session {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub alive: bool,
+    /// The session file did not parse; kept from its live PID until a good parse clears it.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub unparsed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ended_at: Option<u64>,
     /// Last activity; drives the stuck timer.
@@ -334,6 +337,7 @@ impl Session {
             context_pct: None,
             tip: None,
             alive: true,
+            unparsed: false,
             ended_at: None,
             last_event_at: now,
             last_hook_at: None,

@@ -12,6 +12,8 @@ pub struct SessionInfo {
     pub cwd: String,
     pub kind: String,
     pub entrypoint: String,
+    /// The session file did not parse; the session is kept from its live PID.
+    pub unparsed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

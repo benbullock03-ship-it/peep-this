@@ -91,7 +91,8 @@ impl Inner {
     }
 
     fn note_end(&mut self, before: Option<&Session>, after: &Session, now: u64) {
-        if let Some(b) = before.filter(|b| b.alive && !after.alive) {
+        // An unparsed session may carry a made-up id that `claude --resume` cannot use.
+        if let Some(b) = before.filter(|b| b.alive && !after.alive && !b.unparsed) {
             self.ended.push(closed::Ended::new(b, &self.repos, now));
         }
     }
@@ -449,6 +450,7 @@ impl Store {
             s.cwd = info.cwd;
             s.kind = info.kind;
             s.entrypoint = info.entrypoint;
+            s.unparsed = info.unparsed;
             if let Some(busy) = busy {
                 s = state::apply(s, Event::SessionFile { busy }, now);
             }
@@ -550,6 +552,7 @@ mod tests {
             cwd: "C:/work/demo".into(),
             kind: "interactive".into(),
             entrypoint: "cli".into(),
+            unparsed: false,
         }
     }
 
@@ -789,6 +792,25 @@ mod tests {
         assert_eq!(v["closed"][0]["sessionId"], "a");
         assert_eq!(v["closed"][0]["state"], "waiting");
         assert_eq!(v["closed"][0]["flags"]["attention"], true);
+    }
+
+    #[test]
+    fn unparsed_mark_reaches_snapshot_and_clears() {
+        let (store, _) = recording_store();
+        let got = Arc::new(Mutex::new(Vec::<closed::Ended>::new()));
+        let sink = Arc::clone(&got);
+        store.set_on_end(Box::new(move |e| sink.lock().unwrap().push(e)));
+        let bad = SessionInfo { unparsed: true, ..info("a", "a") };
+        store.ingest(SourceEvent::Upsert { info: bad.clone(), busy: None }, 1_000);
+        let v = serde_json::to_value(store.snapshot()).unwrap();
+        assert_eq!((v["sessions"][0]["state"].as_str(), v["sessions"][0]["unparsed"].as_bool()), (Some("idle"), Some(true)));
+        store.ingest(upsert("a", None), 2_000);
+        let v = serde_json::to_value(store.snapshot()).unwrap();
+        assert!(v["sessions"][0].get("unparsed").is_none(), "a good parse clears the mark");
+
+        store.ingest(SourceEvent::Upsert { info: bad, busy: None }, 3_000);
+        store.ingest(SourceEvent::Ended { id: "a".into() }, 4_000);
+        assert!(got.lock().unwrap().is_empty(), "an unparsed session never reaches the closed shelf");
     }
 
     #[test]

@@ -68,10 +68,49 @@ pub fn parse(bytes: &[u8], stem: &str) -> Result<Record, String> {
             cwd,
             kind: raw.kind.unwrap_or_default(),
             entrypoint: raw.entrypoint.unwrap_or_default(),
+            unparsed: false,
         },
         busy,
         proc_start,
     })
+}
+
+/// Best-effort identity for a file that failed `parse`: PID from the file name, `sessionId` and `cwd` if readable, else `unparsed-<pid>`.
+fn salvage(bytes: &[u8], stem: &str) -> Option<SessionInfo> {
+    let pid: u32 = stem.parse().ok()?;
+    let text = String::from_utf8_lossy(bytes);
+    let id = string_field(&text, "sessionId").filter(|s| !s.trim().is_empty()).unwrap_or_else(|| format!("unparsed-{pid}"));
+    let cwd = string_field(&text, "cwd").unwrap_or_default();
+    Some(SessionInfo {
+        id,
+        pid,
+        name: fallback_name(&cwd),
+        title: None,
+        cwd,
+        kind: String::new(),
+        entrypoint: String::new(),
+        unparsed: true,
+    })
+}
+
+/// The first complete `"key": "value"` string in possibly broken JSON.
+fn string_field(text: &str, key: &str) -> Option<String> {
+    let pat = format!("\"{key}\"");
+    let after = &text[text.find(&pat)? + pat.len()..];
+    let after = after.trim_start().strip_prefix(':')?.trim_start();
+    if !after.starts_with('"') {
+        return None;
+    }
+    let mut escaped = false;
+    for (i, c) in after.char_indices().skip(1) {
+        match c {
+            _ if escaped => escaped = false,
+            '\\' => escaped = true,
+            '"' => return serde_json::from_str(&after[..=i]).ok(),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn fallback_name(cwd: &str) -> String {
@@ -96,8 +135,9 @@ pub fn is_live(rec: &Record, probe: impl Fn(u32) -> Proc) -> bool {
 
 pub struct SessionDir {
     dir: PathBuf,
-    /// Live session id per file, from the last scan.
-    known: HashMap<PathBuf, String>,
+    /// Live session per file, from the last scan.
+    known: HashMap<PathBuf, SessionInfo>,
+    /// Files that failed to parse on the last scan.
     warned: HashSet<PathBuf>,
 }
 
@@ -111,40 +151,55 @@ impl SessionDir {
     }
 
     /// Full rescan. Sessions dead on first sight are ignored; a known session ends when its process dies or its file goes.
+    /// A file that fails to parse on two scans in a row is listed from its live PID, marked `unparsed`.
     pub fn scan_with(&mut self, probe: impl Fn(u32) -> Proc) -> Vec<SourceEvent> {
         let mut events = Vec::new();
-        let mut live: HashMap<PathBuf, String> = HashMap::new();
+        let mut live: HashMap<PathBuf, SessionInfo> = HashMap::new();
         let mut ended: HashSet<String> = HashSet::new();
+        let mut failed: HashSet<PathBuf> = HashSet::new();
 
         for path in json_files(&self.dir) {
             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
-            let parsed = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| parse(&b, &stem));
+            let bytes = std::fs::read(&path);
+            let parsed = bytes.as_ref().map_err(|e| e.to_string()).and_then(|b| parse(b, &stem));
             match parsed {
                 Ok(rec) => {
-                    self.warned.remove(&path);
                     if is_live(&rec, &probe) {
-                        live.insert(path, rec.info.id.clone());
+                        live.insert(path, rec.info.clone());
                         events.push(SourceEvent::Upsert { info: rec.info, busy: rec.busy });
-                    } else if self.known.values().any(|id| *id == rec.info.id) {
+                    } else if self.known.values().any(|k| k.id == rec.info.id) {
                         ended.insert(rec.info.id);
                     }
                 }
                 Err(err) => {
-                    if self.warned.insert(path.clone()) {
-                        eprintln!("peepthis: skipping session file {}: {err}", path.display());
+                    let again = self.warned.contains(&path);
+                    if !again {
+                        eprintln!("peepthis: cannot parse session file {}: {err}", path.display());
                     }
-                    // A file caught mid-write keeps its previous session alive until the next scan.
-                    if let Some(id) = self.known.get(&path) {
-                        live.insert(path, id.clone());
+                    failed.insert(path.clone());
+                    // The first failure may be a file caught mid-write: keep the previous session as it was.
+                    let info = match (self.known.get(&path), again) {
+                        (Some(k), false) => Some(k.clone()),
+                        (Some(k), true) => Some(SessionInfo { unparsed: true, ..k.clone() }),
+                        (None, true) => bytes.ok().and_then(|b| salvage(&b, &stem)),
+                        (None, false) => None,
+                    }
+                    .filter(|i| !i.unparsed || !matches!(probe(i.pid), Proc::Dead));
+                    if let Some(info) = info {
+                        if info.unparsed {
+                            events.push(SourceEvent::Upsert { info: info.clone(), busy: None });
+                        }
+                        live.insert(path, info);
                     }
                 }
             }
         }
+        self.warned = failed;
 
-        let still_live: HashSet<&String> = live.values().collect();
-        for id in self.known.values() {
-            if !still_live.contains(id) {
-                ended.insert(id.clone());
+        let still_live: HashSet<&String> = live.values().map(|i| &i.id).collect();
+        for k in self.known.values() {
+            if !still_live.contains(&k.id) {
+                ended.insert(k.id.clone());
             }
         }
         let mut ended: Vec<String> = ended.into_iter().filter(|id| !still_live.contains(id)).collect();
@@ -427,6 +482,60 @@ mod tests {
         assert!(sd.scan_with(alive_matching).is_empty());
         place(&dir, "busy.json", "18504.json");
         assert_eq!(sd.scan_with(dead).len(), 1, "still known, so death is reported");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn upserts(events: &[SourceEvent]) -> Vec<&SessionInfo> {
+        events.iter().filter_map(|e| if let SourceEvent::Upsert { info, .. } = e { Some(info) } else { None }).collect()
+    }
+
+    #[test]
+    fn salvage_reads_complete_fields_and_falls_back_to_the_pid() {
+        let typed = salvage(&fixture("malformed_types.json"), "77").unwrap();
+        assert_eq!((typed.id.as_str(), typed.cwd.as_str(), typed.name.as_str()), ("66666666-7777-4888-8999-aaaaaaaaaaaa", r"C:\Users\dev\projects\demo-app", "demo-app"));
+        let cut = salvage(&fixture("malformed.json"), "5150").unwrap();
+        assert_eq!((cut.id.as_str(), cut.cwd.as_str(), cut.unparsed), ("unparsed-5150", "", true));
+        assert!(salvage(b"{}", "notapid").is_none());
+    }
+
+    #[test]
+    fn unparsed_file_with_live_pid_is_listed() {
+        let dir = temp_dir();
+        place(&dir, "malformed.json", "5150.json");
+        let mut sd = SessionDir::new(dir.clone());
+        assert!(sd.scan_with(alive_unknown).is_empty(), "first failure may be mid-write");
+        let events = sd.scan_with(alive_unknown);
+        let listed = upserts(&events);
+        assert_eq!(listed.len(), 1);
+        assert_eq!((listed[0].id.as_str(), listed[0].pid, listed[0].unparsed), ("unparsed-5150", 5150, true));
+
+        let mut gone = SessionDir::new(dir.clone());
+        gone.scan_with(dead);
+        assert!(gone.scan_with(dead).is_empty(), "a dead PID is not listed");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn known_session_with_corrupt_file_stays_marked_unparsed() {
+        let dir = temp_dir();
+        place(&dir, "busy.json", "18504.json");
+        let mut sd = SessionDir::new(dir.clone());
+        sd.scan_with(alive_matching);
+        place(&dir, "malformed_types.json", "18504.json");
+        assert!(sd.scan_with(alive_matching).is_empty());
+        let events = sd.scan_with(alive_matching);
+        let kept = upserts(&events);
+        assert_eq!(kept.len(), 1);
+        assert_eq!((kept[0].id.as_str(), kept[0].name.as_str(), kept[0].unparsed), ("11111111-2222-4333-8444-555555555555", "demo-app-24", true));
+
+        place(&dir, "busy.json", "18504.json");
+        let events = sd.scan_with(alive_matching);
+        assert!(matches!(&upserts(&events)[..], [i] if !i.unparsed), "a good parse clears the mark");
+
+        place(&dir, "malformed.json", "18504.json");
+        sd.scan_with(alive_matching);
+        sd.scan_with(alive_matching);
+        assert!(matches!(&sd.scan_with(dead)[..], [SourceEvent::Ended { .. }]), "an unparsed session still ends with its PID");
         std::fs::remove_dir_all(dir).unwrap();
     }
 

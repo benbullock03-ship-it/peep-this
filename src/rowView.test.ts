@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { demoDecide, demoIdentity, demoSnapshot, demoStep } from "./demo";
 import type { Session } from "./model";
-import { contextFill, toRowView } from "./rowView";
+import { contextFill, toRowView, UNPARSED_NOTE } from "./rowView";
 
 const base: Session = {
   id: "abc12345-0000",
@@ -40,6 +40,12 @@ describe("toRowView", () => {
     const v = toRowView({ ...base, state: "bogus" as Session["state"], name: "" });
     expect(v.name).toBe("abc12345");
     expect(v).toMatchObject({ state: "idle", label: "Idle" });
+  });
+
+  it("carries the ? chip note only for an unparsed session", () => {
+    expect(toRowView({ ...base, state: "idle", unparsed: true })).toMatchObject({ label: "Idle", unparsedNote: UNPARSED_NOTE });
+    expect(UNPARSED_NOTE).toMatch(/format not understood/);
+    expect(toRowView(base).unparsedNote).toBe("");
   });
 
   it("shows the session title over the name", () => {

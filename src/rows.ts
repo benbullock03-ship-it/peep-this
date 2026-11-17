@@ -87,6 +87,8 @@ type Row = {
   shells: ShellsRender;
   /** Red dot on the peep for a failed shell; survives the chip folding and the row closing. */
   fail: HTMLElement;
+  /** `?` chips beside the state chips, [closed, open]. */
+  unknowns: HTMLElement[];
   floppy?: HTMLElement;
   repo?: Repo;
   /** FLOPPY-SPEC §09 buttons; under the plank, since the closed row is itself a button. */
@@ -116,6 +118,13 @@ function chip(parent: HTMLElement): HTMLElement {
   const c = el("span", "ps-chip", parent);
   el("span", "ps-dot", c);
   return el("span", "", c);
+}
+
+function unknownChip(parent: HTMLElement): HTMLElement {
+  const c = el("span", "ps-chip ps-unknown", parent);
+  c.textContent = "?";
+  c.hidden = true;
+  return c;
 }
 
 function bubble(parent: HTMLElement): HTMLElement {
@@ -173,12 +182,14 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, wi
   const meta = el("span", "ps-meta", body);
   const name = el("span", "ps-name", meta);
   const label = chip(meta);
+  const unknown = unknownChip(meta);
 
   const head = button("ps-openhead", item);
   head.setAttribute("aria-expanded", "true");
   head.hidden = true;
   const openName = el("span", "ps-name", head);
   const openLabel = chip(head);
+  const openUnknown = unknownChip(head);
   const stage = el("div", "ps-stage", item);
   stage.hidden = true;
   const openSay = bubble(stage);
@@ -235,6 +246,7 @@ function createRow(s: Session, jump: Jump, decide?: Decide, rules?: RowRules, wi
     kids: createKids(kidsHost, decide),
     shells: createShells(shellsHost),
     fail,
+    unknowns: [unknown, openUnknown],
     nudge,
     nudgePack: pack,
     nudgeLater,
@@ -302,8 +314,17 @@ function updateRow(r: Row, v: RowView) {
     r.fail.hidden = !v.shellNote;
     r.fail.title = v.shellNote;
   }
-  if (l.name !== v.name || l.label !== v.label || l.say !== v.say || l.shellNote !== v.shellNote)
-    r.closed.setAttribute("aria-label", `${v.name}: ${v.label}${v.shellNote ? ", a shell failed" : ""}. ${v.say}`);
+  if (l.unparsedNote !== v.unparsedNote) {
+    for (const u of r.unknowns) {
+      u.hidden = !v.unparsedNote;
+      u.title = v.unparsedNote;
+    }
+  }
+  if (l.name !== v.name || l.label !== v.label || l.say !== v.say || l.shellNote !== v.shellNote || l.unparsedNote !== v.unparsedNote)
+    r.closed.setAttribute(
+      "aria-label",
+      `${v.name}: ${v.label}${v.unparsedNote ? ", format not understood" : ""}${v.shellNote ? ", a shell failed" : ""}. ${v.say}`,
+    );
   if (l.alive !== v.alive) r.el.dataset.alive = String(v.alive);
   r.last = v;
 }

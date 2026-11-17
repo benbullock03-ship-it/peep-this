@@ -22,6 +22,8 @@ export type RowView = {
   accessory: string;
   contextPct: number | null;
   alive: boolean;
+  /** Non-empty when the session file did not parse: the `?` chip's hover text. */
+  unparsedNote: string;
   /** Non-empty when a background shell failed: the red dot's hover text. */
   shellNote: string;
   emote: Emote | null;
@@ -30,6 +32,8 @@ export type RowView = {
 };
 
 export type IdentityOf = (s: Session) => Identity;
+
+export const UNPARSED_NOTE = "Session file format not understood; the row may lag behind the session";
 
 export function contextFill(pct: number | null | undefined): number | null {
   if (pct === undefined || pct === null || !Number.isFinite(pct)) return null;
@@ -90,6 +94,7 @@ export function toRowView(
     accessory,
     contextPct: contextFill(s.contextPct),
     alive: s.alive,
+    unparsedNote: s.unparsed ? UNPARSED_NOTE : "",
     shellNote: failNote(s.shells),
     emote,
     nudge,

@@ -708,7 +708,7 @@ mod tests {
     fn return_emits_the_card_once_and_dismiss_clears_it() {
         use crate::source::{SessionInfo, SourceEvent};
         let store = Store::new(Box::new(|_| {}));
-        let info = SessionInfo { id: "s".into(), pid: 1, name: "demo".into(), title: None, cwd: "C:/p".into(), kind: "interactive".into(), entrypoint: "cli".into() };
+        let info = SessionInfo { id: "s".into(), pid: 1, name: "demo".into(), title: None, cwd: "C:/p".into(), kind: "interactive".into(), entrypoint: "cli".into(), unparsed: false };
         store.ingest(SourceEvent::Upsert { info, busy: None }, T0);
         let seen = Arc::new(Mutex::new(Vec::<Option<usize>>::new()));
         let sink = Arc::clone(&seen);

@@ -40,6 +40,8 @@ export type Session = {
   /** tip.rs: a signal tip waiting to be seen; the row shows it only while idle or done. */
   tip?: Tip;
   alive: boolean;
+  /** The session file did not parse; the session is kept from its live PID. */
+  unparsed?: boolean;
   endedAt?: number;
   pending?: PendingApproval[];
 };
