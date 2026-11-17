@@ -1,7 +1,7 @@
 ---
 id: AV-129
 title: House peep next-step signpost
-status: doing
+status: done
 depends: [AV-124]
 ---
 
@@ -35,9 +35,14 @@ depends: [AV-124]
    - not proven: focus. `focus_session` returned `true`, but the foreground window stayed put. A CDP click gives the widget no OS activation, so Windows' foreground lock refuses `SetForegroundWindow`. The trust-prompt keystroke I would have needed for an interactive session was refused by the auto-mode classifier.
    - not run: house Install, because it would rewrite the owner's `~/.claude/settings.json`.
 
-## Owed before done
+10. (added) Live in `tauri dev`, 2026-11-17 (Big Peep):
+   - pass: focus. With Notepad in front, a CDP mouse click on a live row's `Next: /peep:walk` chip put `/peep:walk` on the clipboard and brought that session's Windows Terminal to the foreground. Evidence: scratchpad `av129-jump-focus.png`.
+   - pass: house Install on a fresh profile (`CLAUDE_CONFIG_DIR` and `APPDATA` pointed at an empty scratch dir): the bubble read "Install the integration"; Install wrote all 11 hook events and the statusLine wrapper to the scratch `settings.json`, then the bubble read "Start Claude Code in a project" with `claude`. The real `~/.claude/settings.json` md5 was unchanged. The install was started by a physical mouse click at the machine, not the scripted one. Evidence: `av129-house-install-before.png`, `av129-house-install-after.png`.
+   - found: the window reads "Not Responding" during Install because `install_integration` runs on the UI thread; filed as AV-148.
 
-- Owner, in `npm run tauri dev`: click a row's `Next:` chip with the real mouse and confirm the session's terminal comes to the front. Then check the house Install button on a machine, or a profile, without the integration.
+## Done 2026-11-17
+
+`src-tauri/src/source/claude/transcript.rs` `TranscriptNext`, `state.rs` `Session.next`, `src/bubble.ts` `signFor`/`nextStep`, `src/house.ts` `houseSign`; tests in checks 1 to 7; live checks 9 and 10.
 
 ## Decisions taken without a ruling
 
