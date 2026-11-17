@@ -1,7 +1,7 @@
 ---
 id: AV-126
 title: "Design brief: floppy motion, Make it yours page, Goose report page"
-status: done
+status: closed
 depends: []
 ---
 
