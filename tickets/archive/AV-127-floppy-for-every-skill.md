@@ -1,7 +1,7 @@
 ---
 id: AV-127
 title: Floppy for every skill
-status: done
+status: closed
 depends: [AV-118, AV-119]
 ---
 
