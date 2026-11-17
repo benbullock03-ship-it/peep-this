@@ -1,7 +1,7 @@
 ---
 id: AV-125
 title: Remove progressive unlocks
-status: done
+status: closed
 depends: []
 ---
 
