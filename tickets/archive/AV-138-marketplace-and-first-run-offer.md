@@ -35,7 +35,7 @@ depends: []
 
 The offer and its once-per-repo memory live in `plugin/references/preamble.md` (Start step 4 and Last step), proven by headless child runs (checks 3 to 5). The listing is `.claude-plugin/marketplace.json` on the public repo. The link resolves to the v0.1.0 release asset (check 10).
 
-Still wanted, outside "Done when": a square PNG icon at `plugin/.claude-plugin/icon.png` (512 to 2048 px, the owner's art) before any plugin directory submission.
+Icon: `plugin/.claude-plugin/icon.png` is a copy of the app icon `src-tauri/icons/icon.png` (512 px, the owner's yellow peep), per the owner 2026-11-17. `claude plugin validate plugin --profile directory` now reports nothing.
 
 ## Owner rulings 2026-11-17
 
