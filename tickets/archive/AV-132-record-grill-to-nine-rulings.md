@@ -1,7 +1,7 @@
 ---
 id: AV-132
 title: Record the AV-131 rulings
-status: done
+status: closed
 depends: []
 ---
 
