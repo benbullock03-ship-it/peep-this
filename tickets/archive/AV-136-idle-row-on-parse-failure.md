@@ -1,7 +1,7 @@
 ---
 id: AV-136
 title: Idle row with a ? chip on parse failure
-status: done
+status: closed
 depends: []
 ---
 

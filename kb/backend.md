@@ -8,6 +8,7 @@
 - Test runs arrive as `Event::TestRun` from `ingest/server.rs`: a Bash/PowerShell command matching a non-`cd` step of the repo setup's `test` line (`tickets::setup_test`).
 - Worry holds 5 min or until a passing matching run; cheer 8s for other sessions in a repo when a ticket closes; greet 5s; nap after 10 min in `idle` or `success`.
 - Ended sessions go to the closed shelf (`closed.rs` `Shelf`): `store.rs` hands the session over as it was on end, `closed::entry` records its end-state flags (uncommitted, no Pack Up, attention, ticket doing), and `Snapshot.closed` carries the shelf to the frontend (`ClosedSession` in `src/model.ts`). Wired in `lib.rs` `wire_closed`.
+- A session file that fails to parse on two scans in a row is kept from its live PID with `SessionInfo.unparsed` (`sessions.rs` `scan_with`): a known session keeps its last info and state; one first seen broken is salvaged (`salvage`: `sessionId`/`cwd` from the broken text, else `unparsed-<pid>`) and starts `idle`. The next good parse clears the mark; the row shows a `?` chip.
 - `end_session(session_id)` (`focus.rs`, a Tauri command only, never on the event server) re-reads `sessions/<pid>.json`, compares `procStart` with the OS start time and kills through the same process handle. `Ok(true)` killed, `Ok(false)` already gone, `Err` otherwise; the normal lifecycle then takes the row to done and fades it.
 
 - Signpost (AV-129): `transcript.rs` emits `Event::TranscriptNext` for a main-thread assistant text block whose last line is `next: <value>`; `state.rs` keeps it in `Session.next` only once a Peep skill has run in that session (`peep_ran`), clears it when a new Peep skill starts, and keeps it across plain turns. `Repo.setup` says whether `.peep/setup.md` exists.
@@ -31,7 +32,8 @@
 - Greet only comes from sessions born 2s or more before the newcomer, so one startup scan doesn't greet itself.
 - The context nudge is the yawn's bubble, so with moods off it is gone too; ended sessions have no mood.
 - The gate filters only the winning mood; clash outranks every other mood, so it is never hidden.
-- The shelf persists across restarts and prunes on both load and write.
+- The shelf persists across restarts and prunes on both load and write. An unparsed session never reaches it (its id may be made up).
+- An unparsed session is kept on PID liveness alone, without the `procStart` check, so PID reuse is not guarded while its file is broken. Malformed hook bodies and transcript lines never drop a session; they are skipped.
 - `end_session` fails closed: no session file, no `procStart` or an unreadable start time refuses. A session with no session file (a child `claude` that inherited `CLAUDE_CODE_CHILD_SESSION`) exists only through hooks, so it cannot be ended and its row stays live after its process dies.
 
 ## Why it's like this
@@ -39,4 +41,4 @@
 - Cheer and greet outrank the rest because they are brief and would otherwise never be seen.
 - Command hooks instead of http hooks: Claude Code reported every refused connection as a hook error while the widget was closed; the relay stays silent.
 
-last touched: AV-133, 2026-11-17
+last touched: AV-136, 2026-11-17
