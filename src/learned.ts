@@ -125,7 +125,11 @@ export function createLearned(host: HTMLElement, api: LearnedApi, onClose: () =>
     close.addEventListener("click", onClose);
     el("h3", "settings-sub", host, "Your rhythm");
     const rhythm = el("ul", "rhythm-list", host);
-    for (const line of rhythmLines(seen.rhythm)) el("li", "", rhythm, line);
+    for (const line of rhythmLines(seen.rhythm)) {
+      const [count, first] = line.split(", first ");
+      const li = el("li", "", rhythm, first === undefined ? line : `${count}, `);
+      if (first !== undefined) el("span", "rhythm-date", li, `first ${first}`);
+    }
     const copyRow = el("div", "rhythm-copy", host);
     const copy = el("button", "card-btn", copyRow, "Copy my rhythm");
     copy.type = "button";

@@ -3560,6 +3560,10 @@ button.digest-entry:focus-visible {
   list-style: none;
 }
 
+.rhythm-date {
+  white-space: nowrap;
+}
+
 .rhythm-copy {
   display: flex;
   align-items: center;
