@@ -1,7 +1,7 @@
 ---
 id: AV-138
 title: Marketplace listing and first-run widget offer
-status: done
+status: closed
 depends: []
 ---
 

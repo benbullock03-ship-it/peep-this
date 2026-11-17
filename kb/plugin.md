@@ -5,6 +5,8 @@
 - `plugin/` is the `peep` Claude Code plugin; each skill is `plugin/skills/<name>/SKILL.md` with step detail in its `references/`. 11 skills; only ticket, packup, tweet and shoot are model-invocable, the rest set `disable-model-invocation` because every invocable description loads into every session.
 - Every skill cites `plugin/references/preamble.md` once at the top: read `.peep/setup.md`, apply `skills.off`, and with no setup self-set up (guess as `walk/references/setup.md` step 1, a 5-line read-back, write on yes with `Written by /peep:<name>`, then carry on; "no" or no reply writes nothing). Pack Up and Tweet run without a setup instead.
 - `/peep:walk` is optional tour and customising: two batched rounds (repo, then how the owner works), a read-back, then `.peep/setup.md` (F§1) with only non-default preference keys (`qt.round`, `packup.questions`, `shoot.widths`, `skills.off`), a tour (a numbered **Core** block in rhythm order: qt, ticket, shoot, packup, ducks; then an unnumbered **Extras** block, each skill with a "use when" line) and a suggested first step (`/peep:qt` with no open tickets, else `/peep:ducks`).
+- The pack ships from the public repo `peep-this` (MIT): `.claude-plugin/marketplace.json` at the repo root serves `marketplace add <owner>/peep-this`; `plugin/.claude-plugin/marketplace.json` is the widget installer's bundled copy (`install.rs`), same name and plugin.
+- Widget offer (preamble Start step 4 and Last step): once per repo, when `.peep/runs` has no `widget.offer` line and `$APPDATA/PeepThis/endpoint.json` is missing, a skill's final reply carries the download line for `releases/latest/download/PeepThis-setup.exe` and writes `widget.offer: <date>` so it never repeats.
 - Shared formats live once in `plugin/references/formats.md` (F§1 to F§7); skills cite the section instead of restating it.
 - The AI hallmark catalogue is `plugin/references/ai-tells.md` (82 entries, slug IDs, P0 to P2 by who notices); its grep rules live in `ai-tells/rules.mjs` with `scan(text)`, and `rules.test.mjs` holds a bad and a good snippet per rule and keeps the md and `RULES` in step. Per-repo exceptions are `.peep/scrub.md` (F§6: `earned` permanent, `debt` may only shrink) plus inline `scrub-ignore: <id> <reason>`.
 - `/peep:shoot --scrub` (AV-119, was `/peep:scrub`) runs `skills/shoot/scripts/scan.mjs` after the Shoot report (`skills/shoot/references/scrub.md`): catalogue grep rules over changed lines since `main` (falls back to `master`, then `HEAD`) plus untracked files, or `--full`; exceptions applied; one finding per ID per file, scored by severity plus the other IDs in that file. Then an eye pass (`references/eye.md`) that always covers spacing and text, on Shoot shots or `inferred` without a `url`. The numbered report phrases alternatives in the repo's own tokens. On the reply (`references/fix.md`) it fixes only the approved numbers, sends design choices to `/peep:sneak`, writes debt on `debt <n>`, and on `wrong <n>` offers an earned line or names a rule bug.
@@ -35,6 +37,7 @@
 - `skills.off`, self-setup and the run count are stated once in the preamble; never copy them back into a `SKILL.md`.
 - A headless live check of a pack skill needs `--add-dir <repo>/plugin` beside `--plugin-dir`, or the child cannot read the preamble and silently skips it. Walk can never be switched off.
 - The Why line is the only addition to a skill's fixed output, and `next:` stays the very last line. Stops and replies that wait for the owner carry no `next:`.
+- Releases must not be marked prerelease and must keep the asset name `PeepThis-setup.exe`, or the offer link stops resolving (`releases/latest` skips prereleases). Renaming the repo changes the URL in `preamble.md` and `plugin/README.md`.
 - `.peep/runs` is per machine and not committed; skills mention a missing `.gitignore` entry rather than editing it.
 - Stale tickets and drift never block new work.
 - Drift never blocks and is never a question. No `.peep/reel.md`, no drift line.
@@ -60,4 +63,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Any skill sets the repo up inline so a new user's first command just works; the full setup questions stay in Walk alone.
 
-last touched: AV-123, 2026-11-17
+last touched: AV-138, 2026-11-17
