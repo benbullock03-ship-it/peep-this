@@ -1,7 +1,7 @@
 ---
 id: AV-123
 title: Ticket checks first
-status: done
+status: closed
 depends: []
 ---
 

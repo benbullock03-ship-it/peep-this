@@ -25,6 +25,7 @@
 - A blocked `/peep:ticket <id>` still parks it on the first direct dep not `closed`, then walks the depends tree depth-first (`ticket/references/work.md`) and names the next step in `owed`: `next: /peep:ticket <dep>` for the first open dep whose own depends are closed, or `/peep:ticket close <dep>` for a `done` one. `doing` deps are skipped; with none unblocked it names the nearest wake.
 - `/peep:packup` writes `.peep/handoff.md` (template in `skills/packup/references/note.md`) with `First command: /peep:ducks` when the next step is clear. Ducks reads the note first, checks branch, commit, uncommitted files and named ticket statuses against it (`ducks/references/drift.md`), reads back the drift, and on yes runs the note's `Then` before its other Do lines.
 - Ducks is loose ends, read-back, act (AV-121). With nothing loose and no Pack Up note it asks nothing and prints three lines: the count, `deeper look: /peep:goose health`, `next: clear to proceed`. Hot spots, candidate and pattern cards are Goose health's. Ducks never edits code.
+- `/peep:ticket <id>` writes `## Checks` into the ticket before any edit (`ticket/references/work.md` §2): each "Done when" item as `<n>. open: <check>; evidence: <named test, command or shot>`, printed as a `Checks:` line. At the end (§5.2) each is answered in place as `pass`, `fail` or `owed to the owner`; any fail or owed item goes under `## Owed before done` and the ticket stays `doing`. Big Peep's little peeps follow the same list (`bigpeep/references/brief.md`).
 
 ## Watch out
 
@@ -59,4 +60,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Any skill sets the repo up inline so a new user's first command just works; the full setup questions stay in Walk alone.
 
-last touched: AV-120, 2026-11-17
+last touched: AV-123, 2026-11-17
