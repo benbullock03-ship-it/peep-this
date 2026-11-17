@@ -1,7 +1,9 @@
 ---
 id: AV-115
 title: Earned cosmetics and the supporter toggle
-status: open
+status: deferred
+reason: cosmetics reward retention there are no users yet to measure (AV-131 answer 1)
+wake: top 3 beta confusion issues fixed
 depends: [AV-113, AV-114]
 ---
 

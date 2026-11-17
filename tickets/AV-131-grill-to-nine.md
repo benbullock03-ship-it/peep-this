@@ -1,7 +1,7 @@
 ---
 id: AV-131
 title: "Grill: what takes Peep This from 7 to 9"
-status: open
+status: done
 depends: []
 attended: true
 ---
@@ -45,4 +45,20 @@ Settled already: the fleet view and Big Peep stay. They teach agent management e
 
 ## Answers
 
-(owner)
+Owner, 2026-11-17: recommendations taken except 14 (unwatched open beta instead of watched sessions).
+
+1. Defer AV-115 until there are real users. AV-132 (parked, wake: top 3 beta confusion issues fixed)
+2. Park AV-116 until v1 ships. AV-132 (parked, same wake)
+3. Keep clash only; other moods behind a setting, off by default. AV-133
+4. Coderot stays in Extras. AV-132 (`CLAUDE.md`)
+5. Churn rule, written under Decided. AV-132 (`CLAUDE.md`)
+6. v1 cut line as recommended. AV-132 (`CLAUDE.md`)
+7. Version gate with a quiet tray line. AV-135
+8. `npm run capture` into versioned fixture folders. AV-134
+9. Unparsed live session stays listed, `idle` with a `?` chip. AV-136
+10. macOS straight after v1, one ticket per piece. AV-141, AV-142, AV-143
+11. Plugin marketplace for the pack; first run offers the widget. AV-138
+12. Keep the pitch line; README opens on a 10-second GIF. AV-139
+13. Local-only rhythm counter on the Learned page. AV-137
+14. Override: v1 ships as an unwatched open beta through the marketplace; testers prove the bar by pasting their rhythm counter. AV-140, AV-132 (`CLAUDE.md`)
+15. 9/10 bar as recommended. AV-132 (`CLAUDE.md`), checked through AV-137 and AV-140

@@ -62,6 +62,10 @@ Peep This: an always-on-top desktop companion for new Claude Code users, the wid
 - **Actions:** focus, permission decisions (see Mission control) and Jump: copy a command (a floppy's `/peep:<skill>`, `/peep:ticket <id>` from the ticket shelf, `/peep:packup`) and focus that session's terminal for the user to paste. End session: a 1s hold on the open row only (never strip, flyout or toast) terminates the session's PID, refused if `procStart` no longer matches (ADR 0003). It never types into a session, answers questions, sends replies or starts sessions.
 - **Usage shown:** per-session context % and account 5-hour/7-day rate-limit %. No token counts or cost.
 - **Lifecycle:** when a session's PID dies, show a done state, then fade it out after about 1 minute.
+- **Churn rule (AV-131):** a new skill or widget feature needs a named user problem and one real use before it gets art.
+- **v1 cut line (AV-131):** rows, waiting alerts, inline approvals, bars, the signpost (AV-129), subagent and shell rows, the six Core floppies and Big Peep. Everything else comes after the release. Coderot stays in Extras.
+- **9/10 bar (AV-131):** a newcomer installs in one step, gets a signpost Jump within 5 minutes without reading docs, runs `/peep:ticket` and `/peep:packup` unprompted by day 2, and nothing breaks across one Claude Code release.
+- **Release (AV-131):** v1 ships as an unwatched open beta through the Claude Code plugin marketplace. Testers prove the bar by pasting their rhythm counter into a beta issue. macOS comes straight after v1.
 
 ## Mission control (grill 2026-11-14, spec §11, tickets AV-20 to AV-33)
 

@@ -1,7 +1,9 @@
 ---
 id: AV-116
 title: Sponsor link and README stance
-status: doing
+status: deferred
+reason: a sponsor link before a release reads as asking before giving (AV-131 answer 2)
+wake: top 3 beta confusion issues fixed
 depends: []
 attended: true
 ---
