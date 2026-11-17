@@ -560,7 +560,7 @@ mod tests {
     const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     fn fixture(name: &str) -> String {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hooks").join(name);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy/hooks").join(name);
         std::fs::read_to_string(path).unwrap()
     }
 

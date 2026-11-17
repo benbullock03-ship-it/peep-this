@@ -1,0 +1,113 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo-1\\00000000-0000-4000-8000-000000000001.jsonl",
+  "cwd": "C:\\work\\demo-1\\src-tauri",
+  "scratchpad_dir": "C:\\Users\\user\\AppData\\Local\\Temp\\claude\\30a9097ea8fcfb1f\\00000000-0000-4000-8000-000000000001\\scratchpad",
+  "prompt_id": "00000000-0000-4000-8000-000000000003",
+  "permission_mode": "auto",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "cd \"C:/work/demo-1/src-tauri\"; cargo test contract 2>&1 | tail -15",
+    "timeout": 600000,
+    "description": "Run contract test while capture records hooks"
+  },
+  "tool_response": {
+    "stdout": "<redacted>",
+    "stderr": "<redacted>",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false,
+    "bashEditDiff": {
+      "files": [
+        {
+          "filePath": "<redacted>",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 25,
+              "lines": [
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>"
+              ]
+            }
+          ],
+          "created": true
+        },
+        {
+          "filePath": "<redacted>",
+          "hunks": [
+            {
+              "oldStart": 0,
+              "oldLines": 0,
+              "newStart": 1,
+              "newLines": 24,
+              "lines": [
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>",
+                "<redacted>"
+              ]
+            }
+          ],
+          "created": true
+        }
+      ],
+      "moreFiles": 0,
+      "changedFiles": [
+        "<redacted>",
+        "<redacted>"
+      ]
+    }
+  },
+  "tool_use_id": "toolu_01ELZH9SR1M9KDAQH3m7cgkb",
+  "duration_ms": 23308
+}

@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test": "vitest run --passWithNoTests --exclude \"src-tauri/**\"",
     "test:watch": "vitest --exclude \"src-tauri/**\"",
-    "tickets": "node scripts/ticket-index.mjs"
+    "tickets": "node scripts/ticket-index.mjs",
+    "capture": "node scripts/capture.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2"

@@ -486,7 +486,7 @@ mod tests {
     const SID: &str = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
     fn fixture(name: &str) -> String {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/transcripts").join(name);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy/transcripts").join(name);
         std::fs::read_to_string(path).unwrap()
     }
 

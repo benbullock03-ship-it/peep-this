@@ -565,7 +565,7 @@ mod tests {
     }
 
     fn payload(file: &str) -> Value {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hooks").join(file);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy/hooks").join(file);
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
     }
 

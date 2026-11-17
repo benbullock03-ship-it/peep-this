@@ -1,0 +1,25 @@
+{
+  "pid": 23056,
+  "sessionId": "00000000-0000-4000-8000-000000000002",
+  "cwd": "C:\\work\\demo-1",
+  "startedAt": 1794916656083,
+  "procStart": "134393902523010598",
+  "version": "2.1.325",
+  "peerProtocol": 1,
+  "peerFeatures": [
+    "notify_idle",
+    "artifact_yield"
+  ],
+  "kind": "interactive",
+  "entrypoint": "cli",
+  "pidDomain": "win32:test-host",
+  "asksForConvertedSkills": false,
+  "messagingSocketPath": "\\\\.\\pipe\\LOCAL\\cc-msg-65cfbd5534ef666759dc713e796e5d92",
+  "name": "session-2",
+  "nameSource": "derived",
+  "nameSince": 1794916656083,
+  "status": "busy",
+  "updatedAt": 1794917327510,
+  "statusUpdatedAt": 1794917327510,
+  "bridgeSessionId": "session_01FB65isAWAJFycKr9kBB8BR"
+}

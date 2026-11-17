@@ -95,3 +95,81 @@ pub fn config_dir() -> PathBuf {
         .unwrap_or_default();
     PathBuf::from(home).join(".claude")
 }
+
+/// Contract tests: every Claude Code fixture folder (`legacy/` and each `npm run capture` version) must parse.
+#[cfg(test)]
+mod contract {
+    use crate::ingest::server::{parse_value, Route};
+    use serde_json::Value;
+    use std::path::{Path, PathBuf};
+
+    fn version_dirs() -> Vec<PathBuf> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let mut dirs: Vec<PathBuf> = std::fs::read_dir(root)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| ["hooks", "sessions", "transcripts"].iter().any(|k| p.join(k).is_dir()))
+            .collect();
+        dirs.sort();
+        dirs
+    }
+
+    /// Files in `dir/kind` with extension `ext`; `malformed*` fixtures exist to fail and are skipped.
+    fn files(dir: &Path, kind: &str, ext: &str) -> Vec<PathBuf> {
+        let Ok(rd) = std::fs::read_dir(dir.join(kind)) else { return Vec::new() };
+        let mut out: Vec<PathBuf> = rd
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|e| e == ext))
+            .filter(|p| !p.file_name().unwrap().to_string_lossy().starts_with("malformed"))
+            .collect();
+        out.sort();
+        out
+    }
+
+    fn hook_route(stem: &str, v: &Value) -> Option<Route> {
+        if stem.starts_with("statusline") {
+            return Some(Route::Statusline);
+        }
+        v.get("hook_event_name").and_then(Value::as_str).map(|n| Route::Hook(n.to_owned()))
+    }
+
+    #[test]
+    fn every_version_folder_parses() {
+        let dirs = version_dirs();
+        assert!(dirs.iter().any(|d| d.ends_with("legacy")), "legacy fixtures missing");
+        for dir in &dirs {
+            let mut parsed = 0;
+            for f in files(dir, "sessions", "json") {
+                let stem = f.file_stem().unwrap().to_string_lossy().into_owned();
+                super::sessions::parse(&std::fs::read(&f).unwrap(), &stem)
+                    .unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+                parsed += 1;
+            }
+            for f in files(dir, "hooks", "json") {
+                let stem = f.file_stem().unwrap().to_string_lossy().into_owned();
+                let v: Value = serde_json::from_slice(&std::fs::read(&f).unwrap()).unwrap();
+                let Some(route) = hook_route(&stem, &v) else { continue };
+                parse_value(&route, &v).unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+                parsed += 1;
+            }
+            for f in files(dir, "hooks", "jsonl") {
+                for line in std::fs::read_to_string(&f).unwrap().lines().filter(|l| !l.trim().is_empty()) {
+                    let v: Value = serde_json::from_str(line).unwrap();
+                    let route = Route::Hook(v["hook"].as_str().unwrap().to_owned());
+                    parse_value(&route, &v["body"]).unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+                    parsed += 1;
+                }
+            }
+            for f in files(dir, "transcripts", "jsonl") {
+                for line in std::fs::read_to_string(&f).unwrap().lines().filter(|l| !l.trim().is_empty()) {
+                    super::transcript::parse_line(line, r"C:\work\demo")
+                        .unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+                    parsed += 1;
+                }
+            }
+            assert!(parsed > 0, "{} has no fixtures", dir.display());
+        }
+    }
+}

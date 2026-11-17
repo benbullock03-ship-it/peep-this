@@ -233,7 +233,7 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
     fn fixture(name: &str) -> Vec<u8> {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/sessions").join(name);
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy/sessions").join(name);
         std::fs::read(path).unwrap()
     }
 

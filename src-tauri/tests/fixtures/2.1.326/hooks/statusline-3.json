@@ -1,0 +1,75 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--work-demo-1\\00000000-0000-4000-8000-000000000001.jsonl",
+  "cwd": "C:\\work\\demo-1\\src-tauri",
+  "scratchpad_dir": "C:\\Users\\user\\AppData\\Local\\Temp\\claude\\30a9097ea8fcfb1f\\00000000-0000-4000-8000-000000000001\\scratchpad",
+  "prompt_id": "00000000-0000-4000-8000-000000000003",
+  "effort": {
+    "level": "medium"
+  },
+  "session_name": "AV-134 ticket workflow",
+  "model": {
+    "id": "claude-opus-5-5",
+    "display_name": "Opus 5.5"
+  },
+  "workspace": {
+    "current_dir": "C:\\work\\demo-1\\src-tauri",
+    "project_dir": "C:\\work\\demo-1",
+    "added_dirs": []
+  },
+  "version": "2.1.326",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 1.3341275000000004,
+    "total_duration_ms": 330365,
+    "total_api_duration_ms": 203190,
+    "total_lines_added": 358,
+    "total_lines_removed": 7
+  },
+  "context_window": {
+    "total_input_tokens": 107714,
+    "total_output_tokens": 3,
+    "context_window_size": 1000000,
+    "current_usage": {
+      "input_tokens": 2,
+      "output_tokens": 3,
+      "cache_creation_input_tokens": 1104,
+      "cache_read_input_tokens": 106608
+    },
+    "used_percentage": 11,
+    "remaining_percentage": 89
+  },
+  "exceeds_200k_tokens": false,
+  "prompt_cache": {
+    "warm": true,
+    "caching_observed": true,
+    "ttl": "1h",
+    "expires_at": 1794921374,
+    "requests": 23,
+    "misses": 0,
+    "expected_rebuilds": 0,
+    "hit_ratio": 0.9642131032422898,
+    "cache_write_tokens": 71964,
+    "miss_recache_tokens": 0,
+    "last_miss_at": null,
+    "last_miss_cause": null,
+    "miss_causes": {},
+    "recache_tokens_if_cold": 106610
+  },
+  "fast_mode": false,
+  "thinking": {
+    "enabled": true
+  },
+  "rate_limits": {
+    "five_hour": {
+      "used_percentage": 4,
+      "resets_at": 1794928200
+    },
+    "seven_day": {
+      "used_percentage": 68,
+      "resets_at": 1795179600
+    }
+  }
+}
