@@ -40,7 +40,7 @@
 - Busy sessions post real statusline payloads every second or so, overwriting a faked one; a live limit check reposts in a loop while it samples.
 - A floppy sprite must be a single `span` in its parent: CSS that targets the text span in a disk row (e.g. `.diskbox-rot > span:last-child`) must not match the disks, or the whole sheet shows.
 - The Learned page reads the rhythm when it opens; reopen it to see a new count. A ticket close counts only if a session linked to that ticket is live across the shelf reads before and after the archive.
-- First-use dates wrap mid-date at the 360px panel width.
+- First-use dates render as `span.rhythm-date` with `white-space: nowrap`; at the 360px panel width the whole "first <date>" drops to the next line rather than splitting.
 - Not yet snoozes in memory per session until 95% or the yawn clears; it does not survive a restart.
 
 - Every clickable has a `:hover` (hard offset, colour step or 2px hop, never blur, glow or brightness filter) and `cursor: pointer`; things that do nothing on click have neither. Chips, bars and tags react through their row. New clickables need both.
@@ -54,4 +54,4 @@
 - Nudge buttons sit under the plank because the closed row is one `<button>` and cannot hold buttons.
 - The bolt tag sits on an unfilled bubble and carries the clash colour itself; clash is a mood, never an attention fill (ADR 0002).
 
-last touched: AV-129, 2026-11-17
+last touched: AV-145, 2026-11-17

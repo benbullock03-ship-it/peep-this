@@ -1,7 +1,7 @@
 ---
 id: AV-145
 title: Rhythm first-use dates must not wrap mid-date
-status: done
+status: closed
 depends: []
 ---
 
