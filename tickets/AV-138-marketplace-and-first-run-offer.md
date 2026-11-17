@@ -1,7 +1,7 @@
 ---
 id: AV-138
 title: Marketplace listing and first-run widget offer
-status: doing
+status: done
 depends: []
 ---
 
@@ -11,7 +11,7 @@ depends: []
 
 - [x] Marketplace manifest and listing text for `plugin/`, using the pitch line
 - [x] First Peep skill run with no widget detected: one line offering the widget download link. Asked once and remembered in `.peep/runs`.
-- [x] Widget installer download from GitHub Releases, which the offer links to (draft; Publish owed)
+- [x] Widget installer download from GitHub Releases, which the offer links to (v0.1.0 published)
 - [x] No publish without the owner's explicit yes
 
 **Done when:** installing the pack from a local marketplace and running a skill shows the offer once, and the link points at the release asset.
@@ -29,14 +29,17 @@ depends: []
 8. (added) pass: the draft release v0.1.0 (not a prerelease) carries `PeepThis-setup.exe`, a fresh `npm run tauri build` from 68c96fa. The latest/download link returns 404 while it is a draft.
 9. (added) pass: `claude plugin validate plugin --profile directory` passes with the MIT LICENSE; the only warning left is no icon.
 
-## Owed before done
+10. (added) pass: v0.1.0 is published as the latest release (owner's yes, 2026-11-17), tag `v0.1.0` at 68c96fa. `releases/latest/download/PeepThis-setup.exe` returns 200 with 2479900 bytes, the size of the built installer.
 
-- Owner: click Publish on the v0.1.0 draft (github.com/benbullock03-ship-it/peep-this/releases). Until then the offer link 404s.
-- Owner, before a plugin directory submission: a square PNG icon at `plugin/.claude-plugin/icon.png`, 512 to 2048 px (the art is the owner's).
+## Done 2026-11-17
+
+The offer and its once-per-repo memory live in `plugin/references/preamble.md` (Start step 4 and Last step), proven by headless child runs (checks 3 to 5). The listing is `.claude-plugin/marketplace.json` on the public repo. The link resolves to the v0.1.0 release asset (check 10).
+
+Still wanted, outside "Done when": a square PNG icon at `plugin/.claude-plugin/icon.png` (512 to 2048 px, the owner's art) before any plugin directory submission.
 
 ## Owner rulings 2026-11-17
 
-- Public repo `peep-this`; draft release v0.1.0; MIT licence; first push is committed main only.
+- Public repo `peep-this`; draft release v0.1.0, then published on a later yes; MIT licence; first push is committed main only.
 - Before the public push, author and committer emails in all 339 commits were rewritten to the GitHub noreply address, in a clone. Trees are identical. Local main was moved to the rewritten history, and the old hashes are on `backup/pre-noreply-rewrite`. Repo `user.email` is now the noreply address.
 
 ## Decisions taken without a ruling
@@ -45,5 +48,6 @@ depends: []
 - The offer links to `releases/latest/download/PeepThis-setup.exe`, a fixed asset name, so the link never goes stale between versions.
 - Widget detection is `$APPDATA/PeepThis/endpoint.json`, which the widget writes on every start. Checking settings.json for the hooks was not used: it cannot be faked in a test without moving HOME.
 - The marketplace is listed twice under the one name `peep-this`. The repo root copy is for `marketplace add <owner>/peep-this`; `plugin/.claude-plugin/marketplace.json` stays for the widget installer's bundled copy (`install.rs`). Whichever is added first wins, and both serve the same plugin.
+- The live check loaded the pack with `--plugin-dir`, not with `claude plugin marketplace add`, so the owner's real plugin config was never touched. The files served are the same.
 - The release is not marked prerelease, because `releases/latest` skips prereleases and the link would never resolve.
 - The offer is remembered per repo in `.peep/runs`, as the ticket says, so each new repo gets the offer once.
