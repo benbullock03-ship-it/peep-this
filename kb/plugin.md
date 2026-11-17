@@ -45,6 +45,8 @@
 - A live ping only lands when the peer runs in the same permission mode; otherwise its harness holds the message for approval and the board carries it alone.
 - A graph link to any column but the next runs in the gap under the target's row; a straight run would pass behind the cards in between and read as a chain.
 - Goose's graphify input works from a directed or undirected build, but graphify's own `cache_root` sets how `source_file` is made relative: build from the repo root or the paths won't match the setup areas. Its callers differ a little from the import map's (it misses `mod x;` links).
+- Without graphify, the map's areas are the setup's `area.*` prefixes; on this repo they split by language and never import each other, so the map shows 4 areas and 0 links (AV-146 deepens it). Build `graphify-out/` for a useful map.
+- `references/health.md` does not exclude generated files from hot spots; a run leaves `tickets/INDEX.md` out by hand.
 - Live checks run by Claude never send keystrokes to a window: prompts have defaults (a trust dialog's is "No, exit"). Child `claude` sessions need every `CLAUDE*` variable cleared.
 - `claude -p` has no AskUserQuestion, so any Ducks question must have a stated no-answer fallback and an output line that shows which one was taken.
 - Drift touching the note's `Then` (ticket already `done`, branch changed) makes Ducks wait rather than run it on yes. Drift never fixes, stages or stashes anything.
@@ -57,4 +59,4 @@
 - Carrying on is a real step in Ducks that catches what changed between sessions, not "do the handoff"; folding Unpack in keeps the pack to one start-of-session command.
 - Any skill sets the repo up inline so a new user's first command just works; the full setup questions stay in Walk alone.
 
-last touched: AV-124, 2026-11-17
+last touched: AV-120, 2026-11-17

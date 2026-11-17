@@ -1,7 +1,7 @@
 ---
 id: AV-120
 title: Goose as report maker
-status: doing
+status: closed
 depends: [AV-117]
 ---
 
@@ -27,7 +27,7 @@ depends: [AV-117]
 6. pass: graphify offers unchanged. SKILL.md §2 is the old text.
 7. pass: AV-126 final template. Built page has the `go-*` frame, title bar and tabs (screenshot of `map.html`).
 8. pass: `npm run build`, `cargo check`, `npm test` (367), `cargo test` (422).
-9. owed to the owner: the pages are useful.
+9. pass: owner, 2026-11-17: "happy with their current state".
 10. pass (Big Peep, 2026-11-17): all three run in this repo, `.peep/graph/map.html`, `health.html`, `topic.html` ("what touches session state"); each loads with no console errors and no external request; `candidates.json` keeps `cards[].pattern` (5 cards).
    - map: 152 files, 389 imports, but "4 areas, 0 links": the areas split by language (src/, src-tauri/, plugin/) never import each other, so every card reads "used by nothing". Weak here without finer areas or graphify.
    - health: hot spots `src/styles.css` (56 changes in 30 days), `lib.rs` 48, `main.ts` 42; top pick: hook payloads parsed in `ingest/server.rs` and `approve.rs`, outside `source/claude/`. Useful.
@@ -43,8 +43,6 @@ depends: [AV-117]
 - The health run names a top pick but does not ask "which candidate to explore"; that stays with Ducks (AV-121).
 - The topic page's side map is computed by `report.mjs` from `slice.ids`, so the model only names areas.
 
-## Owed before done
+## Done 2026-11-17
 
-- Owner: open `.peep/graph/health.html`, `topic.html` and `map.html` and confirm they are useful (judgement; the map is weak on this repo, see check 10).
-- Wording: done under AV-121 (README, CONTEXT and tour name Goose's three pages; Ducks no longer has depth levels).
-- `references/health.md` does not say to leave generated files (e.g. `tickets/INDEX.md`) out of hot spots; the run left it out by hand.
+Owner confirmed the pages in their current state (check 9). `plugin/skills/goose/scripts/report.mjs`, `references/health.md`, `references/topic.md`; pages under `.peep/graph/`. Wording done under AV-121. Follow-ups: AV-146 (deeper built-in map), AV-147 (recommendation cards); `health.md` should exclude generated files from hot spots.
