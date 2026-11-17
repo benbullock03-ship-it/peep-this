@@ -18,4 +18,15 @@ depends: [AV-120]
 - [ ] `candidates.json` keeps `cards[].pattern` so the Learned list still reads it; new fields are additive
 - [ ] `report.test.mjs` covers the new card fields, the copy prompt and the offline check
 
+## Rulings (grill 2026-11-17)
+
+1. Fix prompt: names files, problem and target shape, then runs `/peep:qt` on it so the interface is decided before code; tickets follow. No direct-edit prompt.
+2. Diagram: inline SVG module boxes and arrows in the report's pixel style; shallow modules thin, the deepened module one thick box. No library.
+3. Cards: up to 5, strongest first.
+4. Explainer: 2 to 4 sentences on why it hurts in these files, the pattern's ELI5 and its source with chapter, folded under "Explain like I'm 5" as on the Learned page.
+5. Strength: `Strong` = in a 30-day hot spot, deletion test concentrates, and tests get a better surface; `Worth exploring` = two of three; `Speculative` = one.
+6. Speculative cards sit after the Top recommendation, collapsed under "Long shots (n)".
+7. Rejection: the prompt ends with "if we don't do it, add a `Considered, rejected: <why>` line to the area note"; health already skips those. No ADR offer.
+8. Widget: no change; copy buttons live on the page only (AV-131 churn rule).
+
 **Done when:** `/peep:goose health` on this repo shows recommendation cards with problem, solution, benefits, before/after, strength, explainer with source and a working copy prompt, and the owner confirms they are actionable.
