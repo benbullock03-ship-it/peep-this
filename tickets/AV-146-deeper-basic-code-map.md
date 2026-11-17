@@ -1,6 +1,6 @@
 ---
 id: AV-146
-title: Deeper built-in code map
+title: Deeper code map, built-in and from graphify
 status: open
 depends: []
 ---
@@ -13,6 +13,7 @@ depends: []
 - [ ] Cross-language links: a frontend `invoke("<cmd>")` links to the Rust `#[tauri::command] fn <cmd>`, and an event `emit`/`listen` pair links its two ends
 - [ ] Rust `mod`/`use crate::` edges count as imports
 - [ ] Clicking an area drills into its files and their links; the page stays offline and single-file
-- [ ] `map.test.mjs` covers the invoke-to-command link and the sub-area split
+- [ ] With graphify: use its communities as areas (named from their main file or concept) instead of the setup's three prefixes, and drop `INFERRED`/`AMBIGUOUS` edges below a confidence floor. A 2026-11-17 build (2,953 nodes, 110 communities) gave a map of "4 areas, 4 links", about half of them false name collisions between minified identifiers (`t()`, `c()`, `restore()`), because `report.mjs`/`fromGraphify` keep only `source_file`
+- [ ] `map.test.mjs` covers the invoke-to-command link, the sub-area split and the graphify community areas
 
 **Done when:** `/peep:goose` without graphify on this repo shows more than 4 areas with links between frontend and backend, and drilling into an area lists its files.
